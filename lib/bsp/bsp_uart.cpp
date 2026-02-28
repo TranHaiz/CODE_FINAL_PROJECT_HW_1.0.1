@@ -56,7 +56,7 @@ void bsp_uart_init(bsp_uart_config_t *config)
   xTaskCreate(uart_event_task, task_name, 4096, (void *) task_cfg, 12, NULL);
 }
 
-void bsp_uart_send(uart_port_t uart_num, const uint8_t *data, size_t len)
+void bsp_uart_write(uart_port_t uart_num, const char *data, size_t len)
 {
   uart_write_bytes(uart_num, (const char *) data, len);
 }

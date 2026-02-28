@@ -14,6 +14,9 @@
 #ifndef _COMMON_TYPE_H_
 #define _COMMON_TYPE_H_
 /* Includes ----------------------------------------------------------- */
+#include "assert.h"
+#include "esp_check.h"
+
 #include <Arduino.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -53,7 +56,9 @@ typedef struct
 } firebase_data_t;
 
 /* Public macros ------------------------------------------------------ */
-#define STRING2NUMBER(x) #x
+#define STRING2NUMBER(x)   #x
+#define assert_param(expr) assert(expr)
+
 /* Public variables --------------------------------------------------- */
 extern char *FIREBASE_COMP_ID[FIREBASE_DATA_TYPE_MAX];
 

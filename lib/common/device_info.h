@@ -1,41 +1,39 @@
 /**
- * @file       bsp_uart.h
+ * @file       device_info.h
  * @copyright  Copyright (C) 2019 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
  * @version    major.minor.patch
- * @date       2026-02-08
+ * @date       2026-01-17
  * @author     Hai Tran
  *
- * @brief      Generic UART BSP driver (DMA IDLE interrupt)
+ * @brief      Common type definitions used across the project
  *
  */
 
 /* Define to prevent recursive inclusion ------------------------------ */
-#ifndef BSP_UART_H
-#define BSP_UART_H
-
+#ifndef _DEVICE_INFO_H_
+#define _DEVICE_INFO_H_
 /* Includes ----------------------------------------------------------- */
 #include "common_type.h"
-#include "driver/uart.h"
 
 /* Public defines ----------------------------------------------------- */
+// #define CONFIG_SD_DEBUG_MODE
+#define CONFIG_FIREBASE_SERVER (true)
+#define CONFIG_MQTT_SERVER     (false)
+
 /* Public enumerate/structure ----------------------------------------- */
-typedef void (*uart_callback_t)(uart_port_t uart_num, uint8_t *data, size_t len);
-typedef struct
+typedef enum
 {
-  uart_port_t     port;
-  int             tx_pin;
-  int             rx_pin;
-  int             baudrate;  // Chuyển thành int để khớp với uart_config_t
-  uart_callback_t callback;
-} bsp_uart_config_t;
+  MODEM_USB = 0,
+  MODEM_BLE,
+  MODEM_WIFI,
+  MODEM_MAX
+} modem_t;
 
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
 /* Public function prototypes ----------------------------------------- */
-void bsp_uart_init(bsp_uart_config_t *config);
-void bsp_uart_write(uart_port_t uart_num, const char *data, size_t len);
 
-#endif /*End file BSP_UART_H*/
+#endif /*End file _DEVICE_INFO_H_*/
 
 /* End of file -------------------------------------------------------- */
