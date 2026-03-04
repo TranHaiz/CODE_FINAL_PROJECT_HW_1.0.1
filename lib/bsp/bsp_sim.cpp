@@ -22,17 +22,27 @@
 
 /* Private defines ---------------------------------------------------- */
 #define SIM_SEND_CMD_RETRY (3)
+#define DEBUG_SIM
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
-#define SIM_SEND(data)     (bsp_uart_write(SIM_UART_HANDLE, (data), strlen((data))))
+#define SIM_SEND(data) (bsp_uart_write(SIM_UART_HANDLE, (data), strlen((data))))
+#ifdef DEBUG_SIM
+#define LOG(char)      Serial.println(char)
+#define LOG_DATA(data) Serial.println(data)
+#else
+#define LOG(char)
+#define LOG_DATA(data)
+#endif
 
 /* Public variables --------------------------------------------------- */
-uint8_t sim_raw_data[SIM_RAW_RSP_SIZE] = { 0 };
+uint8_t sim_raw_data[SIM_RAW_RSP_SIZE];
 
 /* Private variables -------------------------------------------------- */
 static bool    is_sim_rsp = false;
 static uint8_t sim_rx_buffer[SIM_RX_BUFFER_SIZE];
+static char    json_data_buffer[128];
+static char    request_buffer[64];
 
 /* Private function prototypes ---------------------------------------- */
 /**
@@ -55,9 +65,9 @@ static void bsp_sim_rsp_callback(uart_port_t uart_num, uint8_t *data, size_t len
 status_function_t bsp_sim_init(void)
 {
   bsp_uart_config_t uart2_cfg = { .port     = UART_NUM_2,
-                                  .tx_pin   = 17,
-                                  .rx_pin   = 16,
-                                  .baudrate = 115200,
+                                  .tx_pin   = SIM_UART_TX_PIN,
+                                  .rx_pin   = SIM_UART_RX_PIN,
+                                  .baudrate = SIM_UART_BAUDRATE,
                                   .callback = bsp_sim_rsp_callback };
   bsp_uart_init(&uart2_cfg);
 
@@ -80,7 +90,7 @@ status_function_t bsp_sim_init(void)
   bsp_sim_send_and_wait_response("AT+CGATT?\r\n", "+CGATT: 1", 3000);
   bsp_sim_send_and_wait_response("AT+CGDCONT=1,\"IP\",\"v-internet\"\r\n", "OK", 2000);
   bsp_sim_send_and_wait_response("AT+CGACT=1,1\r\n", "OK", 3000);
-  bool res = bsp_sim_send_and_wait_response("AT+HTTPINIT\r\n", "OK", 2000);
+  bool res = bsp_sim_send_and_wait_response("AT+HTTPINIT\r\n", "OK", 5000);
   if (res == false)
   {
     return STATUS_ERROR;
@@ -92,7 +102,7 @@ status_function_t bsp_sim_reset_http(void)
 {
   for (uint8_t i = 0; i < SIM_SEND_CMD_RETRY; i++)
   {
-    if (bsp_sim_send_and_wait_response("AT+HTTPTERM\r\n", "OK", 100) != STATUS_OK)
+    if (bsp_sim_send_and_wait_response("AT+HTTPTERM\r\n", "OK", 1000) != STATUS_OK)
     {
       OS_YIELD();
     }
@@ -101,7 +111,7 @@ status_function_t bsp_sim_reset_http(void)
       break;
     }
   }
-  if (bsp_sim_send_and_wait_response("AT+HTTPTERM\r\n", "OK", 100))
+  if (bsp_sim_send_and_wait_response("AT+HTTPINIT\r\n", "OK", 1000) == false)
   {
     return STATUS_ERROR;
   }
@@ -112,7 +122,7 @@ status_function_t bsp_sim_send_data_firebase(firebase_data_t *data)
 {
   assert_param(data != NULL);
 
-  char json_data[128] = { 0 };
+  char json_data[128];
   // clang-format off
   sprintf(json_data,
           "{\"Battery level\":\"%d\",\"Position\":\"%.6f,%.6f\",\"Speed\":\"%.2f\"}",
@@ -123,7 +133,7 @@ status_function_t bsp_sim_send_data_firebase(firebase_data_t *data)
   // clang-format on
   uint8_t data_len = strlen(json_data);
 
-  char request[64] = { 0 };
+  char request[64];
   sprintf(request, "AT+HTTPDATA=%d,10000\r\n", data_len);
 
   bool res = false;
@@ -140,7 +150,7 @@ status_function_t bsp_sim_send_data_firebase(firebase_data_t *data)
   {
     return STATUS_ERROR;
   }
-  res = bsp_sim_send_and_wait_response("AT+HTTPPARA=\"CONTENT\",\"application/json\"\r\n", "OK", 100);
+  res = bsp_sim_send_and_wait_response("AT+HTTPPARA=\"CONTENT\",\"application/json\"\r\n", "OK", 1000);
   if (res == false)
   {
     return STATUS_ERROR;
@@ -261,6 +271,17 @@ bsp_sim_parse_raw_data(uint8_t *source, uint16_t source_len, uint8_t *dest, uint
 
 static void bsp_sim_rsp_callback(uart_port_t uart_num, uint8_t *data, size_t len)
 {
+  // Copy data to SIM RX buffer
+  if (len < SIM_RX_BUFFER_SIZE)
+  {
+    memcpy(sim_rx_buffer, data, len);
+    sim_rx_buffer[len] = '\0';  // Null-terminate
+  }
+  else
+  {
+    memcpy(sim_rx_buffer, data, SIM_RX_BUFFER_SIZE - 1);
+    sim_rx_buffer[SIM_RX_BUFFER_SIZE - 1] = '\0';
+  }
   is_sim_rsp = true;
 }
 

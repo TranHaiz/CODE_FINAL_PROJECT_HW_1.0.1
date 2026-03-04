@@ -25,6 +25,9 @@
 
 /* Public defines ----------------------------------------------------- */
 #define SIM_UART_HANDLE    UART_NUM_2
+#define SIM_UART_TX_PIN    (21)
+#define SIM_UART_RX_PIN    (47)
+#define SIM_UART_BAUDRATE  (115200)
 #define SIM_RX_BUFFER_SIZE (512)
 #define SIM_RAW_RSP_SIZE   (128)
 
