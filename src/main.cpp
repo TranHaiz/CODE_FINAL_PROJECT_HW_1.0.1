@@ -11,46 +11,42 @@
  */
 
 /* Includes ----------------------------------------------------------- */
+#include "bsp_error.h"
+#include "bsp_gps.h"
 #include "bsp_sim.h"
 #include "common_type.h"
 #include "os_lib.h"
-#include "bsp_error.h"
+
 
 /* Private defines ---------------------------------------------------- */
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
 /* Private variables -------------------------------------------------- */
-status_function_t g_ret         = STATUS_ERROR;
+status_function_t g_ret = STATUS_ERROR;
 char              g_buffer[256];
-uint16_t          g_data_len    = 0;
+uint16_t          g_data_len = 0;
 
 /* Private function prototypes ---------------------------------------- */
 /* Function definitions ----------------------------------------------- */
 OS_THREAD_DECLARE(thread1, tskIDLE_PRIORITY + 1, 4096);
+OS_THREAD_DECLARE(thread2, tskIDLE_PRIORITY + 1, 4096);
 
-void thread1_func(void *param)
+void gps_position_callback(bsp_gps_data_t *data)
 {
-  g_ret = bsp_sim_init();
-
+  Serial.printf("Lat: %.6f, Lng: %.6f\n", data->latitude, data->longitude);
+}
+void thread2_func(void *param)
+{
+  Serial.println("Thread 2 started");
+  bsp_gps_config_t gps_cfg = { .uart_port = UART_NUM_1,
+                               .tx_pin    = 43,
+                               .rx_pin    = 44,
+                               .baudrate  = 9600,
+                               .callback  = gps_position_callback };
+  bsp_gps_init(&gps_cfg);
   while (1)
   {
-    if (g_ret != STATUS_OK)
-    {
-      bsp_error_handler(BSP_ERROR_SIM_INIT);
-    }
-    firebase_data_t data_firebase_test;
-    data_firebase_test.batt_level         = rand() % 100 + 1;
-    data_firebase_test.position.latitude  = (float) (rand() % 18000) / 100.0f - 90.0f;   // -90.0 to +90.0
-    data_firebase_test.position.longitude = (float) (rand() % 36000) / 100.0f - 180.0f;  // -180.0 to +180.0
-    data_firebase_test.speed              = (float) (rand() % 2000) / 10.0f;             // 0.0 to 200.0
-
-    g_ret = bsp_sim_send_data_firebase(&data_firebase_test);
-    g_ret = bsp_sim_get_raw_data_firebase((uint8_t *) g_buffer, &g_data_len);
-    Serial.print("[INFO]:");
-    Serial.print(g_buffer);
-    Serial.println(", data_len: " + String(g_data_len));
-
     OS_DELAY_MS(1000);
   }
 }
@@ -61,7 +57,7 @@ void setup()
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
-  OS_THREAD_CREATE(thread1, thread1_func);
+  OS_THREAD_CREATE(thread2, thread2_func);
 }
 
 void loop()
