@@ -17,7 +17,6 @@
 #include "common_type.h"
 #include "os_lib.h"
 
-
 /* Private defines ---------------------------------------------------- */
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -36,15 +35,10 @@ void gps_position_callback(bsp_gps_data_t *data)
 {
   Serial.printf("Lat: %.6f, Lng: %.6f\n", data->latitude, data->longitude);
 }
+
 void thread2_func(void *param)
 {
-  Serial.println("Thread 2 started");
-  bsp_gps_config_t gps_cfg = { .uart_port = UART_NUM_1,
-                               .tx_pin    = 43,
-                               .rx_pin    = 44,
-                               .baudrate  = 9600,
-                               .callback  = gps_position_callback };
-  bsp_gps_init(&gps_cfg);
+  bsp_gps_init(gps_position_callback);
   while (1)
   {
     OS_DELAY_MS(1000);

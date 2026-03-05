@@ -35,40 +35,57 @@
 /* Public variables --------------------------------------------------- */
 
 /* Private variables -------------------------------------------------- */
-static TinyGPSPlus      s_gps;         // TinyGPSPlus instance
-static bsp_gps_config_t s_gps_config;  // GPS configuration
-static bsp_gps_data_t   s_gps_data;    // Latest GPS data buffer
-static volatile bool    s_gps_initialized    = false;
-static volatile bool    s_new_data_available = false;
+static TinyGPSPlus        s_gps;           // TinyGPSPlus instance
+static bsp_gps_callback_t s_gps_callback;  // GPS callback function
+static bsp_gps_data_t     s_gps_data;      // Latest GPS data buffer
+static volatile bool      s_gps_initialized = false;
 
 /* Private function prototypes ---------------------------------------- */
+/**
+ * @brief UART callback for GPS data reception
+ * @param uart_num UART port number
+ * @param data Received data buffer
+ * @param len Length of received data
+ */
 static void gps_uart_callback(uart_port_t uart_num, uint8_t *data, size_t len);
+
+/**
+ * @brief Update GPS data buffer
+ */
 static void gps_update_data_buffer(void);
+
+/**
+ * @brief Send UBX protocol command to GPS
+ * @param msg_class UBX message class
+ * @param msg_id UBX message ID
+ * @param payload Payload data
+ * @param payload_len Payload length
+ *
+ * @return none
+ */
 static void gps_send_ubx_command(uint8_t msg_class, uint8_t msg_id, const uint8_t *payload, uint16_t payload_len);
+
+/**
+ * @brief Calculate UBX checksum (Fletcher algorithm)
+ * @param buffer Data buffer
+ * @param len Data length
+ * @param ck_a Pointer to checksum A
+ * @param ck_b Pointer to checksum B
+ *
+ * @return none
+ */
 static void gps_calculate_checksum(uint8_t *buffer, uint16_t len, uint8_t *ck_a, uint8_t *ck_b);
 
 /* Function definitions ----------------------------------------------- */
-status_function_t bsp_gps_init(bsp_gps_config_t *config)
+status_function_t bsp_gps_init(bsp_gps_callback_t callback)
 {
-  if (config == NULL)
-  {
-    return STATUS_ERROR;
-  }
-
-  // Store configuration
-  s_gps_config = *config;
-
-  // Set default baudrate if not specified
-  if (s_gps_config.baudrate == 0)
-  {
-    s_gps_config.baudrate = BSP_GPS_DEFAULT_BAUDRATE;
-  }
-
+  // Save callback
+  s_gps_callback = callback;
   // Initialize UART with GPS callback
-  bsp_uart_config_t uart_cfg = { .port     = s_gps_config.uart_port,
-                                 .tx_pin   = s_gps_config.tx_pin,
-                                 .rx_pin   = s_gps_config.rx_pin,
-                                 .baudrate = s_gps_config.baudrate,
+  bsp_uart_config_t uart_cfg = { .port     = BSP_GPS_UART_HANDLER,
+                                 .tx_pin   = BSP_GPS_TX,
+                                 .rx_pin   = BSP_GPS_RX,
+                                 .baudrate = BSP_GPS_BAUDRATE,
                                  .callback = gps_uart_callback };
 
   bsp_uart_init(&uart_cfg);
@@ -96,10 +113,8 @@ status_function_t bsp_gps_deinit(void)
 
 status_function_t bsp_gps_get_data(bsp_gps_data_t *data)
 {
-  if (data == NULL || !s_gps_initialized)
-  {
-    return STATUS_ERROR;
-  }
+  assert(data != NULL);
+  assert(s_gps_initialized);
 
   *data = s_gps_data;
 
@@ -111,7 +126,7 @@ status_function_t bsp_gps_get_data(bsp_gps_data_t *data)
   return STATUS_OK;
 }
 
-bool bsp_gps_has_fix(void)
+bool bsp_gps_is_fixed(void)
 {
   return s_gps.location.isValid() && s_gps.location.age() < 5000;
 }
@@ -125,7 +140,7 @@ uint32_t bsp_gps_get_satellites(void)
   return 0;
 }
 
-status_function_t bsp_gps_set_update_rate(bsp_gps_update_rate_t rate)
+status_function_t bsp_gps_set_new_sample_rate(bsp_gps_sample_rate_t rate)
 {
   if (!s_gps_initialized)
   {
@@ -299,7 +314,7 @@ status_function_t bsp_gps_set_baudrate(uint32_t baudrate)
   return STATUS_OK;
 }
 
-status_function_t bsp_gps_factory_reset(void)
+status_function_t bsp_gps_reset_default(void)
 {
   if (!s_gps_initialized)
   {
@@ -423,16 +438,9 @@ TinyGPSPlus *bsp_gps_get_instance(void)
 }
 
 /* Private definitions ----------------------------------------------- */
-
-/**
- * @brief UART callback for GPS data reception
- * @param uart_num UART port number
- * @param data Received data buffer
- * @param len Length of received data
- */
 static void gps_uart_callback(uart_port_t uart_num, uint8_t *data, size_t len)
 {
-  if (!s_gps_initialized || uart_num != s_gps_config.uart_port)
+  if (uart_num != BSP_GPS_UART_HANDLER)
   {
     return;
   }
@@ -455,6 +463,7 @@ static void gps_uart_callback(uart_port_t uart_num, uint8_t *data, size_t len)
   // Feed data to TinyGPSPlus parser
   for (size_t i = 0; i < len; i++)
   {
+    // Parse each byte
     if (s_gps.encode(data[i]))
     {
       // New complete NMEA sentence parsed
@@ -463,19 +472,16 @@ static void gps_uart_callback(uart_port_t uart_num, uint8_t *data, size_t len)
         // Update data buffer
         gps_update_data_buffer();
 
-        // Trigger user callback if location is valid
-        if (s_gps_data.location_valid && s_gps_config.callback != NULL)
+        // Trigger to high layer callback if location is valid
+        if (s_gps_data.location_valid && s_gps_callback != NULL)
         {
-          s_gps_config.callback(&s_gps_data);
+          s_gps_callback(&s_gps_data);
         }
       }
     }
   }
 }
 
-/**
- * @brief Update GPS data buffer from TinyGPSPlus
- */
 static void gps_update_data_buffer(void)
 {
   // Location data
@@ -547,13 +553,6 @@ static void gps_update_data_buffer(void)
   }
 }
 
-/**
- * @brief Send UBX protocol command to GPS
- * @param msg_class UBX message class
- * @param msg_id UBX message ID
- * @param payload Payload data
- * @param payload_len Payload length
- */
 static void gps_send_ubx_command(uint8_t msg_class, uint8_t msg_id, const uint8_t *payload, uint16_t payload_len)
 {
   // Calculate total message size: sync(2) + class(1) + id(1) + len(2) + payload + checksum(2)
@@ -586,18 +585,11 @@ static void gps_send_ubx_command(uint8_t msg_class, uint8_t msg_id, const uint8_
   buffer[7 + payload_len] = ck_b;
 
   // Send command via UART
-  bsp_uart_write(s_gps_config.uart_port, (const char *) buffer, total_len);
+  bsp_uart_write(BSP_GPS_UART_HANDLER, (const char *) buffer, total_len);
 
   free(buffer);
 }
 
-/**
- * @brief Calculate UBX checksum (Fletcher algorithm)
- * @param buffer Data buffer
- * @param len Data length
- * @param ck_a Pointer to checksum A
- * @param ck_b Pointer to checksum B
- */
 static void gps_calculate_checksum(uint8_t *buffer, uint16_t len, uint8_t *ck_a, uint8_t *ck_b)
 {
   *ck_a = 0;
