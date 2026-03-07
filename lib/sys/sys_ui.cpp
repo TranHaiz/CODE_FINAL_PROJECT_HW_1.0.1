@@ -2,11 +2,12 @@
  * @file       sys_ui.cpp
  * @copyright  Copyright (C) 2025 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
- * @version    1.0.0 (LVGL Full Integration)
+ * @version    2.0.0 (Full UI Layer)
  * @date       2026-03-03
  * @author     Hai Tran
  *
- * @brief      UI controller using LVGL for rendering and event handling.
+ * @brief      UI controller with all LVGL widget creation and event handling.
+ *             bsp_display only provides hardware access; all UI logic is here.
  *
  */
 
@@ -20,13 +21,10 @@
 /* Private defines ---------------------------------------------------- */
 #define SYS_UI_CLAMP(val, minv, maxv) ((val) < (minv) ? (minv) : ((val) > (maxv) ? (maxv) : (val)))
 
-/* Private enumerate/structure ---------------------------------------- */
-/* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
 sys_ui_t g_ui;
 
 /* Private variables -------------------------------------------------- */
-/* Global context pointer for LVGL callbacks */
 static sys_ui_t *g_ui_ctx = nullptr;
 
 /* Forward declarations for LVGL callbacks */
@@ -44,10 +42,10 @@ static void sys_ui_pan_right_btn_cb(lv_event_t *e);
 static void sys_ui_time_card_cb(lv_event_t *e);
 static void sys_ui_distance_card_cb(lv_event_t *e);
 static void sys_ui_env_card_cb(lv_event_t *e);
-static void sys_ui_register_lvgl_callbacks(sys_ui_t *ctx);
 
 /* Private function prototypes ---------------------------------------- */
 static void sys_ui_initializeTelemetry(sys_ui_t *ctx);
+static void sys_ui_initializeWidgets(sys_ui_widgets_t *w);
 static void sys_ui_updateSpeedAndDistance(sys_ui_t *ctx);
 static void sys_ui_updateCountdown(sys_ui_t *ctx);
 static void sys_ui_updateEnvironmentTelemetry(sys_ui_t *ctx);
@@ -56,6 +54,24 @@ static void sys_ui_returnToMain(sys_ui_t *ctx);
 static void sys_ui_logDistanceSample(sys_ui_t *ctx, float value);
 static void sys_ui_logTemperatureSample(sys_ui_t *ctx, float value, uint32_t timestamp);
 static void sys_ui_refreshTemperatureOverlay(sys_ui_t *ctx);
+static void sys_ui_register_lvgl_callbacks(sys_ui_t *ctx);
+static void sys_ui_showScreen(sys_ui_t *ctx, lv_obj_t *screen);
+static void sys_ui_createMainScreen(sys_ui_t *ctx);
+static void sys_ui_createSettingsScreen(sys_ui_t *ctx);
+static void sys_ui_createOutScreen(sys_ui_t *ctx);
+static void sys_ui_createTimeHistoryScreen(sys_ui_t *ctx);
+static void sys_ui_createDistanceScreen(sys_ui_t *ctx);
+static void sys_ui_createTemperatureScreen(sys_ui_t *ctx);
+static void sys_ui_drawFullUI(sys_ui_t *ctx);
+static void sys_ui_updateSpeed(sys_ui_t *ctx, int speedKph);
+static void sys_ui_updateTime(sys_ui_t *ctx, int minutes, int seconds);
+static void sys_ui_updateDistance(sys_ui_t *ctx, float distance_km);
+static void sys_ui_updateEnvironment(sys_ui_t *ctx, float temperature_C, float humidity, int air_quality);
+static void sys_ui_drawSettingsOverlay(sys_ui_t *ctx);
+static void sys_ui_drawOutOverlay(sys_ui_t *ctx);
+static void sys_ui_drawTimeHistoryOverlay(sys_ui_t *ctx);
+static void sys_ui_drawDistanceOverlay(sys_ui_t *ctx);
+static void sys_ui_drawTemperatureOverlay(sys_ui_t *ctx);
 
 /* Function definitions ----------------------------------------------- */
 void sys_ui_begin(sys_ui_t *ctx)
@@ -69,6 +85,7 @@ void sys_ui_begin(sys_ui_t *ctx)
   ctx->current_speed            = 0.0f;
   ctx->target_speed             = 0.0f;
   ctx->distance_km              = 0.0f;
+  ctx->prev_speed_int           = -1;
   ctx->remaining_minutes        = 0;
   ctx->remaining_seconds        = 0;
   ctx->temperature_C            = 0.0f;
@@ -76,7 +93,7 @@ void sys_ui_begin(sys_ui_t *ctx)
   ctx->air_quality              = 0;
   ctx->battery_percent          = 85;
   ctx->brightness_percent       = 80;
-  ctx->theme_background_color   = bsp_display_cvt_background_color(&ctx->display);
+  ctx->background_color         = SYS_UI_COLOR_BG;
   ctx->session_start_ms         = OS_GET_TICK();
   ctx->view                     = SYS_UI_VIEW_MAIN;
   ctx->last_touch_x             = 0;
@@ -90,29 +107,27 @@ void sys_ui_begin(sys_ui_t *ctx)
 
   printf("[SYS_UI] Starting initialization...\n");
 
-  bsp_display_initContext(&ctx->display);
-  bsp_display_initialize(&ctx->display);
+  /* Initialize widget pointers */
+  sys_ui_initializeWidgets(&ctx->widgets);
 
-  // Show splash screen while initializing
-  bsp_display_show_splash(&ctx->display);
+  /* Initialize hardware display */
+  bsp_display_init_context(&ctx->display);
+  bsp_display_init_screen(&ctx->display);
+  bsp_display_show_dowload(&ctx->display);
 
-  // Initialize LVGL driver and set up touch callback
-  ctx->lvgl.user_data = ctx; /* Store context for touch callback */
-
-  /* Initialize LVGL with TFT_eSPI driver (passive mode - no auto-refresh) */
-  bsp_lvgl_init(&ctx->lvgl, bsp_display_driver(&ctx->display));
-
-  /* Register LVGL touch callback */
+  /* Initialize LVGL driver */
+  ctx->lvgl.user_data = ctx;
+  bsp_lvgl_init(&ctx->lvgl, bsp_display_get_driver(&ctx->display));
   bsp_lvgl_set_touch_callback(&ctx->lvgl, sys_ui_lvgl_touch_read_cb);
 
+  /* Initialize telemetry data */
   sys_ui_initializeTelemetry(ctx);
 
+  /* Set brightness */
   bsp_display_set_brightness_percent(&ctx->display, ctx->brightness_percent);
-  bsp_display_set_background_color(&ctx->display, ctx->theme_background_color);
-  bsp_display_set_battery_percent(&ctx->display, ctx->battery_percent);
 
-  bsp_display_draw_full_ui(&ctx->display, ctx->remaining_minutes, ctx->remaining_seconds, ctx->distance_km,
-                           ctx->current_speed, ctx->temperature_C, ctx->humidity, ctx->air_quality);
+  /* Create and show main screen */
+  sys_ui_drawFullUI(ctx);
 
   /* Store global context for LVGL callbacks */
   g_ui_ctx = ctx;
@@ -126,7 +141,10 @@ void sys_ui_begin(sys_ui_t *ctx)
   ctx->last_second_tick        = now;
   ctx->last_time_update_screen = now;
 
-  bsp_touch_init(&ctx->touch, bsp_display_driver(&ctx->display));
+  /* Initialize touch */
+  bsp_touch_init(&ctx->touch, bsp_display_get_driver(&ctx->display));
+
+  printf("[SYS_UI] Init complete\n");
 }
 
 void sys_ui_run(sys_ui_t *ctx)
@@ -135,7 +153,7 @@ void sys_ui_run(sys_ui_t *ctx)
 
   uint32_t now = OS_GET_TICK();
 
-  // Update speed and distance
+  /* Update speed and distance */
   if (now - ctx->last_speed_update >= SYS_UI_SPEED_REFRESH_MS)
   {
     ctx->last_speed_update = now;
@@ -143,34 +161,91 @@ void sys_ui_run(sys_ui_t *ctx)
     sys_ui_updateSpeedAndDistance(ctx);
   }
 
-  // Update countdown timer
+  /* Update countdown timer */
   if (now - ctx->last_second_tick >= SYS_UI_COUNTDOWN_MS)
   {
     ctx->last_second_tick = now;
     sys_ui_updateCountdown(ctx);
   }
 
-  // Update environment telemetry
+  /* Update environment telemetry */
   if (now - ctx->last_time_update_screen >= SYS_UI_ENVIRONMENT_MS)
   {
     ctx->last_time_update_screen = now;
     sys_ui_updateEnvironmentTelemetry(ctx);
   }
 
-  /* Handle pending main screen redraw if returning from overlay */
+  /* Handle pending main screen redraw */
   if (ctx->view == SYS_UI_VIEW_MAIN && ctx->pending_main_redraw)
   {
-    bsp_display_draw_full_ui(&ctx->display, ctx->remaining_minutes, ctx->remaining_seconds, ctx->distance_km,
-                             ctx->current_speed, ctx->temperature_C, ctx->humidity, ctx->air_quality);
+    sys_ui_drawFullUI(ctx);
     sys_ui_register_lvgl_callbacks(ctx);
     ctx->pending_main_redraw = false;
   }
 
-  /* Handle LVGL tasks (rendering + input handling) */
+  /* Handle LVGL tasks */
   bsp_lvgl_task(&ctx->lvgl);
 }
 
 /* Private definitions ----------------------------------------------- */
+static void sys_ui_initializeWidgets(sys_ui_widgets_t *w)
+{
+  w->active_screen        = nullptr;
+  w->main_screen          = nullptr;
+  w->header_panel         = nullptr;
+  w->header_title         = nullptr;
+  w->header_subtitle      = nullptr;
+  w->status_led           = nullptr;
+  w->battery_bar          = nullptr;
+  w->speedometer_arc      = nullptr;
+  w->speed_label          = nullptr;
+  w->speed_unit_label     = nullptr;
+  w->time_card            = nullptr;
+  w->time_label           = nullptr;
+  w->time_unit_label      = nullptr;
+  w->distance_card        = nullptr;
+  w->distance_label       = nullptr;
+  w->distance_unit_label  = nullptr;
+  w->env_card             = nullptr;
+  w->temp_label           = nullptr;
+  w->humidity_label       = nullptr;
+  w->aqi_label            = nullptr;
+  w->settings_btn         = nullptr;
+  w->out_btn              = nullptr;
+  w->settings_screen      = nullptr;
+  w->settings_title       = nullptr;
+  w->settings_back_btn    = nullptr;
+  w->brightness_slider    = nullptr;
+  w->brightness_label     = nullptr;
+  w->out_screen           = nullptr;
+  w->out_title            = nullptr;
+  w->out_back_btn         = nullptr;
+  w->time_history_screen  = nullptr;
+  w->time_history_title   = nullptr;
+  w->time_back_btn        = nullptr;
+  w->time_remaining_label = nullptr;
+  w->extend_btn           = nullptr;
+  w->distance_screen      = nullptr;
+  w->distance_title       = nullptr;
+  w->distance_back_btn    = nullptr;
+  w->total_distance_label = nullptr;
+  w->avg_speed_label      = nullptr;
+  w->distance_chart       = nullptr;
+  w->distance_series      = nullptr;
+  w->temp_screen          = nullptr;
+  w->temp_title           = nullptr;
+  w->temp_back_btn        = nullptr;
+  w->temp_chart           = nullptr;
+  w->temp_series          = nullptr;
+  w->temp_range_label     = nullptr;
+  w->zoom_minus_btn       = nullptr;
+  w->zoom_plus_btn        = nullptr;
+  w->pan_left_btn         = nullptr;
+  w->pan_right_btn        = nullptr;
+  for (int i = 0; i < 3; ++i) w->color_btns[i] = nullptr;
+  for (int i = 0; i < 4; ++i) w->history_labels[i] = nullptr;
+}
+
 static void sys_ui_initializeTelemetry(sys_ui_t *ctx)
 {
   ctx->remaining_minutes = 45;
@@ -179,16 +254,11 @@ static void sys_ui_initializeTelemetry(sys_ui_t *ctx)
   ctx->target_speed      = 12.0f;
   ctx->distance_km       = 0.0f;
 
-  // NOTE: Randomized baseline telemetry until actual temp sensor is connected.
-  ctx->temperature_C = 28.0f + static_cast<float>(random(0, 50)) / 10.0f;
-  // NOTE: Randomized humidity placeholder, replace once humidity sensor is wired.
-  ctx->humidity = 60.0f + static_cast<float>(random(0, 300)) / 10.0f;
-  // NOTE: Randomized AQI placeholder until air-quality module is available.
-  ctx->air_quality = 70 + random(0, 30);
-  // NOTE: Randomized battery percentage to mimic pack feedback for now.
+  ctx->temperature_C   = 28.0f + static_cast<float>(random(0, 50)) / 10.0f;
+  ctx->humidity        = 60.0f + static_cast<float>(random(0, 300)) / 10.0f;
+  ctx->air_quality     = 70 + random(0, 30);
   ctx->battery_percent = 80 + random(0, 20);
 
-  // NOTE: Placeholder rental history until backend sync is available.
   const char *seedHistory[SYS_UI_MAX_RENTAL_HISTORY] = { "2026-03-03 09:05 - B-1024", "2026-03-02 17:40 - B-2201",
                                                          "2026-03-01 08:15 - B-3108", "2026-02-29 19:50 - B-1876" };
   ctx->rental_history_count                          = SYS_UI_MAX_RENTAL_HISTORY;
@@ -199,22 +269,486 @@ static void sys_ui_initializeTelemetry(sys_ui_t *ctx)
   }
 }
 
+static void sys_ui_showScreen(sys_ui_t *ctx, lv_obj_t *screen)
+{
+  if (ctx == nullptr || screen == nullptr)
+    return;
+
+  ctx->widgets.active_screen = screen;
+  lv_screen_load(screen);
+}
+
+static void sys_ui_createMainScreen(sys_ui_t *ctx)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  w->main_screen = lv_obj_create(nullptr);
+  lv_obj_set_style_bg_color(w->main_screen, lv_color_hex(ctx->background_color), 0);
+  lv_obj_remove_flag(w->main_screen, LV_OBJ_FLAG_SCROLLABLE);
+
+  /* Header panel */
+  w->header_panel = lv_obj_create(w->main_screen);
+  lv_obj_set_pos(w->header_panel, 0, 0);
+  lv_obj_set_size(w->header_panel, BSP_DISPLAY_SCREEN_W, 26);
+  lv_obj_set_style_bg_color(w->header_panel, lv_color_hex(0x002840), 0);
+  lv_obj_set_style_border_width(w->header_panel, 0, 0);
+  lv_obj_set_style_radius(w->header_panel, 0, 0);
+  lv_obj_set_style_pad_all(w->header_panel, 0, 0);
+  lv_obj_remove_flag(w->header_panel, LV_OBJ_FLAG_SCROLLABLE);
+
+  w->header_title = lv_label_create(w->header_panel);
+  lv_label_set_text(w->header_title, "SMART BIKE");
+  lv_obj_set_pos(w->header_title, 35, 2);
+  lv_obj_set_style_text_color(w->header_title, lv_color_hex(SYS_UI_COLOR_PRIMARY), 0);
+  lv_obj_set_style_text_font(w->header_title, &lv_font_montserrat_10, 0);
+
+  w->header_subtitle = lv_label_create(w->header_panel);
+  lv_label_set_text(w->header_subtitle, "RENTAL #B-1024");
+  lv_obj_set_pos(w->header_subtitle, 35, 13);
+  lv_obj_set_style_text_color(w->header_subtitle, lv_color_hex(SYS_UI_COLOR_ACCENT), 0);
+  lv_obj_set_style_text_font(w->header_subtitle, &lv_font_montserrat_10, 0);
+
+  w->status_led = lv_obj_create(w->header_panel);
+  lv_obj_set_pos(w->status_led, BSP_DISPLAY_SCREEN_W - 55, 9);
+  lv_obj_set_size(w->status_led, 8, 8);
+  lv_obj_set_style_bg_color(w->status_led, lv_color_hex(SYS_UI_COLOR_SUCCESS), 0);
+  lv_obj_set_style_radius(w->status_led, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_border_width(w->status_led, 0, 0);
+
+  w->battery_bar = lv_bar_create(w->header_panel);
+  lv_obj_set_pos(w->battery_bar, BSP_DISPLAY_SCREEN_W - 30, 8);
+  lv_obj_set_size(w->battery_bar, 20, 10);
+  lv_bar_set_range(w->battery_bar, 0, 100);
+  lv_bar_set_value(w->battery_bar, ctx->battery_percent, LV_ANIM_OFF);
+  lv_obj_set_style_bg_color(w->battery_bar, lv_color_hex(0x333333), 0);
+  lv_obj_set_style_bg_color(w->battery_bar, lv_color_hex(SYS_UI_COLOR_SUCCESS), LV_PART_INDICATOR);
+
+  /* Speedometer Arc */
+  w->speedometer_arc = lv_arc_create(w->main_screen);
+  lv_obj_set_pos(w->speedometer_arc, SYS_UI_SPEEDO_CX - SYS_UI_SPEEDO_OUTER_R,
+                 SYS_UI_SPEEDO_CY - SYS_UI_SPEEDO_OUTER_R);
+  lv_obj_set_size(w->speedometer_arc, SYS_UI_SPEEDO_OUTER_R * 2, SYS_UI_SPEEDO_OUTER_R * 2);
+  lv_arc_set_rotation(w->speedometer_arc, 135);
+  lv_arc_set_bg_angles(w->speedometer_arc, 0, 270);
+  lv_arc_set_range(w->speedometer_arc, 0, 100);
+  lv_arc_set_value(w->speedometer_arc, 0);
+  lv_obj_set_style_arc_width(w->speedometer_arc, 10, LV_PART_MAIN);
+  lv_obj_set_style_arc_width(w->speedometer_arc, 10, LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(w->speedometer_arc, lv_color_hex(0x333333), LV_PART_MAIN);
+  lv_obj_set_style_arc_color(w->speedometer_arc, lv_color_hex(SYS_UI_COLOR_SUCCESS), LV_PART_INDICATOR);
+  lv_obj_remove_style(w->speedometer_arc, nullptr, LV_PART_KNOB);
+  lv_obj_remove_flag(w->speedometer_arc, LV_OBJ_FLAG_CLICKABLE);
+
+  w->speed_label = lv_label_create(w->main_screen);
+  lv_label_set_text(w->speed_label, "0");
+  lv_obj_set_pos(w->speed_label, SYS_UI_SPEEDO_CX - 20, SYS_UI_SPEEDO_CY - 10);
+  lv_obj_set_style_text_color(w->speed_label, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+  lv_obj_set_style_text_font(w->speed_label, &lv_font_montserrat_28, 0);
+  lv_obj_set_style_text_align(w->speed_label, LV_TEXT_ALIGN_CENTER, 0);
+
+  w->speed_unit_label = lv_label_create(w->main_screen);
+  lv_label_set_text(w->speed_unit_label, "km/h");
+  lv_obj_set_pos(w->speed_unit_label, SYS_UI_SPEEDO_CX - 15, SYS_UI_SPEEDO_CY + 20);
+  lv_obj_set_style_text_color(w->speed_unit_label, lv_color_hex(SYS_UI_COLOR_PRIMARY), 0);
+  lv_obj_set_style_text_font(w->speed_unit_label, &lv_font_montserrat_10, 0);
+
+  /* Time Card */
+  w->time_card = sys_ui_widget_create_card(w->main_screen, SYS_UI_TIME_CARD_X, SYS_UI_TIME_CARD_Y, SYS_UI_TIME_CARD_W,
+                                           SYS_UI_TIME_CARD_H, SYS_UI_COLOR_PRIMARY);
+
+  lv_obj_t *time_title = lv_label_create(w->time_card);
+  lv_label_set_text(time_title, "REMAIN");
+  lv_obj_set_pos(time_title, 10, 2);
+  lv_obj_set_style_text_color(time_title, lv_color_hex(SYS_UI_COLOR_PRIMARY), 0);
+  lv_obj_set_style_text_font(time_title, &lv_font_montserrat_10, 0);
+
+  w->time_label = lv_label_create(w->time_card);
+  lv_label_set_text(w->time_label, "00:00");
+  lv_obj_set_pos(w->time_label, 5, 18);
+  lv_obj_set_style_text_color(w->time_label, lv_color_hex(SYS_UI_COLOR_SUCCESS), 0);
+  lv_obj_set_style_text_font(w->time_label, &lv_font_montserrat_18, 0);
+
+  w->time_unit_label = lv_label_create(w->time_card);
+  lv_label_set_text(w->time_unit_label, "mins");
+  lv_obj_set_pos(w->time_unit_label, 25, 38);
+  lv_obj_set_style_text_color(w->time_unit_label, lv_color_hex(SYS_UI_COLOR_TEXT_DIM), 0);
+  lv_obj_set_style_text_font(w->time_unit_label, &lv_font_montserrat_10, 0);
+
+  /* Distance Card */
+  w->distance_card = sys_ui_widget_create_card(w->main_screen, SYS_UI_DIST_CARD_X, SYS_UI_DIST_CARD_Y,
+                                               SYS_UI_DIST_CARD_W, SYS_UI_DIST_CARD_H, SYS_UI_COLOR_ACCENT);
+
+  lv_obj_t *dist_title = lv_label_create(w->distance_card);
+  lv_label_set_text(dist_title, "DISTANCE");
+  lv_obj_set_pos(dist_title, 5, 2);
+  lv_obj_set_style_text_color(dist_title, lv_color_hex(SYS_UI_COLOR_TEXT_DIM), 0);
+  lv_obj_set_style_text_font(dist_title, &lv_font_montserrat_10, 0);
+
+  w->distance_label = lv_label_create(w->distance_card);
+  lv_label_set_text(w->distance_label, "0.00");
+  lv_obj_set_pos(w->distance_label, 5, 16);
+  lv_obj_set_style_text_color(w->distance_label, lv_color_hex(SYS_UI_COLOR_ACCENT), 0);
+  lv_obj_set_style_text_font(w->distance_label, &lv_font_montserrat_16, 0);
+
+  w->distance_unit_label = lv_label_create(w->distance_card);
+  lv_label_set_text(w->distance_unit_label, "km");
+  lv_obj_set_pos(w->distance_unit_label, 62, 20);
+  lv_obj_set_style_text_color(w->distance_unit_label, lv_color_hex(SYS_UI_COLOR_TEXT_DIM), 0);
+  lv_obj_set_style_text_font(w->distance_unit_label, &lv_font_montserrat_10, 0);
+
+  /* Environment Card */
+  w->env_card = sys_ui_widget_create_card(w->main_screen, SYS_UI_ENV_CARD_X, SYS_UI_ENV_CARD_Y, SYS_UI_ENV_CARD_W,
+                                          SYS_UI_ENV_CARD_H, SYS_UI_COLOR_TEXT_DIM);
+
+  lv_obj_t *env_title = lv_label_create(w->env_card);
+  lv_label_set_text(env_title, "ENV STATUS");
+  lv_obj_set_pos(env_title, 8, 0);
+  lv_obj_set_style_text_color(env_title, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+  lv_obj_set_style_text_font(env_title, &lv_font_montserrat_10, 0);
+
+  w->temp_label = lv_label_create(w->env_card);
+  lv_label_set_text(w->temp_label, "0.0°C");
+  lv_obj_set_pos(w->temp_label, 5, 16);
+  lv_obj_set_style_text_color(w->temp_label, lv_color_hex(SYS_UI_COLOR_WARNING), 0);
+  lv_obj_set_style_text_font(w->temp_label, &lv_font_montserrat_12, 0);
+
+  w->humidity_label = lv_label_create(w->env_card);
+  lv_label_set_text(w->humidity_label, "0%");
+  lv_obj_set_pos(w->humidity_label, 5, 32);
+  lv_obj_set_style_text_color(w->humidity_label, lv_color_hex(SYS_UI_COLOR_PRIMARY), 0);
+  lv_obj_set_style_text_font(w->humidity_label, &lv_font_montserrat_12, 0);
+
+  w->aqi_label = lv_label_create(w->env_card);
+  lv_label_set_text(w->aqi_label, "AQI: --");
+  lv_obj_set_pos(w->aqi_label, 5, 48);
+  lv_obj_set_style_text_color(w->aqi_label, lv_color_hex(SYS_UI_COLOR_SUCCESS), 0);
+  lv_obj_set_style_text_font(w->aqi_label, &lv_font_montserrat_10, 0);
+
+  /* Control Buttons */
+  w->settings_btn =
+    sys_ui_widget_createButton(w->main_screen, SYS_UI_SETTINGS_BTN_X, SYS_UI_CTRL_BTN_Y, SYS_UI_SETTINGS_BTN_W,
+                               SYS_UI_CTRL_BTN_H, "SETTINGS", SYS_UI_COLOR_PRIMARY, SYS_UI_COLOR_BG);
+
+  w->out_btn = sys_ui_widget_createButton(w->main_screen, SYS_UI_OUT_BTN_X, SYS_UI_CTRL_BTN_Y, SYS_UI_OUT_BTN_W,
+                                          SYS_UI_CTRL_BTN_H, "OUT", SYS_UI_COLOR_WARNING, SYS_UI_COLOR_BG);
+}
+
+static void sys_ui_createSettingsScreen(sys_ui_t *ctx)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  w->settings_screen = lv_obj_create(nullptr);
+  lv_obj_set_style_bg_color(w->settings_screen, lv_color_hex(ctx->background_color), 0);
+  lv_obj_remove_flag(w->settings_screen, LV_OBJ_FLAG_SCROLLABLE);
+
+  w->settings_back_btn =
+    sys_ui_widget_createButton(w->settings_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
+                               SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
+
+  w->settings_title = lv_label_create(w->settings_screen);
+  lv_label_set_text(w->settings_title, "SETTINGS");
+  lv_obj_set_pos(w->settings_title, 90, 15);
+  lv_obj_set_style_text_color(w->settings_title, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+  lv_obj_set_style_text_font(w->settings_title, &lv_font_montserrat_18, 0);
+
+  lv_obj_t *bright_label = lv_label_create(w->settings_screen);
+  lv_label_set_text(bright_label, "Brightness");
+  lv_obj_set_pos(bright_label, 40, 55);
+  lv_obj_set_style_text_color(bright_label, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+
+  w->brightness_slider = lv_slider_create(w->settings_screen);
+  lv_obj_set_pos(w->brightness_slider, 40, 80);
+  lv_obj_set_size(w->brightness_slider, 200, 20);
+  lv_slider_set_range(w->brightness_slider, 5, 100);
+  lv_slider_set_value(w->brightness_slider, ctx->brightness_percent, LV_ANIM_OFF);
+  lv_obj_set_style_bg_color(w->brightness_slider, lv_color_hex(0x333333), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(w->brightness_slider, lv_color_hex(SYS_UI_COLOR_PRIMARY), LV_PART_INDICATOR);
+
+  w->brightness_label = lv_label_create(w->settings_screen);
+  lv_label_set_text_fmt(w->brightness_label, "%d%%", ctx->brightness_percent);
+  lv_obj_set_pos(w->brightness_label, 250, 80);
+  lv_obj_set_style_text_color(w->brightness_label, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+
+  lv_obj_t *bg_label = lv_label_create(w->settings_screen);
+  lv_label_set_text(bg_label, "Background");
+  lv_obj_set_pos(bg_label, 40, 120);
+  lv_obj_set_style_text_color(bg_label, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+
+  uint32_t colors[3] = { 0x000000, 0xFFFFFF, 0x7B7B7B };
+  for (int i = 0; i < 3; ++i)
+  {
+    w->color_btns[i] = lv_btn_create(w->settings_screen);
+    lv_obj_set_pos(w->color_btns[i], 40 + i * SYS_UI_COLOR_SPAN, SYS_UI_COLOR_ROW_Y);
+    lv_obj_set_size(w->color_btns[i], SYS_UI_COLOR_SIZE, SYS_UI_COLOR_SIZE);
+    lv_obj_set_style_bg_color(w->color_btns[i], lv_color_hex(colors[i]), 0);
+    lv_obj_set_style_radius(w->color_btns[i], 4, 0);
+  }
+}
+
+static void sys_ui_createOutScreen(sys_ui_t *ctx)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  w->out_screen = lv_obj_create(nullptr);
+  lv_obj_set_style_bg_color(w->out_screen, lv_color_hex(ctx->background_color), 0);
+  lv_obj_remove_flag(w->out_screen, LV_OBJ_FLAG_SCROLLABLE);
+
+  w->out_back_btn = sys_ui_widget_createButton(w->out_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
+                                               SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
+
+  w->out_title = lv_label_create(w->out_screen);
+  lv_label_set_text(w->out_title, "OUT MODE");
+  lv_obj_set_pos(w->out_title, 80, 80);
+  lv_obj_set_style_text_color(w->out_title, lv_color_hex(SYS_UI_COLOR_WARNING), 0);
+  lv_obj_set_style_text_font(w->out_title, &lv_font_montserrat_24, 0);
+
+  lv_obj_t *instr = lv_label_create(w->out_screen);
+  lv_label_set_text(instr, "Tap BACK to resume.");
+  lv_obj_set_pos(instr, 80, 130);
+  lv_obj_set_style_text_color(instr, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+}
+
+static void sys_ui_createTimeHistoryScreen(sys_ui_t *ctx)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  w->time_history_screen = lv_obj_create(nullptr);
+  lv_obj_set_style_bg_color(w->time_history_screen, lv_color_hex(ctx->background_color), 0);
+  lv_obj_remove_flag(w->time_history_screen, LV_OBJ_FLAG_SCROLLABLE);
+
+  w->time_back_btn =
+    sys_ui_widget_createButton(w->time_history_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
+                               SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
+
+  w->time_history_title = lv_label_create(w->time_history_screen);
+  lv_label_set_text(w->time_history_title, "RENTAL HISTORY");
+  lv_obj_set_pos(w->time_history_title, 60, 15);
+  lv_obj_set_style_text_color(w->time_history_title, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+  lv_obj_set_style_text_font(w->time_history_title, &lv_font_montserrat_18, 0);
+
+  for (int i = 0; i < 4; ++i)
+  {
+    w->history_labels[i] = lv_label_create(w->time_history_screen);
+    lv_label_set_text(w->history_labels[i], "");
+    lv_obj_set_pos(w->history_labels[i], 40, 55 + i * 20);
+    lv_obj_set_style_text_color(w->history_labels[i], lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+    lv_obj_set_style_text_font(w->history_labels[i], &lv_font_montserrat_12, 0);
+  }
+
+  w->time_remaining_label = lv_label_create(w->time_history_screen);
+  lv_label_set_text(w->time_remaining_label, "Remaining: 00:00");
+  lv_obj_set_pos(w->time_remaining_label, 40, 140);
+  lv_obj_set_style_text_color(w->time_remaining_label, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+
+  w->extend_btn =
+    sys_ui_widget_createButton(w->time_history_screen, SYS_UI_EXTEND_BTN_X, SYS_UI_EXTEND_BTN_Y, SYS_UI_EXTEND_BTN_W,
+                               SYS_UI_EXTEND_BTN_H, "+30 min", SYS_UI_COLOR_SUCCESS, SYS_UI_COLOR_BG);
+}
+
+static void sys_ui_createDistanceScreen(sys_ui_t *ctx)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  w->distance_screen = lv_obj_create(nullptr);
+  lv_obj_set_style_bg_color(w->distance_screen, lv_color_hex(ctx->background_color), 0);
+  lv_obj_remove_flag(w->distance_screen, LV_OBJ_FLAG_SCROLLABLE);
+
+  w->distance_back_btn =
+    sys_ui_widget_createButton(w->distance_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
+                               SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
+
+  w->distance_title = lv_label_create(w->distance_screen);
+  lv_label_set_text(w->distance_title, "DISTANCE STATS");
+  lv_obj_set_pos(w->distance_title, 70, 15);
+  lv_obj_set_style_text_color(w->distance_title, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+  lv_obj_set_style_text_font(w->distance_title, &lv_font_montserrat_18, 0);
+
+  w->total_distance_label = lv_label_create(w->distance_screen);
+  lv_label_set_text(w->total_distance_label, "Total: 0.00 km");
+  lv_obj_set_pos(w->total_distance_label, 30, 50);
+  lv_obj_set_style_text_color(w->total_distance_label, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+
+  w->avg_speed_label = lv_label_create(w->distance_screen);
+  lv_label_set_text(w->avg_speed_label, "Avg speed: 0.0 km/h");
+  lv_obj_set_pos(w->avg_speed_label, 30, 70);
+  lv_obj_set_style_text_color(w->avg_speed_label, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+
+  w->distance_chart = lv_chart_create(w->distance_screen);
+  lv_obj_set_pos(w->distance_chart, 30, 95);
+  lv_obj_set_size(w->distance_chart, 260, 120);
+  lv_chart_set_type(w->distance_chart, LV_CHART_TYPE_LINE);
+  lv_chart_set_point_count(w->distance_chart, 16);
+  lv_obj_set_style_bg_color(w->distance_chart, lv_color_hex(0x111111), 0);
+
+  w->distance_series =
+    lv_chart_add_series(w->distance_chart, lv_color_hex(SYS_UI_COLOR_ACCENT), LV_CHART_AXIS_PRIMARY_Y);
+}
+
+static void sys_ui_createTemperatureScreen(sys_ui_t *ctx)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  w->temp_screen = lv_obj_create(nullptr);
+  lv_obj_set_style_bg_color(w->temp_screen, lv_color_hex(ctx->background_color), 0);
+  lv_obj_remove_flag(w->temp_screen, LV_OBJ_FLAG_SCROLLABLE);
+
+  w->temp_back_btn = sys_ui_widget_createButton(w->temp_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
+                                                SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
+
+  w->temp_title = lv_label_create(w->temp_screen);
+  lv_label_set_text(w->temp_title, "TEMPERATURE");
+  lv_obj_set_pos(w->temp_title, 90, 15);
+  lv_obj_set_style_text_color(w->temp_title, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
+  lv_obj_set_style_text_font(w->temp_title, &lv_font_montserrat_18, 0);
+
+  w->temp_chart = lv_chart_create(w->temp_screen);
+  lv_obj_set_pos(w->temp_chart, SYS_UI_TEMP_GRAPH_X, SYS_UI_TEMP_GRAPH_Y);
+  lv_obj_set_size(w->temp_chart, SYS_UI_TEMP_GRAPH_W, SYS_UI_TEMP_GRAPH_H);
+  lv_chart_set_type(w->temp_chart, LV_CHART_TYPE_LINE);
+  lv_chart_set_point_count(w->temp_chart, 60);
+  lv_obj_set_style_bg_color(w->temp_chart, lv_color_hex(0x111111), 0);
+
+  w->temp_series = lv_chart_add_series(w->temp_chart, lv_color_hex(SYS_UI_COLOR_ACCENT), LV_CHART_AXIS_PRIMARY_Y);
+
+  w->temp_range_label = lv_label_create(w->temp_screen);
+  lv_label_set_text(w->temp_range_label, "Collecting...");
+  lv_obj_set_pos(w->temp_range_label, SYS_UI_TEMP_GRAPH_X, SYS_UI_TEMP_GRAPH_Y - 15);
+  lv_obj_set_style_text_color(w->temp_range_label, lv_color_hex(SYS_UI_COLOR_TEXT_DIM), 0);
+  lv_obj_set_style_text_font(w->temp_range_label, &lv_font_montserrat_10, 0);
+
+  w->zoom_minus_btn =
+    sys_ui_widget_createButton(w->temp_screen, SYS_UI_TEMP_GRAPH_X, SYS_UI_TEMP_BTN_Y, SYS_UI_TEMP_BTN_W,
+                               SYS_UI_TEMP_BTN_H, "Zoom-", 0x333333, SYS_UI_COLOR_TEXT);
+
+  w->zoom_plus_btn = sys_ui_widget_createButton(
+    w->temp_screen, SYS_UI_TEMP_GRAPH_X + SYS_UI_TEMP_BTN_W + SYS_UI_TEMP_BTN_GAP, SYS_UI_TEMP_BTN_Y, SYS_UI_TEMP_BTN_W,
+    SYS_UI_TEMP_BTN_H, "Zoom+", SYS_UI_COLOR_SUCCESS, SYS_UI_COLOR_BG);
+
+  w->pan_left_btn = sys_ui_widget_createButton(
+    w->temp_screen, SYS_UI_TEMP_GRAPH_X + 2 * (SYS_UI_TEMP_BTN_W + SYS_UI_TEMP_BTN_GAP), SYS_UI_TEMP_BTN_Y,
+    SYS_UI_TEMP_BTN_W, SYS_UI_TEMP_BTN_H, "<", SYS_UI_COLOR_PRIMARY, SYS_UI_COLOR_BG);
+
+  w->pan_right_btn = sys_ui_widget_createButton(
+    w->temp_screen, SYS_UI_TEMP_GRAPH_X + 3 * (SYS_UI_TEMP_BTN_W + SYS_UI_TEMP_BTN_GAP), SYS_UI_TEMP_BTN_Y,
+    SYS_UI_TEMP_BTN_W, SYS_UI_TEMP_BTN_H, ">", SYS_UI_COLOR_PRIMARY, SYS_UI_COLOR_BG);
+}
+
+static void sys_ui_drawFullUI(sys_ui_t *ctx)
+{
+  if (ctx->widgets.main_screen == nullptr)
+  {
+    sys_ui_createMainScreen(ctx);
+  }
+
+  sys_ui_showScreen(ctx, ctx->widgets.main_screen);
+  sys_ui_updateTime(ctx, ctx->remaining_minutes, ctx->remaining_seconds);
+  sys_ui_updateDistance(ctx, ctx->distance_km);
+  sys_ui_updateEnvironment(ctx, ctx->temperature_C, ctx->humidity, ctx->air_quality);
+  sys_ui_updateSpeed(ctx, static_cast<int>(ctx->current_speed));
+}
+
+static void sys_ui_updateSpeed(sys_ui_t *ctx, int speedKph)
+{
+  speedKph = SYS_UI_CLAMP(speedKph, 0, 40);
+
+  if (ctx->prev_speed_int == speedKph)
+    return;
+  ctx->prev_speed_int = speedKph;
+
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  if (w->speedometer_arc != nullptr)
+  {
+    int arcValue = (speedKph * 100) / 40;
+    lv_arc_set_value(w->speedometer_arc, arcValue);
+
+    lv_color_t arcColor;
+    if (speedKph <= 20)
+      arcColor = lv_color_hex(SYS_UI_COLOR_SUCCESS);
+    else if (speedKph <= 30)
+      arcColor = lv_color_hex(SYS_UI_COLOR_WARNING);
+    else
+      arcColor = lv_color_hex(SYS_UI_COLOR_DANGER);
+    lv_obj_set_style_arc_color(w->speedometer_arc, arcColor, LV_PART_INDICATOR);
+  }
+
+  if (w->speed_label != nullptr)
+  {
+    lv_label_set_text_fmt(w->speed_label, "%d", speedKph);
+  }
+}
+
+static void sys_ui_updateTime(sys_ui_t *ctx, int minutes, int seconds)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+  if (w->time_label == nullptr)
+    return;
+
+  lv_label_set_text_fmt(w->time_label, "%02d:%02d", minutes, seconds);
+
+  lv_color_t timeColor;
+  if (minutes < 5)
+    timeColor = lv_color_hex(SYS_UI_COLOR_DANGER);
+  else if (minutes < 10)
+    timeColor = lv_color_hex(SYS_UI_COLOR_WARNING);
+  else
+    timeColor = lv_color_hex(SYS_UI_COLOR_SUCCESS);
+  lv_obj_set_style_text_color(w->time_label, timeColor, 0);
+}
+
+static void sys_ui_updateDistance(sys_ui_t *ctx, float distance_km)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+  if (w->distance_label == nullptr)
+    return;
+
+  lv_label_set_text_fmt(w->distance_label, "%.2f", distance_km);
+}
+
+static void sys_ui_updateEnvironment(sys_ui_t *ctx, float temperature_C, float humidity, int air_quality)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  if (w->temp_label != nullptr)
+  {
+    lv_label_set_text_fmt(w->temp_label, "%.1f°C", temperature_C);
+  }
+
+  if (w->humidity_label != nullptr)
+  {
+    lv_label_set_text_fmt(w->humidity_label, "%.0f%%", humidity);
+  }
+
+  if (w->aqi_label != nullptr)
+  {
+    const char *status = (air_quality >= 80) ? "Good" : ((air_quality >= 50) ? "Fair" : "Poor");
+    lv_label_set_text_fmt(w->aqi_label, "AQI:%d %s", air_quality, status);
+
+    lv_color_t aqiColor;
+    if (air_quality >= 80)
+      aqiColor = lv_color_hex(SYS_UI_COLOR_SUCCESS);
+    else if (air_quality >= 50)
+      aqiColor = lv_color_hex(SYS_UI_COLOR_WARNING);
+    else
+      aqiColor = lv_color_hex(SYS_UI_COLOR_DANGER);
+    lv_obj_set_style_text_color(w->aqi_label, aqiColor, 0);
+  }
+}
+
 static void sys_ui_updateSpeedAndDistance(sys_ui_t *ctx)
 {
-  // NOTE: Randomized target speed simulates wheel sensor data until the CAN feed is ready.
   float speedDelta  = static_cast<float>(random(-25, 26)) / 10.0f;
   ctx->target_speed = SYS_UI_CLAMP(ctx->target_speed + speedDelta, 0.0f, 35.0f);
 
   ctx->current_speed += (ctx->target_speed - ctx->current_speed) * 0.2f;
-
   ctx->distance_km += ctx->current_speed * (SYS_UI_SPEED_REFRESH_MS / 1000.0f) / 3600.0f;
 
   if (ctx->view == SYS_UI_VIEW_MAIN)
   {
-    bsp_display_updateSpeed(&ctx->display, static_cast<int>(ctx->current_speed));
+    sys_ui_updateSpeed(ctx, static_cast<int>(ctx->current_speed));
     if (ctx->frame_counter % 10 == 0)
     {
-      bsp_display_updateDistance(&ctx->display, ctx->distance_km);
+      sys_ui_updateDistance(ctx, ctx->distance_km);
     }
   }
   else
@@ -229,13 +763,7 @@ static void sys_ui_updateSpeedAndDistance(sys_ui_t *ctx)
 
   if (ctx->view == SYS_UI_VIEW_DISTANCE)
   {
-    uint32_t now   = OS_GET_TICK();
-    float    hours = (now - ctx->session_start_ms) / 3600000.0f;
-    if (hours < 0.001f)
-      hours = 0.001f;
-    float avgSpeed = ctx->distance_km / hours;
-    bsp_display_drawDistanceOverlay(&ctx->display, avgSpeed, ctx->distance_km, ctx->distanceHistory,
-                                    ctx->distance_history_count);
+    sys_ui_drawDistanceOverlay(ctx);
   }
 }
 
@@ -253,17 +781,11 @@ static void sys_ui_updateCountdown(sys_ui_t *ctx)
 
   if (ctx->view == SYS_UI_VIEW_MAIN)
   {
-    bsp_display_updateTime(&ctx->display, ctx->remaining_minutes, ctx->remaining_seconds);
+    sys_ui_updateTime(ctx, ctx->remaining_minutes, ctx->remaining_seconds);
   }
   else if (ctx->view == SYS_UI_VIEW_TIME)
   {
-    const char *history[SYS_UI_MAX_RENTAL_HISTORY];
-    for (int i = 0; i < ctx->rental_history_count; ++i)
-    {
-      history[i] = ctx->rentalHistory[i];
-    }
-    bsp_display_drawTimeHistoryOverlay(&ctx->display, history, ctx->rental_history_count, ctx->remaining_minutes,
-                                       ctx->remaining_seconds);
+    sys_ui_drawTimeHistoryOverlay(ctx);
   }
   else
   {
@@ -273,7 +795,6 @@ static void sys_ui_updateCountdown(sys_ui_t *ctx)
 
 static void sys_ui_updateEnvironmentTelemetry(sys_ui_t *ctx)
 {
-  // NOTE: Randomized environment telemetry until temperature/humidity sensors are online.
   ctx->temperature_C = SYS_UI_CLAMP(ctx->temperature_C + static_cast<float>(random(-10, 11)) / 10.0f, 20.0f, 40.0f);
   ctx->humidity      = SYS_UI_CLAMP(ctx->humidity + static_cast<float>(random(-20, 21)) / 10.0f, 40.0f, 95.0f);
   ctx->air_quality   = SYS_UI_CLAMP(ctx->air_quality + random(-5, 6), 30, 100);
@@ -282,7 +803,7 @@ static void sys_ui_updateEnvironmentTelemetry(sys_ui_t *ctx)
 
   if (ctx->view == SYS_UI_VIEW_MAIN)
   {
-    bsp_display_updateEnvironment(&ctx->display, ctx->temperature_C, ctx->humidity, ctx->air_quality);
+    sys_ui_updateEnvironment(ctx, ctx->temperature_C, ctx->humidity, ctx->air_quality);
   }
   else if (ctx->view == SYS_UI_VIEW_TEMPERATURE)
   {
@@ -294,96 +815,238 @@ static void sys_ui_updateEnvironmentTelemetry(sys_ui_t *ctx)
   }
 }
 
+static void sys_ui_drawSettingsOverlay(sys_ui_t *ctx)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  if (w->settings_screen == nullptr)
+  {
+    sys_ui_createSettingsScreen(ctx);
+  }
+
+  if (w->brightness_slider != nullptr)
+  {
+    lv_slider_set_value(w->brightness_slider, ctx->brightness_percent, LV_ANIM_OFF);
+  }
+  if (w->brightness_label != nullptr)
+  {
+    lv_label_set_text_fmt(w->brightness_label, "%d%%", ctx->brightness_percent);
+  }
+
+  sys_ui_showScreen(ctx, w->settings_screen);
+}
+
+static void sys_ui_drawOutOverlay(sys_ui_t *ctx)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  if (w->out_screen == nullptr)
+  {
+    sys_ui_createOutScreen(ctx);
+  }
+
+  sys_ui_showScreen(ctx, w->out_screen);
+}
+
+static void sys_ui_drawTimeHistoryOverlay(sys_ui_t *ctx)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  if (w->time_history_screen == nullptr)
+  {
+    sys_ui_createTimeHistoryScreen(ctx);
+  }
+
+  for (int i = 0; i < 4; ++i)
+  {
+    if (w->history_labels[i] != nullptr)
+    {
+      if (i < ctx->rental_history_count)
+      {
+        lv_label_set_text(w->history_labels[i], ctx->rentalHistory[i]);
+      }
+      else
+      {
+        lv_label_set_text(w->history_labels[i], "");
+      }
+    }
+  }
+
+  if (w->time_remaining_label != nullptr)
+  {
+    lv_label_set_text_fmt(w->time_remaining_label, "Remaining: %02d:%02d", ctx->remaining_minutes,
+                          ctx->remaining_seconds);
+  }
+
+  sys_ui_showScreen(ctx, w->time_history_screen);
+}
+
+static void sys_ui_drawDistanceOverlay(sys_ui_t *ctx)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  if (w->distance_screen == nullptr)
+  {
+    sys_ui_createDistanceScreen(ctx);
+  }
+
+  uint32_t now   = OS_GET_TICK();
+  float    hours = (now - ctx->session_start_ms) / 3600000.0f;
+  if (hours < 0.001f)
+    hours = 0.001f;
+  float avgSpeed = ctx->distance_km / hours;
+
+  if (w->total_distance_label != nullptr)
+  {
+    lv_label_set_text_fmt(w->total_distance_label, "Total: %.2f km", ctx->distance_km);
+  }
+
+  if (w->avg_speed_label != nullptr)
+  {
+    lv_label_set_text_fmt(w->avg_speed_label, "Avg speed: %.1f km/h", avgSpeed);
+  }
+
+  if (w->distance_chart != nullptr && w->distance_series != nullptr)
+  {
+    int count = ctx->distance_history_count;
+    lv_chart_set_point_count(w->distance_chart, count > 0 ? count : 1);
+    for (int i = 0; i < count && i < 16; ++i)
+    {
+      lv_chart_set_value_by_id(w->distance_chart, w->distance_series, i, (int) (ctx->distanceHistory[i] * 100));
+    }
+    lv_chart_refresh(w->distance_chart);
+  }
+
+  sys_ui_showScreen(ctx, w->distance_screen);
+}
+
+static void sys_ui_drawTemperatureOverlay(sys_ui_t *ctx)
+{
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  if (w->temp_screen == nullptr)
+  {
+    sys_ui_createTemperatureScreen(ctx);
+  }
+
+  int count = ctx->temperature_sample_count;
+  if (w->temp_chart != nullptr && w->temp_series != nullptr && count > 1)
+  {
+    int zoom      = ctx->temperature_zoom;
+    int panOffset = ctx->temperature_pan;
+    int window    = count / zoom;
+    if (window < 2)
+      window = 2;
+    if (window > count)
+      window = count;
+    if (panOffset < 0)
+      panOffset = 0;
+    if (panOffset > count - window)
+      panOffset = count - window;
+
+    float minTemp = ctx->temperatureHistory[panOffset];
+    float maxTemp = ctx->temperatureHistory[panOffset];
+    for (int i = 0; i < window; ++i)
+    {
+      float v = ctx->temperatureHistory[panOffset + i];
+      if (v < minTemp)
+        minTemp = v;
+      if (v > maxTemp)
+        maxTemp = v;
+    }
+
+    if (w->temp_range_label != nullptr)
+    {
+      float span = 0;
+      if (count > 0)
+      {
+        span = (ctx->temperatureTimestamps[panOffset + window - 1] - ctx->temperatureTimestamps[panOffset]) / 1000.0f;
+      }
+      lv_label_set_text_fmt(w->temp_range_label, "%.1f-%.1fC (%.1fs)", minTemp, maxTemp, span);
+    }
+
+    lv_chart_set_point_count(w->temp_chart, window);
+    lv_chart_set_range(w->temp_chart, LV_CHART_AXIS_PRIMARY_Y, (int) (minTemp * 10) - 5, (int) (maxTemp * 10) + 5);
+
+    for (int i = 0; i < window; ++i)
+    {
+      lv_chart_set_value_by_id(w->temp_chart, w->temp_series, i, (int) (ctx->temperatureHistory[panOffset + i] * 10));
+    }
+    lv_chart_refresh(w->temp_chart);
+  }
+
+  sys_ui_showScreen(ctx, w->temp_screen);
+}
+
 static void sys_ui_enterView(sys_ui_t *ctx, sys_ui_view_t view)
 {
   ctx->view = view;
   switch (view)
   {
   case SYS_UI_VIEW_SETTINGS:
-    bsp_display_drawSettingsOverlay(&ctx->display, ctx->brightness_percent, ctx->theme_background_color);
-    /* Register settings screen callbacks */
-    if (ctx->display.settings_back_btn != nullptr)
+    sys_ui_drawSettingsOverlay(ctx);
+    if (ctx->widgets.settings_back_btn != nullptr)
     {
-      lv_obj_add_event_cb(ctx->display.settings_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ctx->widgets.settings_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
     }
-    if (ctx->display.brightness_slider != nullptr)
+    if (ctx->widgets.brightness_slider != nullptr)
     {
-      lv_obj_add_event_cb(ctx->display.brightness_slider, sys_ui_brightness_slider_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+      lv_obj_add_event_cb(ctx->widgets.brightness_slider, sys_ui_brightness_slider_cb, LV_EVENT_VALUE_CHANGED, nullptr);
     }
     for (int i = 0; i < 3; ++i)
     {
-      if (ctx->display.color_btns[i] != nullptr)
+      if (ctx->widgets.color_btns[i] != nullptr)
       {
-        lv_obj_add_event_cb(ctx->display.color_btns[i], sys_ui_color_btn_cb, LV_EVENT_CLICKED, (void *) (intptr_t) i);
+        lv_obj_add_event_cb(ctx->widgets.color_btns[i], sys_ui_color_btn_cb, LV_EVENT_CLICKED, (void *) (intptr_t) i);
       }
     }
     break;
   case SYS_UI_VIEW_OUT:
-    bsp_display_drawOutOverlay(&ctx->display);
-    /* Register out screen back button callback */
-    if (ctx->display.out_back_btn != nullptr)
+    sys_ui_drawOutOverlay(ctx);
+    if (ctx->widgets.out_back_btn != nullptr)
     {
-      lv_obj_add_event_cb(ctx->display.out_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ctx->widgets.out_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
     }
     break;
   case SYS_UI_VIEW_TIME:
-  {
-    const char *history[SYS_UI_MAX_RENTAL_HISTORY];
-    for (int i = 0; i < ctx->rental_history_count; ++i)
+    sys_ui_drawTimeHistoryOverlay(ctx);
+    if (ctx->widgets.time_back_btn != nullptr)
     {
-      history[i] = ctx->rentalHistory[i];
+      lv_obj_add_event_cb(ctx->widgets.time_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
     }
-    bsp_display_drawTimeHistoryOverlay(&ctx->display, history, ctx->rental_history_count, ctx->remaining_minutes,
-                                       ctx->remaining_seconds);
-    /* Register time history screen callbacks */
-    if (ctx->display.time_back_btn != nullptr)
+    if (ctx->widgets.extend_btn != nullptr)
     {
-      lv_obj_add_event_cb(ctx->display.time_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
-    }
-    if (ctx->display.extend_btn != nullptr)
-    {
-      lv_obj_add_event_cb(ctx->display.extend_btn, sys_ui_extend_btn_cb, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ctx->widgets.extend_btn, sys_ui_extend_btn_cb, LV_EVENT_CLICKED, nullptr);
     }
     break;
-  }
   case SYS_UI_VIEW_DISTANCE:
-  {
-    uint32_t now   = OS_GET_TICK();
-    float    hours = (now - ctx->session_start_ms) / 3600000.0f;
-    if (hours < 0.001f)
-      hours = 0.001f;
-    float avgSpeed = ctx->distance_km / hours;
-    bsp_display_drawDistanceOverlay(&ctx->display, avgSpeed, ctx->distance_km, ctx->distanceHistory,
-                                    ctx->distance_history_count);
-    /* Register distance screen back button callback */
-    if (ctx->display.distance_back_btn != nullptr)
+    sys_ui_drawDistanceOverlay(ctx);
+    if (ctx->widgets.distance_back_btn != nullptr)
     {
-      lv_obj_add_event_cb(ctx->display.distance_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ctx->widgets.distance_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
     }
     break;
-  }
   case SYS_UI_VIEW_TEMPERATURE:
-    sys_ui_refreshTemperatureOverlay(ctx);
-    /* Register temperature screen callbacks */
-    if (ctx->display.temp_back_btn != nullptr)
+    sys_ui_drawTemperatureOverlay(ctx);
+    if (ctx->widgets.temp_back_btn != nullptr)
     {
-      lv_obj_add_event_cb(ctx->display.temp_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ctx->widgets.temp_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
     }
-    if (ctx->display.zoom_minus_btn != nullptr)
+    if (ctx->widgets.zoom_minus_btn != nullptr)
     {
-      lv_obj_add_event_cb(ctx->display.zoom_minus_btn, sys_ui_zoom_minus_btn_cb, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ctx->widgets.zoom_minus_btn, sys_ui_zoom_minus_btn_cb, LV_EVENT_CLICKED, nullptr);
     }
-    if (ctx->display.zoom_plus_btn != nullptr)
+    if (ctx->widgets.zoom_plus_btn != nullptr)
     {
-      lv_obj_add_event_cb(ctx->display.zoom_plus_btn, sys_ui_zoom_plus_btn_cb, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ctx->widgets.zoom_plus_btn, sys_ui_zoom_plus_btn_cb, LV_EVENT_CLICKED, nullptr);
     }
-    if (ctx->display.pan_left_btn != nullptr)
+    if (ctx->widgets.pan_left_btn != nullptr)
     {
-      lv_obj_add_event_cb(ctx->display.pan_left_btn, sys_ui_pan_left_btn_cb, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ctx->widgets.pan_left_btn, sys_ui_pan_left_btn_cb, LV_EVENT_CLICKED, nullptr);
     }
-    if (ctx->display.pan_right_btn != nullptr)
+    if (ctx->widgets.pan_right_btn != nullptr)
     {
-      lv_obj_add_event_cb(ctx->display.pan_right_btn, sys_ui_pan_right_btn_cb, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ctx->widgets.pan_right_btn, sys_ui_pan_right_btn_cb, LV_EVENT_CLICKED, nullptr);
     }
     break;
   default: break;
@@ -394,8 +1057,7 @@ static void sys_ui_returnToMain(sys_ui_t *ctx)
 {
   ctx->view                = SYS_UI_VIEW_MAIN;
   ctx->pending_main_redraw = false;
-  bsp_display_draw_full_ui(&ctx->display, ctx->remaining_minutes, ctx->remaining_seconds, ctx->distance_km,
-                           ctx->current_speed, ctx->temperature_C, ctx->humidity, ctx->air_quality);
+  sys_ui_drawFullUI(ctx);
   sys_ui_register_lvgl_callbacks(ctx);
 }
 
@@ -432,24 +1094,18 @@ static void sys_ui_logTemperatureSample(sys_ui_t *ctx, float value, uint32_t tim
 
 static void sys_ui_refreshTemperatureOverlay(sys_ui_t *ctx)
 {
-  /* Clamp pan offset */
   int max_pan = (ctx->temperature_sample_count > 2) ? (ctx->temperature_sample_count - 2) : 0;
   if (ctx->temperature_pan > max_pan)
     ctx->temperature_pan = max_pan;
   if (ctx->temperature_pan < 0)
     ctx->temperature_pan = 0;
 
-  bsp_display_drawTemperatureOverlay(&ctx->display, ctx->temperatureHistory, ctx->temperatureTimestamps,
-                                     ctx->temperature_sample_count, ctx->temperature_zoom, ctx->temperature_pan);
+  sys_ui_drawTemperatureOverlay(ctx);
 }
 
-/**
- * LVGL Touch Input Callback
- * Called by LVGL driver to read touch events
- */
+/* ============== LVGL Callbacks ============== */
 static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 {
-  /* Get context from driver user data */
   sys_ui_t *ctx = (sys_ui_t *) lv_indev_get_user_data(indev);
   if (ctx == nullptr)
   {
@@ -457,7 +1113,6 @@ static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
     return;
   }
 
-  /* Read touch using existing BSP API */
   bsp_touch_point_t point = { 0 };
   bsp_touch_read(&ctx->touch, &point);
 
@@ -472,8 +1127,6 @@ static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
     data->state = LV_INDEV_STATE_RELEASED;
   }
 }
-
-/* ============== LVGL Button Event Callbacks ============== */
 
 static void sys_ui_settings_btn_cb(lv_event_t *e)
 {
@@ -512,13 +1165,7 @@ static void sys_ui_extend_btn_cb(lv_event_t *e)
   {
     printf("[LVGL] Extend button pressed\n");
     g_ui_ctx->remaining_minutes += 30;
-    const char *history[SYS_UI_MAX_RENTAL_HISTORY];
-    for (int i = 0; i < g_ui_ctx->rental_history_count; ++i)
-    {
-      history[i] = g_ui_ctx->rentalHistory[i];
-    }
-    bsp_display_drawTimeHistoryOverlay(&g_ui_ctx->display, history, g_ui_ctx->rental_history_count,
-                                       g_ui_ctx->remaining_minutes, g_ui_ctx->remaining_seconds);
+    sys_ui_drawTimeHistoryOverlay(g_ui_ctx);
   }
 }
 
@@ -540,12 +1187,10 @@ static void sys_ui_color_btn_cb(lv_event_t *e)
 
   int btn_index = (int) (intptr_t) lv_event_get_user_data(e);
 
-  uint16_t colors[3] = { BSP_DISPLAY_HEX_TO_565(TFT_BLACK), BSP_DISPLAY_HEX_TO_565(TFT_WHITE),
-                         BSP_DISPLAY_HEX_TO_565(TFT_LIGHTGREY) };
+  uint32_t colors[3] = { 0x000000, 0xFFFFFF, 0x7B7B7B };
   if (btn_index >= 0 && btn_index < 3)
   {
-    g_ui_ctx->theme_background_color = colors[btn_index];
-    bsp_display_set_background_color(&g_ui_ctx->display, g_ui_ctx->theme_background_color);
+    g_ui_ctx->background_color    = colors[btn_index];
     g_ui_ctx->pending_main_redraw = true;
     printf("[LVGL] Background color changed to index %d\n", btn_index);
   }
@@ -625,37 +1270,36 @@ static void sys_ui_env_card_cb(lv_event_t *e)
   }
 }
 
-/* Register LVGL event callbacks for all interactive widgets */
 static void sys_ui_register_lvgl_callbacks(sys_ui_t *ctx)
 {
   if (ctx == nullptr)
     return;
 
-  /* Main screen buttons */
-  if (ctx->display.settings_btn != nullptr)
+  sys_ui_widgets_t *w = &ctx->widgets;
+
+  if (w->settings_btn != nullptr)
   {
-    lv_obj_add_event_cb(ctx->display.settings_btn, sys_ui_settings_btn_cb, LV_EVENT_CLICKED, nullptr);
+    lv_obj_add_event_cb(w->settings_btn, sys_ui_settings_btn_cb, LV_EVENT_CLICKED, nullptr);
   }
-  if (ctx->display.out_btn != nullptr)
+  if (w->out_btn != nullptr)
   {
-    lv_obj_add_event_cb(ctx->display.out_btn, sys_ui_out_btn_cb, LV_EVENT_CLICKED, nullptr);
+    lv_obj_add_event_cb(w->out_btn, sys_ui_out_btn_cb, LV_EVENT_CLICKED, nullptr);
   }
 
-  /* Main screen cards (clickable) */
-  if (ctx->display.time_card != nullptr)
+  if (w->time_card != nullptr)
   {
-    lv_obj_add_flag(ctx->display.time_card, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(ctx->display.time_card, sys_ui_time_card_cb, LV_EVENT_CLICKED, nullptr);
+    lv_obj_add_flag(w->time_card, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(w->time_card, sys_ui_time_card_cb, LV_EVENT_CLICKED, nullptr);
   }
-  if (ctx->display.distance_card != nullptr)
+  if (w->distance_card != nullptr)
   {
-    lv_obj_add_flag(ctx->display.distance_card, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(ctx->display.distance_card, sys_ui_distance_card_cb, LV_EVENT_CLICKED, nullptr);
+    lv_obj_add_flag(w->distance_card, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(w->distance_card, sys_ui_distance_card_cb, LV_EVENT_CLICKED, nullptr);
   }
-  if (ctx->display.env_card != nullptr)
+  if (w->env_card != nullptr)
   {
-    lv_obj_add_flag(ctx->display.env_card, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(ctx->display.env_card, sys_ui_env_card_cb, LV_EVENT_CLICKED, nullptr);
+    lv_obj_add_flag(w->env_card, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(w->env_card, sys_ui_env_card_cb, LV_EVENT_CLICKED, nullptr);
   }
 }
 
