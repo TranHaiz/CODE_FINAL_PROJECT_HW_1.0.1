@@ -21,11 +21,6 @@
 #include <TinyGPSPlus.h>
 
 /* Public defines ----------------------------------------------------- */
-#define BSP_GPS_TX           (43)
-#define BSP_GPS_RX           (44)
-#define BSP_GPS_BAUDRATE     (9600)
-#define BSP_GPS_UART_HANDLER (UART_NUM_1)
-
 // Enable raw NMEA debug output (only printable ASCII)
 // #define BSP_GPS_DEBUG_RAW_NMEA
 

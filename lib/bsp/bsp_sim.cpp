@@ -26,7 +26,7 @@
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
-#define SIM_SEND(data) (bsp_uart_write(SIM_UART_HANDLE, (data), strlen((data))))
+#define SIM_SEND(data) (bsp_uart_write(SIM_UART_HANDLER, (data), strlen((data))))
 #ifdef DEBUG_SIM
 #define LOG(char)      Serial.println(char)
 #define LOG_DATA(data) Serial.println(data)
@@ -64,9 +64,9 @@ static void bsp_sim_rsp_callback(uart_port_t uart_num, uint8_t *data, size_t len
 /* Function definitions ----------------------------------------------- */
 status_function_t bsp_sim_init(void)
 {
-  bsp_uart_config_t uart2_cfg = { .port     = UART_NUM_2,
-                                  .tx_pin   = SIM_UART_TX_PIN,
-                                  .rx_pin   = SIM_UART_RX_PIN,
+  bsp_uart_config_t uart2_cfg = { .port     = SIM_UART_HANDLER,
+                                  .tx_pin   = SIM_UART_TX,
+                                  .rx_pin   = SIM_UART_RX,
                                   .baudrate = SIM_UART_BAUDRATE,
                                   .callback = bsp_sim_rsp_callback };
   bsp_uart_init(&uart2_cfg);

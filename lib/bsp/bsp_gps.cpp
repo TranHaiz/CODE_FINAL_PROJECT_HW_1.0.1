@@ -13,6 +13,8 @@
 /* Includes ----------------------------------------------------------- */
 #include "bsp_gps.h"
 
+#include "device_info.h"
+
 /* Private defines ---------------------------------------------------- */
 #define GPS_UBX_SYNC1     0xB5
 #define GPS_UBX_SYNC2     0x62
@@ -82,10 +84,10 @@ status_function_t bsp_gps_init(bsp_gps_callback_t callback)
   // Save callback
   s_gps_callback = callback;
   // Initialize UART with GPS callback
-  bsp_uart_config_t uart_cfg = { .port     = BSP_GPS_UART_HANDLER,
-                                 .tx_pin   = BSP_GPS_TX,
-                                 .rx_pin   = BSP_GPS_RX,
-                                 .baudrate = BSP_GPS_BAUDRATE,
+  bsp_uart_config_t uart_cfg = { .port     = GPS_UART_HANDLER,
+                                 .tx_pin   = GPS_UART_TX,
+                                 .rx_pin   = GPS_UART_RX,
+                                 .baudrate = GPS_UART_BAUDRATE,
                                  .callback = gps_uart_callback };
 
   bsp_uart_init(&uart_cfg);
@@ -440,7 +442,7 @@ TinyGPSPlus *bsp_gps_get_instance(void)
 /* Private definitions ----------------------------------------------- */
 static void gps_uart_callback(uart_port_t uart_num, uint8_t *data, size_t len)
 {
-  if (uart_num != BSP_GPS_UART_HANDLER)
+  if (uart_num != GPS_UART_HANDLER)
   {
     return;
   }
@@ -585,7 +587,7 @@ static void gps_send_ubx_command(uint8_t msg_class, uint8_t msg_id, const uint8_
   buffer[7 + payload_len] = ck_b;
 
   // Send command via UART
-  bsp_uart_write(BSP_GPS_UART_HANDLER, (const char *) buffer, total_len);
+  bsp_uart_write(GPS_UART_HANDLER, (const char *) buffer, total_len);
 
   free(buffer);
 }
