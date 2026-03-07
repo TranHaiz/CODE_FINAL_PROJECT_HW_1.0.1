@@ -19,10 +19,10 @@
 #include "bsp_sdcard.h"
 #include "bsp_sim.h"
 #include "common_type.h"
+#include "device_info.h"
 #include "device_pin_conf.h"
 #include "os_lib.h"
 #include "sys_ui.h"
-#include "device_info.h"
 
 /* Private defines ---------------------------------------------------- */
 /* Private enumerate/structure ---------------------------------------- */
@@ -35,13 +35,13 @@ uint16_t          g_data_len = 0;
 
 /* Private function prototypes ---------------------------------------- */
 /* Function definitions ----------------------------------------------- */
-OS_THREAD_DECLARE(thread1, tskIDLE_PRIORITY + 2, 4096);
-OS_THREAD_DECLARE(thread2, tskIDLE_PRIORITY + 2, 4096);
-OS_THREAD_DECLARE(thread3, tskIDLE_PRIORITY + 1, 16384); /* LVGL requires larger stack */
-OS_THREAD_DECLARE(thread4, tskIDLE_PRIORITY + 2, 4096);  /* Dust sensor thread */
-OS_THREAD_DECLARE(thread5, tskIDLE_PRIORITY + 2, 4096);  /* Accelerometer thread */
-OS_THREAD_DECLARE(thread6, tskIDLE_PRIORITY + 2, 4096);  /* Compass thread */
-OS_THREAD_DECLARE(thread7, tskIDLE_PRIORITY + 2, 8192);  /* SD Card thread (larger stack) */
+OS_THREAD_DECLARE(thread1, tskIDLE_PRIORITY + 2, 4096);   // SIM test
+OS_THREAD_DECLARE(thread2, tskIDLE_PRIORITY + 2, 4096);   // Gps test
+OS_THREAD_DECLARE(thread3, tskIDLE_PRIORITY + 1, 16384);  // LVGL requires larger stack
+OS_THREAD_DECLARE(thread4, tskIDLE_PRIORITY + 2, 4096);   // Dust sensor thread
+OS_THREAD_DECLARE(thread5, tskIDLE_PRIORITY + 2, 4096);   // Accelerometer thread
+OS_THREAD_DECLARE(thread6, tskIDLE_PRIORITY + 2, 4096);   // Compass thread
+OS_THREAD_DECLARE(thread7, tskIDLE_PRIORITY + 2, 8192);   // SD Card thread
 
 void gps_position_callback(bsp_gps_data_t *data)
 {
@@ -51,6 +51,32 @@ void gps_position_callback(bsp_gps_data_t *data)
 void dust_callback(bsp_dust_sensor_data_t *data)
 {
   Serial.printf("Dust: %d µg/m³\n", data->dust_density);
+}
+
+void thread1_func(void *param)
+{
+  g_ret = bsp_sim_init();
+
+  while (1)
+  {
+    if (g_ret != STATUS_OK)
+    {
+      bsp_error_handler(BSP_ERROR_SIM_INIT);
+    }
+    firebase_data_t data_firebase_test;
+    data_firebase_test.batt_level         = rand() % 100 + 1;
+    data_firebase_test.position.latitude  = (float) (rand() % 18000) / 100.0f - 90.0f;
+    data_firebase_test.position.longitude = (float) (rand() % 36000) / 100.0f - 180.0f;
+    data_firebase_test.speed              = (float) (rand() % 2000) / 10.0f;
+
+    g_ret = bsp_sim_send_data_firebase(&data_firebase_test);
+    g_ret = bsp_sim_get_raw_data_firebase((uint8_t *) g_buffer, &g_data_len);
+    Serial.print("[INFO]:");
+    Serial.print(g_buffer);
+    Serial.println(", data_len: " + String(g_data_len));
+
+    OS_DELAY_MS(1000);
+  }
 }
 
 void thread2_func(void *param)
@@ -81,7 +107,7 @@ void              thread4_func(void *param)
     vTaskDelete(NULL);
     return;
   }
-  bsp_dust_sensor_register_callback(&dust_sensor, dust_callback);
+  // bsp_dust_sensor_register_callback(&dust_sensor, dust_callback);
   if (bsp_dust_sensor_begin(&dust_sensor) != STATUS_OK)
   {
     Serial.println("[ERROR] Failed to start dust sensor");
@@ -91,6 +117,8 @@ void              thread4_func(void *param)
   while (1)
   {
     bsp_dust_sensor_update(&dust_sensor);
+    bsp_dust_sensor_read(&dust_sensor);
+    Serial.printf("Dust Density: %d µg/m³\n", dust_sensor.data.dust_density);
     OS_DELAY_MS(1000);
   }
 }
@@ -345,7 +373,12 @@ void setup()
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
+  OS_THREAD_CREATE(thread1, thread1_func);
+  OS_THREAD_CREATE(thread2, thread2_func);
   OS_THREAD_CREATE(thread3, thread3_func);
+  OS_THREAD_CREATE(thread4, thread4_func);
+  OS_THREAD_CREATE(thread5, thread5_func);
+  OS_THREAD_CREATE(thread6, thread6_func);
   OS_THREAD_CREATE(thread7, thread7_func);
 }
 
