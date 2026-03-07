@@ -22,6 +22,7 @@
 #include "device_pin_conf.h"
 #include "os_lib.h"
 #include "sys_ui.h"
+#include "device_info.h"
 
 /* Private defines ---------------------------------------------------- */
 /* Private enumerate/structure ---------------------------------------- */
@@ -184,11 +185,11 @@ void         thread7_func(void *param)
 
   // Initialize SD card with custom config
   bsp_sdcard_config_t sdcard_config = {
-    .cs_pin        = SDCARD_CS_PIN,
-    .sck_pin       = SDCARD_SCK_PIN,
-    .miso_pin      = SDCARD_MISO_PIN,
-    .mosi_pin      = SDCARD_MOSI_PIN,
-    .spi_freq      = SDCARD_SPI_FREQ,
+    .cs_pin        = BSP_SDCARD_DEFAULT_CS_PIN,
+    .sck_pin       = BSP_SDCARD_DEFAULT_SCK_PIN,
+    .miso_pin      = BSP_SDCARD_DEFAULT_MISO_PIN,
+    .mosi_pin      = BSP_SDCARD_DEFAULT_MOSI_PIN,
+    .spi_freq      = BSP_SDCARD_DEFAULT_SPI_FREQ,
     .mount_retries = 3,
   };
 
@@ -344,6 +345,7 @@ void setup()
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
+  OS_THREAD_CREATE(thread3, thread3_func);
   OS_THREAD_CREATE(thread7, thread7_func);
 }
 

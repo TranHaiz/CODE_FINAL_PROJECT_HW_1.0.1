@@ -73,8 +73,8 @@ status_function_t bsp_sdcard_init_with_config(bsp_sdcard_t *ctx, const bsp_sdcar
   ctx->info.sector_size     = BSP_SDCARD_DEFAULT_BLOCK_SIZE;
   ctx->info.is_mounted      = false;
 
-  // Create SPI instance (HSPI)
-  ctx->spi = new SPIClass(HSPI);
+  // Create SPI instance (FSPI/SPI2 - separate from HSPI used by ILI9341 display)
+  ctx->spi = new SPIClass(FSPI);
 
   if (ctx->spi == nullptr)
   {

@@ -22,12 +22,6 @@
 #include <SPI.h>
 
 /* Public defines ----------------------------------------------------- */
-#define BSP_SDCARD_DEFAULT_CS_PIN        (39)
-#define BSP_SDCARD_DEFAULT_SCK_PIN       (38)
-#define BSP_SDCARD_DEFAULT_MISO_PIN      (37)
-#define BSP_SDCARD_DEFAULT_MOSI_PIN      (36)
-#define BSP_SDCARD_DEFAULT_SPI_FREQ      (4000000)   // 4MHz default
-#define BSP_SDCARD_MAX_SPI_FREQ          (40000000)  // 40MHz max
 #define BSP_SDCARD_DEFAULT_BLOCK_SIZE    (512)
 #define BSP_SDCARD_DEFAULT_MOUNT_RETRIES (3)
 
