@@ -12,6 +12,7 @@
 
 /* Includes ----------------------------------------------------------- */
 #include "bsp_acc.h"
+#include "bsp_compass.h"
 #include "bsp_dust_sensor.h"
 #include "bsp_error.h"
 #include "bsp_gps.h"
@@ -20,6 +21,7 @@
 #include "device_pin_conf.h"
 #include "os_lib.h"
 #include "sys_ui.h"
+
 
 /* Private defines ---------------------------------------------------- */
 /* Private enumerate/structure ---------------------------------------- */
@@ -37,6 +39,7 @@ OS_THREAD_DECLARE(thread2, tskIDLE_PRIORITY + 2, 4096);
 OS_THREAD_DECLARE(thread3, tskIDLE_PRIORITY + 1, 16384); /* LVGL requires larger stack */
 OS_THREAD_DECLARE(thread4, tskIDLE_PRIORITY + 2, 4096);  /* Dust sensor thread */
 OS_THREAD_DECLARE(thread5, tskIDLE_PRIORITY + 2, 4096);  /* Accelerometer thread */
+OS_THREAD_DECLARE(thread6, tskIDLE_PRIORITY + 2, 4096);  /* Compass thread */
 
 void gps_position_callback(bsp_gps_data_t *data)
 {
@@ -133,13 +136,53 @@ void      thread5_func(void *param)
   }
 }
 
+void compass_callback(bsp_compass_data_t *data)
+{
+  Serial.printf(">>> %.0f° %s\n", data->heading_deg, data->direction_str);
+}
+
+bsp_compass_t compass;
+void          thread6_func(void *param)
+{
+  // Scan I2C bus first to debug hardware connection
+  int8_t found_addr = bsp_compass_scan_i2c(COMPASS_I2C_SDA_PIN, COMPASS_I2C_SCL_PIN);
+  if (found_addr < 0)
+  {
+    Serial.println("[ERROR] No compass found on I2C bus");
+    vTaskDelete(NULL);
+    return;
+  }
+
+  if (bsp_compass_init(&compass) != STATUS_OK)
+  {
+    Serial.println("[ERROR] Failed to initialize compass");
+    vTaskDelete(NULL);
+    return;
+  }
+
+  if (bsp_compass_begin(&compass) != STATUS_OK)
+  {
+    Serial.println("[ERROR] Failed to start compass");
+    vTaskDelete(NULL);
+    return;
+  }
+
+  bsp_compass_register_callback(&compass, compass_callback);
+
+  while (1)
+  {
+    bsp_compass_update(&compass);
+    OS_DELAY_MS(500);
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
-  OS_THREAD_CREATE(thread5, thread5_func);
+  OS_THREAD_CREATE(thread6, thread6_func);
 }
 
 void loop()

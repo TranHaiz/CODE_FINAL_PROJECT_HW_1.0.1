@@ -47,6 +47,11 @@
 #define ACC_I2C_SCL_PIN     (5)
 #define ACC_I2C_ADDR        (0x6B)
 
+// HMC5883L Compass I2C configuration
+#define COMPASS_I2C_SDA_PIN (4)
+#define COMPASS_I2C_SCL_PIN (5)
+#define COMPASS_I2C_ADDR    (0x1E)
+
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
