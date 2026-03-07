@@ -17,8 +17,9 @@
 
 #include <string.h>
 
-
 /* Private defines ---------------------------------------------------- */
+#define SYS_UI_CLAMP(val, minv, maxv) ((val) < (minv) ? (minv) : ((val) > (maxv) ? (maxv) : (val)))
+
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -59,14 +60,11 @@ static void sys_ui_refreshTemperatureOverlay(sys_ui_t *ctx);
 /* Function definitions ----------------------------------------------- */
 void sys_ui_begin(sys_ui_t *ctx)
 {
-  if (ctx == nullptr)
-  {
-    return;
-  }
+  assert(ctx != nullptr);
 
   ctx->last_speed_update        = 0;
   ctx->last_second_tick         = 0;
-  ctx->last_env_update          = 0;
+  ctx->last_time_update_screen  = 0;
   ctx->frame_counter            = 0;
   ctx->current_speed            = 0.0f;
   ctx->target_speed             = 0.0f;
@@ -122,12 +120,11 @@ void sys_ui_begin(sys_ui_t *ctx)
   /* Register LVGL button event callbacks */
   sys_ui_register_lvgl_callbacks(ctx);
 
-  ctx->view              = SYS_UI_VIEW_MAIN;
-  ctx->session_start_ms  = OS_GET_TICK();
-  uint32_t now           = ctx->session_start_ms;
-  ctx->last_speed_update = now;
-  ctx->last_second_tick  = now;
-  ctx->last_env_update   = now;
+  uint32_t now                 = OS_GET_TICK();
+  ctx->session_start_ms        = now;
+  ctx->last_speed_update       = now;
+  ctx->last_second_tick        = now;
+  ctx->last_time_update_screen = now;
 
   bsp_touch_init(&ctx->touch, bsp_display_driver(&ctx->display));
 }
@@ -154,9 +151,9 @@ void sys_ui_run(sys_ui_t *ctx)
   }
 
   // Update environment telemetry
-  if (now - ctx->last_env_update >= SYS_UI_ENVIRONMENT_MS)
+  if (now - ctx->last_time_update_screen >= SYS_UI_ENVIRONMENT_MS)
   {
-    ctx->last_env_update = now;
+    ctx->last_time_update_screen = now;
     sys_ui_updateEnvironmentTelemetry(ctx);
   }
 
@@ -205,12 +202,8 @@ static void sys_ui_initializeTelemetry(sys_ui_t *ctx)
 static void sys_ui_updateSpeedAndDistance(sys_ui_t *ctx)
 {
   // NOTE: Randomized target speed simulates wheel sensor data until the CAN feed is ready.
-  float speedDelta = static_cast<float>(random(-25, 26)) / 10.0f;
-  ctx->target_speed += speedDelta;
-  if (ctx->target_speed < 0.0f)
-    ctx->target_speed = 0.0f;
-  if (ctx->target_speed > 35.0f)
-    ctx->target_speed = 35.0f;
+  float speedDelta  = static_cast<float>(random(-25, 26)) / 10.0f;
+  ctx->target_speed = SYS_UI_CLAMP(ctx->target_speed + speedDelta, 0.0f, 35.0f);
 
   ctx->current_speed += (ctx->target_speed - ctx->current_speed) * 0.2f;
 
@@ -281,23 +274,9 @@ static void sys_ui_updateCountdown(sys_ui_t *ctx)
 static void sys_ui_updateEnvironmentTelemetry(sys_ui_t *ctx)
 {
   // NOTE: Randomized environment telemetry until temperature/humidity sensors are online.
-  ctx->temperature_C += static_cast<float>(random(-10, 11)) / 10.0f;
-  if (ctx->temperature_C < 20.0f)
-    ctx->temperature_C = 20.0f;
-  if (ctx->temperature_C > 40.0f)
-    ctx->temperature_C = 40.0f;
-
-  ctx->humidity += static_cast<float>(random(-20, 21)) / 10.0f;
-  if (ctx->humidity < 40.0f)
-    ctx->humidity = 40.0f;
-  if (ctx->humidity > 95.0f)
-    ctx->humidity = 95.0f;
-
-  ctx->air_quality += random(-5, 6);
-  if (ctx->air_quality < 30)
-    ctx->air_quality = 30;
-  if (ctx->air_quality > 100)
-    ctx->air_quality = 100;
+  ctx->temperature_C = SYS_UI_CLAMP(ctx->temperature_C + static_cast<float>(random(-10, 11)) / 10.0f, 20.0f, 40.0f);
+  ctx->humidity      = SYS_UI_CLAMP(ctx->humidity + static_cast<float>(random(-20, 21)) / 10.0f, 40.0f, 95.0f);
+  ctx->air_quality   = SYS_UI_CLAMP(ctx->air_quality + random(-5, 6), 30, 100);
 
   sys_ui_logTemperatureSample(ctx, ctx->temperature_C, OS_GET_TICK());
 
@@ -453,21 +432,12 @@ static void sys_ui_logTemperatureSample(sys_ui_t *ctx, float value, uint32_t tim
 
 static void sys_ui_refreshTemperatureOverlay(sys_ui_t *ctx)
 {
-  if (ctx->temperature_sample_count < 2)
-  {
-    bsp_display_drawTemperatureOverlay(&ctx->display, ctx->temperatureHistory, ctx->temperatureTimestamps,
-                                       ctx->temperature_sample_count, ctx->temperature_zoom, ctx->temperature_pan);
-    return;
-  }
-
-  if (ctx->temperature_pan > ctx->temperature_sample_count - 2)
-  {
-    ctx->temperature_pan = ctx->temperature_sample_count - 2;
-  }
+  /* Clamp pan offset */
+  int max_pan = (ctx->temperature_sample_count > 2) ? (ctx->temperature_sample_count - 2) : 0;
+  if (ctx->temperature_pan > max_pan)
+    ctx->temperature_pan = max_pan;
   if (ctx->temperature_pan < 0)
-  {
     ctx->temperature_pan = 0;
-  }
 
   bsp_display_drawTemperatureOverlay(&ctx->display, ctx->temperatureHistory, ctx->temperatureTimestamps,
                                      ctx->temperature_sample_count, ctx->temperature_zoom, ctx->temperature_pan);
@@ -568,8 +538,7 @@ static void sys_ui_color_btn_cb(lv_event_t *e)
   if (g_ui_ctx == nullptr)
     return;
 
-  lv_obj_t *btn       = (lv_obj_t *) lv_event_get_target(e);
-  int       btn_index = (int) (intptr_t) lv_event_get_user_data(e);
+  int btn_index = (int) (intptr_t) lv_event_get_user_data(e);
 
   uint16_t colors[3] = { BSP_DISPLAY_HEX_TO_565(TFT_BLACK), BSP_DISPLAY_HEX_TO_565(TFT_WHITE),
                          BSP_DISPLAY_HEX_TO_565(TFT_LIGHTGREY) };
@@ -580,7 +549,6 @@ static void sys_ui_color_btn_cb(lv_event_t *e)
     g_ui_ctx->pending_main_redraw = true;
     printf("[LVGL] Background color changed to index %d\n", btn_index);
   }
-  (void) btn;
 }
 
 static void sys_ui_zoom_minus_btn_cb(lv_event_t *e)
@@ -611,8 +579,6 @@ static void sys_ui_pan_left_btn_cb(lv_event_t *e)
   if (g_ui_ctx != nullptr)
   {
     g_ui_ctx->temperature_pan -= 5;
-    if (g_ui_ctx->temperature_pan < 0)
-      g_ui_ctx->temperature_pan = 0;
     sys_ui_refreshTemperatureOverlay(g_ui_ctx);
     printf("[LVGL] Pan left pressed, pan=%d\n", g_ui_ctx->temperature_pan);
   }
@@ -624,10 +590,6 @@ static void sys_ui_pan_right_btn_cb(lv_event_t *e)
   if (g_ui_ctx != nullptr)
   {
     g_ui_ctx->temperature_pan += 5;
-    if (g_ui_ctx->temperature_pan > g_ui_ctx->temperature_sample_count - 2)
-      g_ui_ctx->temperature_pan = g_ui_ctx->temperature_sample_count - 2;
-    if (g_ui_ctx->temperature_pan < 0)
-      g_ui_ctx->temperature_pan = 0;
     sys_ui_refreshTemperatureOverlay(g_ui_ctx);
     printf("[LVGL] Pan right pressed, pan=%d\n", g_ui_ctx->temperature_pan);
   }

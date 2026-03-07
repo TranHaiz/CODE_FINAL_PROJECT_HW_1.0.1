@@ -10,7 +10,6 @@
 #include <Arduino.h>
 #include <esp_heap_caps.h>
 
-
 /* Display buffer for LVGL - allocated from PSRAM */
 #define DISP_BUF_SIZE (LV_HOR_RES_MAX * 40)
 static lv_color_t *disp_buf1 = nullptr;
@@ -85,51 +84,41 @@ void bsp_lvgl_init(lvgl_driver_t *ctx, TFT_eSPI *tft)
 
   if (disp_buf1 == nullptr || disp_buf2 == nullptr)
   {
-    printf("[LVGL] ERROR: Failed to allocate display buffers from PSRAM\n");
+    printf("[LVGL] WARN: PSRAM alloc failed, using internal RAM\n");
     /* Fallback to internal RAM */
     if (disp_buf1 == nullptr)
       disp_buf1 = (lv_color_t *) malloc(buf_size);
     if (disp_buf2 == nullptr)
       disp_buf2 = (lv_color_t *) malloc(buf_size);
-    printf("[LVGL] Using internal RAM for display buffers\n");
-  }
-  else
-  {
-    printf("[LVGL] Display buffers allocated from PSRAM (%d bytes each)\n", buf_size);
   }
 
-  printf("[LVGL] Calling lv_init()...\n");
   lv_init();
-  printf("[LVGL] lv_init() completed\n");
 
-  printf("[LVGL] Creating display...\n");
   ctx->display = lv_display_create(LV_HOR_RES_MAX, LV_VER_RES_MAX);
   if (ctx->display == nullptr)
   {
     printf("[LVGL] ERROR: Failed to create display\n");
     return;
   }
-  printf("[LVGL] Display created\n");
 
   /* Enable flush callback for LVGL rendering */
   lv_display_set_flush_cb(ctx->display, lvgl_flush_cb);
   lv_display_set_buffers(ctx->display, disp_buf1, disp_buf2, buf_size, LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_rotation(ctx->display, LV_DISPLAY_ROTATION_0);
 
-  printf("[LVGL] Creating input device...\n");
   ctx->input_device = lv_indev_create();
   if (ctx->input_device == nullptr)
   {
     printf("[LVGL] ERROR: Failed to create input device\n");
     return;
   }
-  printf("[LVGL] Input device created\n");
 
   lv_indev_set_type(ctx->input_device, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(ctx->input_device, lvgl_input_read_cb);
   lv_indev_set_user_data(ctx->input_device, ctx->user_data);
   lv_indev_set_display(ctx->input_device, ctx->display);
-  printf("[LVGL] Input device configured\n");
+
+  printf("[LVGL] Init complete\n");
 }
 
 /**

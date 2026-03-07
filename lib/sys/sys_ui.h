@@ -42,25 +42,32 @@ typedef enum
 
 typedef struct
 {
+  // Hardware interfaces
   bsp_display_info_t display;
   bsp_touch_t        touch;
   lvgl_driver_t      lvgl;
   uint32_t           last_speed_update;
   uint32_t           last_second_tick;
-  uint32_t           last_env_update;
-  uint32_t           frame_counter;
+  uint32_t           last_time_update_screen;
 
-  float         current_speed;
-  float         target_speed;
-  float         distance_km;
-  int           remaining_minutes;
-  int           remaining_seconds;
-  float         temperature_C;
-  float         humidity;
-  int           air_quality;
-  int           battery_percent;
-  int           brightness_percent;
-  uint16_t      theme_background_color;
+  // UI context/state
+  // Speed and distance tracking
+  uint32_t frame_counter;
+  float    current_speed;
+  float    target_speed;
+  float    distance_km;
+  // Countdown timer
+  int remaining_minutes;
+  int remaining_seconds;
+  // Environment telemetry
+  float temperature_C;
+  float humidity;
+  int   air_quality;
+  int   battery_percent;
+  int   brightness_percent;
+  // Setting/theme
+  uint16_t theme_background_color;
+  // State tracking
   uint32_t      session_start_ms;
   sys_ui_view_t view;
   uint16_t      last_touch_x;

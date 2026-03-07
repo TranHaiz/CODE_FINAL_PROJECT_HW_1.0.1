@@ -67,9 +67,6 @@ bool bsp_touch_read(bsp_touch_t *ctx, bsp_touch_point_t *point)
   point->x = ctx->invert_x ? invX : rawX;
   point->y = ctx->invert_y ? invY : rawY;
 
-  printf("[bsp_touch] Screen=%ux%u raw=(%u,%u) invCandidate=(%u,%u) flags(X=%d,Y=%d) final=(%u,%u)\n", width, height,
-         rawX, rawY, invX, invY, ctx->invert_x, ctx->invert_y, point->x, point->y);
-
   return true;
 #endif
 }

@@ -195,12 +195,10 @@ void      bsp_display_draw_full_ui(bsp_display_info_t *ctx,
                                    float               temperature_C,
                                    float               humidity,
                                    int                 air_quality);
-void      bsp_display_drawControlButtons(bsp_display_info_t *ctx);
 void      bsp_display_updateSpeed(bsp_display_info_t *ctx, int speedKph);
 void      bsp_display_updateTime(bsp_display_info_t *ctx, int minutes, int seconds);
 void      bsp_display_updateDistance(bsp_display_info_t *ctx, float distance_km);
 void      bsp_display_updateEnvironment(bsp_display_info_t *ctx, float temperature_C, float humidity, int air_quality);
-void      bsp_display_updateFooter(bsp_display_info_t *ctx);
 void      bsp_display_set_background_color(bsp_display_info_t *ctx, uint16_t color);
 uint16_t  bsp_display_cvt_background_color(const bsp_display_info_t *ctx);
 void      bsp_display_set_brightness_percent(bsp_display_info_t *ctx, int percent);
@@ -223,9 +221,6 @@ void      bsp_display_drawTemperatureOverlay(bsp_display_info_t *ctx,
                                              int                 count,
                                              int                 zoomLevel,
                                              int                 panOffset);
-void      bsp_display_drawBackButton(bsp_display_info_t *ctx);
-void      bsp_display_drawExtendButton(bsp_display_info_t *ctx);
-void      bsp_display_clearScreen(bsp_display_info_t *ctx);
 TFT_eSPI *bsp_display_driver(bsp_display_info_t *ctx);
 
 #endif /*End file _BSP_DISPLAY_H_*/

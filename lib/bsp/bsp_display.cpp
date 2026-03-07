@@ -198,12 +198,6 @@ void bsp_display_draw_full_ui(bsp_display_info_t *ctx,
   bsp_display_updateSpeed(ctx, static_cast<int>(current_speed));
 }
 
-void bsp_display_drawControlButtons(bsp_display_info_t *ctx)
-{
-  /* Buttons are created as part of main screen */
-  (void) ctx;
-}
-
 void bsp_display_updateSpeed(bsp_display_info_t *ctx, int speedKph)
 {
   if (ctx == nullptr)
@@ -327,11 +321,6 @@ void bsp_display_updateEnvironment(bsp_display_info_t *ctx, float temperature_C,
     }
     lv_obj_set_style_text_color(ctx->aqi_label, aqiColor, 0);
   }
-}
-
-void bsp_display_updateFooter(bsp_display_info_t *ctx)
-{
-  (void) ctx;
 }
 
 void bsp_display_set_background_color(bsp_display_info_t *ctx, uint16_t color)
@@ -601,24 +590,6 @@ void bsp_display_drawTemperatureOverlay(bsp_display_info_t *ctx,
   }
 
   bsp_display_showScreen(ctx, ctx->temp_screen);
-}
-
-void bsp_display_drawBackButton(bsp_display_info_t *ctx)
-{
-  /* Back button is part of overlay screens */
-  (void) ctx;
-}
-
-void bsp_display_drawExtendButton(bsp_display_info_t *ctx)
-{
-  /* Extend button is part of time history screen */
-  (void) ctx;
-}
-
-void bsp_display_clearScreen(bsp_display_info_t *ctx)
-{
-  (void) ctx;
-  /* LVGL manages screen clearing automatically */
 }
 
 TFT_eSPI *bsp_display_driver(bsp_display_info_t *ctx)
