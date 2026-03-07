@@ -16,6 +16,7 @@
 #include "bsp_sim.h"
 #include "common_type.h"
 #include "os_lib.h"
+#include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
 /* Private enumerate/structure ---------------------------------------- */
@@ -28,8 +29,9 @@ uint16_t          g_data_len = 0;
 
 /* Private function prototypes ---------------------------------------- */
 /* Function definitions ----------------------------------------------- */
-OS_THREAD_DECLARE(thread1, tskIDLE_PRIORITY + 1, 4096);
-OS_THREAD_DECLARE(thread2, tskIDLE_PRIORITY + 1, 4096);
+OS_THREAD_DECLARE(thread1, tskIDLE_PRIORITY + 2, 4096);
+OS_THREAD_DECLARE(thread2, tskIDLE_PRIORITY + 2, 4096);
+OS_THREAD_DECLARE(thread3, tskIDLE_PRIORITY + 1, 4096);
 
 void gps_position_callback(bsp_gps_data_t *data)
 {
@@ -45,13 +47,23 @@ void thread2_func(void *param)
   }
 }
 
+void thread3_func(void *param)
+{
+  sys_ui_begin(&g_ui);
+  while (1)
+  {
+    sys_ui_run(&g_ui);
+    OS_YIELD();
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
-  OS_THREAD_CREATE(thread2, thread2_func);
+  OS_THREAD_CREATE(thread3, thread3_func);
 }
 
 void loop()

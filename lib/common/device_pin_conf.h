@@ -1,40 +1,37 @@
 /**
- * @file       device_info.h
+ * @file       device_pin_conf.h
  * @copyright  Copyright (C) 2019 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
  * @version    major.minor.patch
  * @date       2026-01-17
  * @author     Hai Tran
  *
- * @brief      Common type definitions used across the project
+ * @brief      Device pin configuration definitions
  *
  */
 
 /* Define to prevent recursive inclusion ------------------------------ */
-#ifndef _DEVICE_INFO_H_
-#define _DEVICE_INFO_H_
+#ifndef _DEVICE_PIN_CONF_H_
+#define _DEVICE_PIN_CONF_H_
 /* Includes ----------------------------------------------------------- */
-#include "common_type.h"
-#include "device_pin_conf.h"
-
 /* Public defines ----------------------------------------------------- */
-// #define CONFIG_SD_DEBUG_MODE
-#define CONFIG_FIREBASE_SERVER (true)
-#define CONFIG_MQTT_SERVER     (false)
+
+// IL9341 screen configuration
+#define SCREEN_MISO      (13)
+#define SCREEN_MOSI      (11)
+#define SCREEN_SCLK      (12)
+#define SCREEN_CS        (10)
+#define SCREEN_DC        (9)
+#define SCREEN_RST       (8)
+#define SCREEN_BL        (14)
+#define SCREEN_TOUCH_CS  (18)
+#define SCREEN_TOUCH_IRQ (8)
 
 /* Public enumerate/structure ----------------------------------------- */
-typedef enum
-{
-  MODEM_USB = 0,
-  MODEM_BLE,
-  MODEM_WIFI,
-  MODEM_MAX
-} modem_t;
-
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
 /* Public function prototypes ----------------------------------------- */
 
-#endif /*End file _DEVICE_INFO_H_*/
+#endif /*End file _DEVICE_PIN_CONF_H_*/
 
 /* End of file -------------------------------------------------------- */
