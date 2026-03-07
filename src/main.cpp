@@ -16,12 +16,12 @@
 #include "bsp_dust_sensor.h"
 #include "bsp_error.h"
 #include "bsp_gps.h"
+#include "bsp_sdcard.h"
 #include "bsp_sim.h"
 #include "common_type.h"
 #include "device_pin_conf.h"
 #include "os_lib.h"
 #include "sys_ui.h"
-
 
 /* Private defines ---------------------------------------------------- */
 /* Private enumerate/structure ---------------------------------------- */
@@ -40,6 +40,7 @@ OS_THREAD_DECLARE(thread3, tskIDLE_PRIORITY + 1, 16384); /* LVGL requires larger
 OS_THREAD_DECLARE(thread4, tskIDLE_PRIORITY + 2, 4096);  /* Dust sensor thread */
 OS_THREAD_DECLARE(thread5, tskIDLE_PRIORITY + 2, 4096);  /* Accelerometer thread */
 OS_THREAD_DECLARE(thread6, tskIDLE_PRIORITY + 2, 4096);  /* Compass thread */
+OS_THREAD_DECLARE(thread7, tskIDLE_PRIORITY + 2, 8192);  /* SD Card thread (larger stack) */
 
 void gps_position_callback(bsp_gps_data_t *data)
 {
@@ -176,13 +177,174 @@ void          thread6_func(void *param)
   }
 }
 
+bsp_sdcard_t sdcard;
+void         thread7_func(void *param)
+{
+  Serial.println("[SDCARD] Starting SD Card CSV/LOG test...");
+
+  // Initialize SD card with custom config
+  bsp_sdcard_config_t sdcard_config = {
+    .cs_pin        = SDCARD_CS_PIN,
+    .sck_pin       = SDCARD_SCK_PIN,
+    .miso_pin      = SDCARD_MISO_PIN,
+    .mosi_pin      = SDCARD_MOSI_PIN,
+    .spi_freq      = SDCARD_SPI_FREQ,
+    .mount_retries = 3,
+  };
+
+  if (bsp_sdcard_init_with_config(&sdcard, &sdcard_config) != STATUS_OK)
+  {
+    Serial.println("[ERROR] Failed to initialize SD card");
+    vTaskDelete(NULL);
+    return;
+  }
+
+  // Mount SD card
+  if (bsp_sdcard_mount(&sdcard) != STATUS_OK)
+  {
+    Serial.println("[ERROR] Failed to mount SD card");
+    vTaskDelete(NULL);
+    return;
+  }
+
+  // Get and print card info
+  bsp_sdcard_info_t info;
+  if (bsp_sdcard_get_info(&sdcard, &info) == STATUS_OK)
+  {
+    Serial.printf("[SDCARD] Type: %s\n", bsp_sdcard_type_to_str(info.card_type));
+    Serial.printf("[SDCARD] Size: %llu MB\n", info.card_size_bytes / (1024 * 1024));
+    Serial.printf("[SDCARD] Free: %llu MB\n", info.free_bytes / (1024 * 1024));
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // TEST CSV FUNCTIONS
+  // ═══════════════════════════════════════════════════════════════════════
+  Serial.println("\n=== CSV FILE TEST ===");
+
+  // Create CSV file with headers
+  const char *csv_headers[] = { "timestamp_ms", "sensor_x", "sensor_y", "sensor_z", "temperature" };
+  if (bsp_sdcard_csv_create(&sdcard, "/sensor_data.csv", csv_headers, 5) == STATUS_OK)
+  {
+    Serial.println("[CSV] Created sensor_data.csv with headers");
+  }
+
+  // Append some rows with float data
+  for (int i = 0; i < 5; i++)
+  {
+    float values[] = {
+      (float) (i * 0.5f + 1.0f),   // sensor_x
+      (float) (i * -0.3f + 2.5f),  // sensor_y
+      (float) (9.8f + i * 0.01f),  // sensor_z
+      (float) (25.0f + i * 0.1f)   // temperature
+    };
+    char timestamp[32];
+    snprintf(timestamp, sizeof(timestamp), "%lu", millis());
+    bsp_sdcard_csv_append_timestamped(&sdcard, "/sensor_data.csv", timestamp, values, 4, 3);
+    Serial.printf("[CSV] Appended row %d\n", i + 1);
+    OS_DELAY_MS(100);
+  }
+
+  // Append row with string values
+  const char *str_values[] = { "1000", "1.5", "2.3", "9.81", "26.5" };
+  bsp_sdcard_csv_append_row(&sdcard, "/sensor_data.csv", str_values, 5);
+  Serial.println("[CSV] Appended string row");
+
+  // Append row with integers
+  int32_t int_values[] = { 2000, 100, 200, 981, 27 };
+  bsp_sdcard_csv_append_ints(&sdcard, "/sensor_data.csv", int_values, 5);
+  Serial.println("[CSV] Appended integer row");
+
+  // Read back CSV file
+  Serial.println("\n[CSV] Contents of sensor_data.csv:");
+  char   csv_buf[512] = { 0 };
+  size_t csv_len      = 0;
+  if (bsp_sdcard_read_file(&sdcard, "/sensor_data.csv", (uint8_t *) csv_buf, sizeof(csv_buf) - 1, &csv_len)
+      == STATUS_OK)
+  {
+    Serial.println(csv_buf);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // TEST LOG FUNCTIONS
+  // ═══════════════════════════════════════════════════════════════════════
+  Serial.println("\n=== LOG FILE TEST ===");
+
+  // Create LOG file
+  status_function_t log_status = bsp_sdcard_log_create(&sdcard, "/system.log", "System Event Log - Test Session");
+  if (log_status == STATUS_OK)
+  {
+    Serial.println("[LOG] Created system.log");
+
+    // Verify file exists
+    if (bsp_sdcard_file_exists(&sdcard, "/system.log"))
+    {
+      Serial.println("[LOG] File verified to exist");
+    }
+    else
+    {
+      Serial.println("[LOG] WARNING: File not found after creation!");
+    }
+
+    // Write log messages with different levels
+    bsp_sdcard_log_write(&sdcard, "/system.log", BSP_SDCARD_LOG_INFO, "System initialized");
+    bsp_sdcard_log_write(&sdcard, "/system.log", BSP_SDCARD_LOG_DEBUG, "Debug mode enabled");
+    bsp_sdcard_log_write(&sdcard, "/system.log", BSP_SDCARD_LOG_WARNING, "Low memory warning");
+    bsp_sdcard_log_write(&sdcard, "/system.log", BSP_SDCARD_LOG_ERROR, "Sensor timeout error");
+    Serial.println("[LOG] Written 4 log entries");
+
+    // Write timestamped log entries
+    char ts1[32], ts2[32];
+    snprintf(ts1, sizeof(ts1), "%lu ms", millis());
+    bsp_sdcard_log_write_timestamped(&sdcard, "/system.log", ts1, BSP_SDCARD_LOG_INFO, "Timestamped entry 1");
+    OS_DELAY_MS(500);
+    snprintf(ts2, sizeof(ts2), "%lu ms", millis());
+    bsp_sdcard_log_write_timestamped(&sdcard, "/system.log", ts2, BSP_SDCARD_LOG_INFO, "Timestamped entry 2");
+    Serial.println("[LOG] Written 2 timestamped entries");
+
+    // Write formatted log using printf
+    float sensor_value = 23.456f;
+    int   error_code   = 42;
+    bsp_sdcard_log_printf(&sdcard, "/system.log", BSP_SDCARD_LOG_INFO, "Sensor reading: %.2f", sensor_value);
+    bsp_sdcard_log_printf(&sdcard, "/system.log", BSP_SDCARD_LOG_ERROR, "Error code: %d", error_code);
+    bsp_sdcard_log_printf(&sdcard, "/system.log", BSP_SDCARD_LOG_CRITICAL, "Critical failure at addr 0x%04X", 0xDEAD);
+    Serial.println("[LOG] Written 3 printf formatted entries");
+
+    // Read back LOG file
+    Serial.println("\n[LOG] Contents of system.log:");
+    char   log_buf[1024] = { 0 };
+    size_t log_len       = 0;
+    if (bsp_sdcard_read_file(&sdcard, "/system.log", (uint8_t *) log_buf, sizeof(log_buf) - 1, &log_len) == STATUS_OK)
+    {
+      Serial.println(log_buf);
+    }
+  }
+  else
+  {
+    Serial.println("[LOG] ERROR: Failed to create system.log");
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // LIST FILES
+  // ═══════════════════════════════════════════════════════════════════════
+  Serial.println("\n=== DIRECTORY LISTING ===");
+  bsp_sdcard_list_dir(&sdcard, "/");
+
+  Serial.println("\n[SDCARD] CSV/LOG Test completed!");
+
+  // Keep task alive
+  while (1)
+  {
+    OS_DELAY_MS(10000);
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
-  OS_THREAD_CREATE(thread6, thread6_func);
+  OS_THREAD_CREATE(thread7, thread7_func);
 }
 
 void loop()

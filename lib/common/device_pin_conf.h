@@ -52,6 +52,13 @@
 #define COMPASS_I2C_SCL_PIN (5)
 #define COMPASS_I2C_ADDR    (0x1E)
 
+// SD Card SPI configuration
+#define SDCARD_CS_PIN       (39)
+#define SDCARD_SCK_PIN      (38)
+#define SDCARD_MISO_PIN     (37)
+#define SDCARD_MOSI_PIN     (36)
+#define SDCARD_SPI_FREQ     (4000000)  // 4MHz
+
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */

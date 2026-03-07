@@ -28,7 +28,7 @@
 #define SIM_RAW_RSP_SIZE   (128)
 
 #if (CONFIG_FIREBASE_SERVER == true)
-#define FIREBASE_DEVICE_PATH        "https://tracking-project-cf57e-default-rtdb.firebaseio.com/Device%201.json\"
+#define FIREBASE_DEVICE_PATH        "https://tracking-project-cf57e-default-rtdb.firebaseio.com/Device%201.json"
 #define FIREBASE_READ_POSION_FIELD  "Position.json"
 #define FIREBASE_READ_BATTERY_FIELD "Battery%20level.json"
 #endif
