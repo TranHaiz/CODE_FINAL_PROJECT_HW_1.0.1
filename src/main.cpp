@@ -11,13 +11,15 @@
  */
 
 /* Includes ----------------------------------------------------------- */
+#include "bsp_acc.h"
+#include "bsp_dust_sensor.h"
 #include "bsp_error.h"
 #include "bsp_gps.h"
 #include "bsp_sim.h"
 #include "common_type.h"
+#include "device_pin_conf.h"
 #include "os_lib.h"
 #include "sys_ui.h"
-#include "bsp_dust_sensor.h"
 
 /* Private defines ---------------------------------------------------- */
 /* Private enumerate/structure ---------------------------------------- */
@@ -33,15 +35,17 @@ uint16_t          g_data_len = 0;
 OS_THREAD_DECLARE(thread1, tskIDLE_PRIORITY + 2, 4096);
 OS_THREAD_DECLARE(thread2, tskIDLE_PRIORITY + 2, 4096);
 OS_THREAD_DECLARE(thread3, tskIDLE_PRIORITY + 1, 16384); /* LVGL requires larger stack */
-OS_THREAD_DECLARE(thread4, tskIDLE_PRIORITY + 2, 4096); /* Dust sensor thread */
+OS_THREAD_DECLARE(thread4, tskIDLE_PRIORITY + 2, 4096);  /* Dust sensor thread */
+OS_THREAD_DECLARE(thread5, tskIDLE_PRIORITY + 2, 4096);  /* Accelerometer thread */
 
 void gps_position_callback(bsp_gps_data_t *data)
 {
   Serial.printf("Lat: %.6f, Lng: %.6f\n", data->latitude, data->longitude);
 }
 
-void dust_callback(bsp_dust_sensor_data_t *data) {
-    Serial.printf("Dust: %d µg/m³\n", data->dust_density);
+void dust_callback(bsp_dust_sensor_data_t *data)
+{
+  Serial.printf("Dust: %d µg/m³\n", data->dust_density);
 }
 
 void thread2_func(void *param)
@@ -64,17 +68,19 @@ void thread3_func(void *param)
 }
 
 bsp_dust_sensor_t dust_sensor;
-void thread4_func(void *param)
+void              thread4_func(void *param)
 {
   if (bsp_dust_sensor_init(&dust_sensor) != STATUS_OK)
   {
     Serial.println("[ERROR] Failed to initialize dust sensor");
+    vTaskDelete(NULL);
     return;
   }
   bsp_dust_sensor_register_callback(&dust_sensor, dust_callback);
   if (bsp_dust_sensor_begin(&dust_sensor) != STATUS_OK)
   {
     Serial.println("[ERROR] Failed to start dust sensor");
+    vTaskDelete(NULL);
     return;
   }
   while (1)
@@ -84,13 +90,56 @@ void thread4_func(void *param)
   }
 }
 
+void acc_callback(bsp_acc_data_t *data)
+{
+  Serial.printf("Velocity: %.1f km/h\n", data->velocity_kmh);
+}
+bsp_acc_t accelerometer;
+void      thread5_func(void *param)
+{
+  // Scan I2C bus first to debug hardware connection
+  int8_t found_addr = bsp_acc_scan_i2c(ACC_I2C_SDA_PIN, ACC_I2C_SCL_PIN);
+  if (found_addr < 0)
+  {
+    Serial.println("[ERROR] No accelerometer found on I2C bus");
+    vTaskDelete(NULL);
+    return;
+  }
+
+  if (bsp_acc_init(&accelerometer) != STATUS_OK)
+  {
+    Serial.println("[ERROR] Failed to initialize accelerometer");
+    vTaskDelete(NULL);
+    return;
+  }
+  if (bsp_acc_begin(&accelerometer) != STATUS_OK)
+  {
+    Serial.println("[ERROR] Failed to start accelerometer");
+    vTaskDelete(NULL);
+    return;
+  }
+  if (bsp_acc_calibrate(&accelerometer) != STATUS_OK)
+  {
+    Serial.println("[ERROR] Failed to calibrate accelerometer");
+    vTaskDelete(NULL);
+    return;
+  }
+  bsp_acc_register_callback(&accelerometer, acc_callback);
+
+  while (1)
+  {
+    bsp_acc_update(&accelerometer);
+    OS_DELAY_MS(100);
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
-  OS_THREAD_CREATE(thread4, thread4_func);
+  OS_THREAD_CREATE(thread5, thread5_func);
 }
 
 void loop()

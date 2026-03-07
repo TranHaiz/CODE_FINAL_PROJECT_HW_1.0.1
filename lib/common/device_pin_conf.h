@@ -42,6 +42,11 @@
 #define DUST_SENSOR_LED_PIN (2)
 #define DUST_SENSOR_VO_PIN  (1)
 
+// LSM6DS3 Accelerometer I2C configuration
+#define ACC_I2C_SDA_PIN     (4)
+#define ACC_I2C_SCL_PIN     (5)
+#define ACC_I2C_ADDR        (0x6B)
+
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
