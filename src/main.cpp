@@ -31,7 +31,7 @@ uint16_t          g_data_len = 0;
 /* Function definitions ----------------------------------------------- */
 OS_THREAD_DECLARE(thread1, tskIDLE_PRIORITY + 2, 4096);
 OS_THREAD_DECLARE(thread2, tskIDLE_PRIORITY + 2, 4096);
-OS_THREAD_DECLARE(thread3, tskIDLE_PRIORITY + 1, 4096);
+OS_THREAD_DECLARE(thread3, tskIDLE_PRIORITY + 1, 16384); /* LVGL requires larger stack */
 
 void gps_position_callback(bsp_gps_data_t *data)
 {
