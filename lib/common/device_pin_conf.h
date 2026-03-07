@@ -29,13 +29,13 @@
 
 // UART configuration
 #define SIM_UART_HANDLER    UART_NUM_2
-#define SIM_UART_TX         (21)
-#define SIM_UART_RX         (47)
+#define SIM_UART_TX         (43)  // Connect to SIM RX
+#define SIM_UART_RX         (44)  // Connect to SIM TX
 #define SIM_UART_BAUDRATE   (115200)
 
 #define GPS_UART_HANDLER    UART_NUM_1
-#define GPS_UART_TX         (17)
-#define GPS_UART_RX         (16)
+#define GPS_UART_TX         (17)  // Connect to GPS RX
+#define GPS_UART_RX         (16)  // Connect to GPS TX
 #define GPS_UART_BAUDRATE   (9600)
 
 // GP2Y1010AU0F Dust Sensor configuration
