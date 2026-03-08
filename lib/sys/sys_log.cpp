@@ -15,6 +15,7 @@
 
 #include "bsp_sdcard.h"
 #include "cbuffer.h"
+#include "os_lib.h"
 
 #include <string.h>
 
@@ -25,41 +26,65 @@
 /* Private variables -------------------------------------------------- */
 #if LOG_SDCARD_ENABLE
 
-static bool      is_initialized = false;
 static uint8_t   ram_log_buff[SYS_LOG_BUFFER_SIZE];
 static cbuffer_t cbuff_ram_log;
 static size_t    last_flush_tick = 0;
 
-#endif
-
 /* Private function prototypes ---------------------------------------- */
-#if LOG_SDCARD_ENABLE
-static void sys_log_handler(log_level_t level, const char *tag, const char *message, size_t len);
-static void sys_log_buffer_write(const char *data, size_t len);
-#endif
+static void              sys_log_buffer_write(const char *data, size_t len);
+static uint8_t           sys_log_get_buffer_usage(void);
+static status_function_t sys_log_flush(void);
 
 /* Function definitions ----------------------------------------------- */
 
 void sys_log_init(void)
 {
-#if LOG_SDCARD_ENABLE
   cb_init(&cbuff_ram_log, ram_log_buff, SYS_LOG_BUFFER_SIZE);
   cb_clear(&cbuff_ram_log);
-  last_flush_tick = millis();
-  is_initialized  = true;
+  last_flush_tick = OS_GET_TICK();
 
   // Register handler with log_service
   log_service_register_handler(sys_log_buffer_write);
-#else
-  // Do nothing
-#endif
 }
 
-status_function_t sys_log_flush(void)
+void sys_log_process(void)
 {
-#if LOG_SDCARD_ENABLE
+  if (bsp_sdcard_is_mounted() != STATUS_OK)
+  {
+    return;
+  }
+
+  bool should_flush = false;
+
+  // Check periodic interval
+  if ((OS_GET_TICK() - last_flush_tick) >= SYS_LOG_FLUSH_INTERVAL_MS && cb_data_count(&cbuff_ram_log) > 0)
+  {
+    should_flush = true;
+  }
+
+  // Check buffer threshold
+  if (sys_log_get_buffer_usage() >= SYS_LOG_BUFFER_THRESHOLD)
+  {
+    should_flush = true;
+  }
+
+  if (should_flush)
+  {
+    sys_log_flush();
+  }
+}
+
+uint8_t sys_log_get_buffer_usage(void)
+{
+  return (uint8_t) ((cb_data_count(&cbuff_ram_log) * 100) / SYS_LOG_BUFFER_SIZE);
+}
+
+/* Private definitions ----------------------------------------------- */
+
+static status_function_t sys_log_flush(void)
+{
   size_t data_len = cb_data_count(&cbuff_ram_log);
-  if (!is_initialized || data_len == 0 || bsp_sdcard_is_mounted() != STATUS_OK)
+  if (data_len == 0 || bsp_sdcard_is_mounted() != STATUS_OK)
   {
     return STATUS_ERROR;
   }
@@ -75,7 +100,7 @@ status_function_t sys_log_flush(void)
   size_t read_len     = cb_read(&cbuff_ram_log, flush_buf, data_len);
   flush_buf[read_len] = '\0';
 
-  // Write to SD card using new API
+  // Write to SD card
   bsp_sdcard_file_t log_file;
   status_function_t ret = bsp_sdcard_open(SYS_LOG_FILE_PATH, BSP_SDCARD_MODE_APPEND, &log_file);
   if (ret == STATUS_OK)
@@ -85,63 +110,9 @@ status_function_t sys_log_flush(void)
   }
 
   free(flush_buf);
-  last_flush_tick = millis();
+  last_flush_tick = OS_GET_TICK();
 
   return ret;
-#else
-  return STATUS_OK;
-#endif
-}
-
-void sys_log_process(void)
-{
-#if LOG_SDCARD_ENABLE
-  if (!is_initialized || bsp_sdcard_is_mounted() != STATUS_OK)
-  {
-    return;
-  }
-
-  bool should_flush = false;
-
-  // Check periodic interval
-  if ((millis() - last_flush_tick) >= SYS_LOG_FLUSH_INTERVAL_MS && cb_data_count(&cbuff_ram_log) > 0)
-  {
-    should_flush = true;
-  }
-
-  // Check buffer threshold
-  if (sys_log_get_buffer_usage() >= SYS_LOG_BUFFER_THRESHOLD)
-  {
-    should_flush = true;
-  }
-
-  if (should_flush)
-  {
-    sys_log_flush();
-  }
-#endif
-}
-
-uint8_t sys_log_get_buffer_usage(void)
-{
-#if LOG_SDCARD_ENABLE
-  return (uint8_t) ((cb_data_count(&cbuff_ram_log) * 100) / SYS_LOG_BUFFER_SIZE);
-#else
-  return 0;
-#endif
-}
-
-/* Private definitions ----------------------------------------------- */
-
-#if LOG_SDCARD_ENABLE
-
-static void sys_log_handler(log_level_t level, const char *tag, const char *message, size_t len)
-{
-  if (!is_initialized)
-  {
-    return;
-  }
-  sys_log_buffer_write(message, len);
 }
 
 static void sys_log_buffer_write(const char *data, size_t len)

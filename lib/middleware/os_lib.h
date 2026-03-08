@@ -29,13 +29,12 @@
 
 /* Mapping CMSIS-like names to Native FreeRTOS */
 #define OS_DELAY_MS(ms) vTaskDelay(pdMS_TO_TICKS(ms))
-#define OS_GET_TICK()   xTaskGetTickCount()
+#define OS_GET_TICK()   xTaskGetTickCount()  // Rtos frequency = 1k Hz => 1 tick = 1 ms
 #define OS_YIELD()      taskYIELD()
 #define OS_MAX_DELAY    portMAX_DELAY
 
 /**
  * @brief  Declare thread
- * ESP32 dùng TaskHandle_t thay vì osThreadId_t
  */
 #define OS_THREAD_DECLARE(thread_name, priority, stack_size) \
   TaskHandle_t      thread_name##_handle   = NULL;           \

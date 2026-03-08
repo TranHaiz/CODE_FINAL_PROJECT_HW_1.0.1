@@ -17,7 +17,6 @@
 /* Includes ----------------------------------------------------------- */
 #include "common_type.h"
 
-#include <Arduino.h>
 #include <stdarg.h>
 
 /* Public defines ----------------------------------------------------- */
