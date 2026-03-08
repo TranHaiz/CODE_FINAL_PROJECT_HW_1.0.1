@@ -13,12 +13,13 @@
 /* Includes ----------------------------------------------------------- */
 
 #include "common_type.h"
+#include "device_config.h"
 #include "device_info.h"
-#include "device_pin_conf.h"
+#include "log_service.h"
 #include "os_lib.h"
 #include "sys_input.h"
 #include "sys_ui.h"
-#include "log_service.h"
+
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)

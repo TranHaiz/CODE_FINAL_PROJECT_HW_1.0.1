@@ -6,11 +6,8 @@
  * @date       2026-03-08
  * @author     Hai Tran
  *
- * @brief      BSP for HMC5883L Digital Compass Sensor (Singleton)
+ * @brief      BSP for HMC5883L Digital Compass Sensor
  *
- * @note       This module provides low-level hardware access only.
- *             Filtering and processing should be done at system layer.
- *             Only supports single instance.
  */
 
 /* Define to prevent recursive inclusion ------------------------------ */
@@ -24,10 +21,6 @@
 #define BSP_COMPASS_OVERFLOW_VALUE (-4096)
 
 /* Public enumerate/structure ----------------------------------------- */
-
-/**
- * @brief Compass data output rate (Config A bits [4:2])
- */
 typedef enum
 {
   BSP_COMPASS_RATE_0_75HZ = 0x00,
@@ -37,7 +30,7 @@ typedef enum
   BSP_COMPASS_RATE_15HZ   = 0x10,  // Default
   BSP_COMPASS_RATE_30HZ   = 0x14,
   BSP_COMPASS_RATE_75HZ   = 0x18,
-} bsp_compass_rate_t;
+} bsp_compass_sample_rate_t;
 
 /**
  * @brief Compass gain settings (Config B bits [7:5])
@@ -90,10 +83,10 @@ typedef struct
  */
 typedef struct
 {
-  bsp_compass_rate_t data_rate;  // Data output rate
-  bsp_compass_gain_t gain;       // Gain setting
-  bsp_compass_mode_t mode;       // Operating mode
-  bsp_compass_avg_t  averaging;  // Sample averaging
+  bsp_compass_sample_rate_t data_rate;  // Data output rate
+  bsp_compass_gain_t        gain;       // Gain setting
+  bsp_compass_mode_t        mode;       // Operating mode
+  bsp_compass_avg_t         averaging;  // Sample averaging
 } bsp_compass_config_t;
 
 /* Public macros ------------------------------------------------------ */

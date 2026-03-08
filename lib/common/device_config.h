@@ -1,18 +1,18 @@
 /**
- * @file       device_pin_conf.h
+ * @file       device_config.h
  * @copyright  Copyright (C) 2019 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
  * @version    major.minor.patch
  * @date       2026-01-17
  * @author     Hai Tran
  *
- * @brief      Device pin configuration definitions
+ * @brief      Device pin, handler, i2c address,.. configuration definitions
  *
  */
 
 /* Define to prevent recursive inclusion ------------------------------ */
-#ifndef _DEVICE_PIN_CONF_H_
-#define _DEVICE_PIN_CONF_H_
+#ifndef _DEVICE_CONFIG_H_
+#define _DEVICE_CONFIG_H_
 /* Includes ----------------------------------------------------------- */
 /* Public defines ----------------------------------------------------- */
 
@@ -46,6 +46,7 @@
 #define ACC_I2C_SDA_PIN             (4)
 #define ACC_I2C_SCL_PIN             (5)
 #define ACC_I2C_ADDR                (0x6B)
+#define ACC_I2C_ADDR_ALT            (0x6A)
 
 // HMC5883L Compass I2C configuration
 #define COMPASS_I2C_SDA_PIN         (4)
@@ -67,6 +68,6 @@
 /* Public variables --------------------------------------------------- */
 /* Public function prototypes ----------------------------------------- */
 
-#endif /*End file _DEVICE_PIN_CONF_H_*/
+#endif /*End file _DEVICE_CONFIG_H_*/
 
 /* End of file -------------------------------------------------------- */

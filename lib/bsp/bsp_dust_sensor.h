@@ -32,7 +32,6 @@ typedef struct
   uint16_t running_average;   // Running average dust density in µg/m³
   float    baseline_voltage;  // Current baseline (zero-dust) voltage
   size_t   timestamp_ms;      // Timestamp of last reading
-  bool     is_valid;          // True if reading is valid
 } bsp_dust_sensor_data_t;
 
 /**

@@ -257,7 +257,7 @@ static status_function_t sys_input_calibrate_internal(void)
   for (uint16_t i = 0; i < samples; i++)
   {
     bsp_acc_raw_data_t accel_data = { 0 };
-    if (bsp_acc_read_raw(&accel_data) == STATUS_OK)
+    if (bsp_acc_get_raw_data(&accel_data) == STATUS_OK)
     {
       sum_magnitude += sys_input_calculate_magnitude((float) accel_data.accel_x, (float) accel_data.accel_y,
                                                      (float) accel_data.accel_z);
@@ -287,7 +287,7 @@ static void sys_input_update_ins_velocity(float dt)
   // Read raw IMU data
   bsp_acc_raw_data_t accel_data = { 0 };
 
-  if (bsp_acc_read_raw(&accel_data) != STATUS_OK)
+  if (bsp_acc_get_raw_data(&accel_data) != STATUS_OK)
   {
     return;
   }

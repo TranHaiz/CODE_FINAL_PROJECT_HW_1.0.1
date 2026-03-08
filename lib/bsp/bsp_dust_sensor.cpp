@@ -16,7 +16,7 @@
 /* Includes ----------------------------------------------------------- */
 #include "bsp_dust_sensor.h"
 
-#include "device_pin_conf.h"
+#include "device_config.h"
 #include "os_lib.h"
 
 #include <Arduino.h>
@@ -81,7 +81,6 @@ status_function_t bsp_dust_sensor_init(void)
   s_dust_ctx.data.running_average  = 0;
   s_dust_ctx.data.baseline_voltage = BSP_DUST_SENSOR_DEFAULT_BASELINE;
   s_dust_ctx.data.timestamp_ms     = 0;
-  s_dust_ctx.data.is_valid         = false;
 
   s_dust_ctx.last_update_ms = OS_GET_TICK();
   s_dust_ctx.is_initialized = true;
@@ -108,7 +107,6 @@ status_function_t bsp_dust_sensor_read(bsp_dust_sensor_data_t *data)
   s_dust_ctx.data.running_average  = average;
   s_dust_ctx.data.baseline_voltage = baseline;
   s_dust_ctx.data.timestamp_ms     = OS_GET_TICK();
-  s_dust_ctx.data.is_valid         = true;
   s_dust_ctx.last_update_ms        = s_dust_ctx.data.timestamp_ms;
 
   // Return data to caller

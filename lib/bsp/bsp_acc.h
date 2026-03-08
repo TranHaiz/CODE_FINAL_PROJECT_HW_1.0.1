@@ -6,11 +6,8 @@
  * @date       2026-03-08
  * @author     Hai Tran
  *
- * @brief      BSP for LSM6DS3 Accelerometer/Gyroscope Sensor (Singleton)
+ * @brief      BSP for LSM6DS3 Accelerometer/Gyroscope Sensor
  *
- * @note       This module provides low-level hardware access only.
- *             Processing should be done at system layer.
- *             Only supports single instance.
  */
 
 /* Define to prevent recursive inclusion ------------------------------ */
@@ -21,13 +18,7 @@
 #include "common_type.h"
 
 /* Public defines ----------------------------------------------------- */
-#define BSP_ACC_GRAVITY_MS2 (9.806f)  // Earth gravity in m/s²
-
 /* Public enumerate/structure ----------------------------------------- */
-
-/**
- * @brief Accelerometer raw data structure
- */
 typedef struct
 {
   float accel_x;  // Acceleration X-axis in g
@@ -39,9 +30,6 @@ typedef struct
   float temp_c;   // Temperature in Celsius
 } bsp_acc_raw_data_t;
 
-/**
- * @brief Accelerometer processed data structure
- */
 typedef struct
 {
   float  accel_magnitude;  // Total acceleration magnitude in g
@@ -49,7 +37,21 @@ typedef struct
   bool   is_valid;         // True if reading is valid
 } bsp_acc_data_t;
 
-/* Public macros ------------------------------------------------------ */
+typedef enum
+{
+  BSP_ACC_INT_PIN_1 = 0,
+  BSP_ACC_INT_PIN_2
+} bsp_acc_int_pin_t;
+typedef enum
+{
+  BSP_ACC_INT_ACCEL_DATA_READY = 0,
+  BSP_ACC_INT_GYRO_DATA_READY,
+  BSP_ACC_INT_MOTION_DETECT,
+  BSP_ACC_INT_FREE_FALL,
+  BSP_ACC_INT_DOUBLE_TAP,
+  BSP_ACC_INT_SINGLE_TAP
+} bsp_acc_int_source_t;
+
 /* Public variables --------------------------------------------------- */
 /* Public function prototypes ----------------------------------------- */
 
@@ -67,7 +69,7 @@ status_function_t bsp_acc_init(void);
  *
  * @return status_function_t Status of operation
  */
-status_function_t bsp_acc_read_raw(bsp_acc_raw_data_t *data);
+status_function_t bsp_acc_get_raw_data(bsp_acc_raw_data_t *data);
 
 /**
  * @brief Get processed accelerometer data (magnitude)
@@ -77,6 +79,37 @@ status_function_t bsp_acc_read_raw(bsp_acc_raw_data_t *data);
  * @return status_function_t Status of operation
  */
 status_function_t bsp_acc_get_data(bsp_acc_data_t *data);
+
+/**
+ * @brief Configure interrupt on specified pin
+ *
+ * @param[in] pin     Interrupt pin to configure (INT1 or INT2)
+ * @param[in] source  Interrupt event source
+ *
+ * @return status_function_t Status of operation
+ *
+ * @note Only one event can be routed to each pin at a time.
+ *       Configuring again will replace the previous configuration.
+ */
+status_function_t bsp_acc_config_interrupt(bsp_acc_int_pin_t pin, bsp_acc_int_source_t source);
+
+/**
+ * @brief Enable interrupt on specified pin
+ *
+ * @param[in] pin     Interrupt pin to enable (INT1 or INT2)
+ *
+ * @return status_function_t Status of operation
+ */
+status_function_t bsp_acc_enable_interrupt(bsp_acc_int_pin_t pin);
+
+/**
+ * @brief Disable interrupt on specified pin
+ *
+ * @param[in] pin     Interrupt pin to disable (INT1 or INT2)
+ *
+ * @return status_function_t Status of operation
+ */
+status_function_t bsp_acc_disable_interrupt(bsp_acc_int_pin_t pin);
 
 #endif /* _BSP_ACC_H_ */
 

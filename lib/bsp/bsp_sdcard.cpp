@@ -13,7 +13,7 @@
 /* Includes ----------------------------------------------------------- */
 #include "bsp_sdcard.h"
 
-#include "device_pin_conf.h"
+#include "device_config.h"
 #include "log_service.h"
 
 #include <Arduino.h>

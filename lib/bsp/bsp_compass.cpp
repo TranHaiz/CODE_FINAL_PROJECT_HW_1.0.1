@@ -8,20 +8,19 @@
  *
  * @brief      BSP implementation for HMC5883L Digital Compass Sensor (Singleton)
  *
- * @note       This module provides low-level hardware access only.
- *             Filtering and processing should be done at system layer.
- *             Only supports single instance.
  */
 
 /* Includes ----------------------------------------------------------- */
 #include "bsp_compass.h"
 
-#include "device_pin_conf.h"
+#include "device_config.h"
+#include "log_service.h"
 
 #include <Arduino.h>
 #include <Wire.h>
 
 /* Private defines ---------------------------------------------------- */
+LOG_MODULE_REGISTER(bsp_compass, LOG_LEVEL_ERROR);
 #define BSP_COMPASS_REG_CONFIG_A   (0x00)
 #define BSP_COMPASS_REG_CONFIG_B   (0x01)
 #define BSP_COMPASS_REG_MODE       (0x02)
@@ -71,31 +70,25 @@ status_function_t bsp_compass_init(void)
   s_compass_ctx.config.mode      = BSP_COMPASS_MODE_CONTINUOUS;
   s_compass_ctx.config.averaging = BSP_COMPASS_AVG_8;
 
-  // Initialize I2C
+  // Init I2C
   Wire.begin(COMPASS_I2C_SDA_PIN, COMPASS_I2C_SCL_PIN, COMPASS_I2C_CLOCK);
   delay(100);
 
-  // Apply configuration to sensor
+  // Configure sensor
   if (bsp_compass_apply_config() != STATUS_OK)
   {
-    Serial.println("[COMPASS] ERROR: Failed to initialize sensor");
+    LOG_ERR("Failed to init compass sensor");
     return STATUS_ERROR;
   }
 
   s_compass_ctx.is_initialized = true;
-  Serial.println("[COMPASS] Sensor initialized successfully");
 
   return STATUS_OK;
 }
 
 status_function_t bsp_compass_config(const bsp_compass_config_t *config)
 {
-  if (config == nullptr)
-  {
-    return STATUS_ERROR;
-  }
-
-  if (!s_compass_ctx.is_initialized)
+  if ((config == nullptr) || !s_compass_ctx.is_initialized)
   {
     return STATUS_ERROR;
   }
@@ -137,7 +130,6 @@ status_function_t bsp_compass_read_raw(bsp_compass_raw_data_t *data)
 }
 
 /* Private definitions ----------------------------------------------- */
-
 static status_function_t bsp_compass_apply_config(void)
 {
   // Configure Register A: averaging + data rate

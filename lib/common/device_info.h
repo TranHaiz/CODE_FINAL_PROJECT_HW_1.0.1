@@ -15,7 +15,7 @@
 #define _DEVICE_INFO_H_
 /* Includes ----------------------------------------------------------- */
 #include "common_type.h"
-#include "device_pin_conf.h"
+#include "device_config.h"
 
 /* Public defines ----------------------------------------------------- */
 // #define CONFIG_SD_DEBUG_MODE
