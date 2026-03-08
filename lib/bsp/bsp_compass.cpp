@@ -3,7 +3,7 @@
  * @copyright  Copyright (C) 2025 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
  * @version    3.0.0
- * @date       2026-03-08
+ * @date       2026-03-02
  * @author     Hai Tran
  *
  * @brief      BSP implementation for HMC5883L Digital Compass Sensor (Singleton)

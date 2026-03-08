@@ -3,7 +3,7 @@
  * @copyright  Copyright (C) 2025 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
  * @version    2.0.0
- * @date       2026-03-08
+ * @date       2026-03-05
  * @author     Hai Tran
  *
  * @brief      BSP implementation for LSM6DS3 Accelerometer/Gyroscope Sensor
