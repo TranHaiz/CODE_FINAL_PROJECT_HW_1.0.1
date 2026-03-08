@@ -111,20 +111,20 @@ void sys_ui_begin(sys_ui_t *ctx)
   sys_ui_initializeWidgets(&ctx->widgets);
 
   /* Initialize hardware display */
-  bsp_display_init_context(&ctx->display);
-  bsp_display_init_screen(&ctx->display);
-  bsp_display_show_dowload(&ctx->display);
+  /* Initialize display (singleton) */
+  bsp_display_init();
+  bsp_display_show_splash();
 
   /* Initialize LVGL driver */
   ctx->lvgl.user_data = ctx;
-  bsp_lvgl_init(&ctx->lvgl, bsp_display_get_driver(&ctx->display));
+  bsp_lvgl_init(&ctx->lvgl, bsp_display_get_driver());
   bsp_lvgl_set_touch_callback(&ctx->lvgl, sys_ui_lvgl_touch_read_cb);
 
   /* Initialize telemetry data */
   sys_ui_initializeTelemetry(ctx);
 
   /* Set brightness */
-  bsp_display_set_brightness_percent(&ctx->display, ctx->brightness_percent);
+  bsp_display_set_brightness_percent(ctx->brightness_percent);
 
   /* Create and show main screen */
   sys_ui_drawFullUI(ctx);
@@ -142,7 +142,7 @@ void sys_ui_begin(sys_ui_t *ctx)
   ctx->last_time_update_screen = now;
 
   /* Initialize touch */
-  bsp_touch_init(&ctx->touch, bsp_display_get_driver(&ctx->display));
+  bsp_touch_init();
 
   printf("[SYS_UI] Init complete\n");
 }
@@ -1114,7 +1114,7 @@ static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
   }
 
   bsp_touch_point_t point = { 0 };
-  bsp_touch_read(&ctx->touch, &point);
+  bsp_touch_read(&point);
 
   if (point.touched)
   {
@@ -1176,7 +1176,7 @@ static void sys_ui_brightness_slider_cb(lv_event_t *e)
 
   lv_obj_t *slider             = (lv_obj_t *) lv_event_get_target(e);
   g_ui_ctx->brightness_percent = lv_slider_get_value(slider);
-  bsp_display_set_brightness_percent(&g_ui_ctx->display, g_ui_ctx->brightness_percent);
+  bsp_display_set_brightness_percent(g_ui_ctx->brightness_percent);
   printf("[LVGL] Brightness changed to %d%%\n", g_ui_ctx->brightness_percent);
 }
 

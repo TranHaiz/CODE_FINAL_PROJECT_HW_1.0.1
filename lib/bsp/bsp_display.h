@@ -2,17 +2,21 @@
  * @file       bsp_display.h
  * @copyright  Copyright (C) 2019 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
- * @version    2.0.0 (Hardware Abstraction Only)
- * @date       2026-03-03
+ * @version    3.0.0
+ * @date       2026-03-08
  * @author     Hai Tran
  *
- * @brief      Board support abstraction for TFT display hardware.
+ * @brief      Board support abstraction for TFT display hardware (Singleton)
  *
+ * @note       This module provides low-level hardware access only.
+ *             All UI/widget logic should be at sys_ui layer.
+ *             Only supports single instance.
  */
 
 /* Define to prevent recursive inclusion ------------------------------ */
 #ifndef _BSP_DISPLAY_H_
 #define _BSP_DISPLAY_H_
+
 /* Includes ----------------------------------------------------------- */
 #include <Arduino.h>
 #include <TFT_eSPI.h>
@@ -33,49 +37,35 @@
 // clang-format on
 
 /* Public enumerate/structure ----------------------------------------- */
-/**
- * @brief Hardware display context
- */
-typedef struct
-{
-  TFT_eSPI tft;
-  uint8_t  brightness_percent;
-  bool     backlight_en;
-} bsp_display_info_t;
-
+/* Public macros ------------------------------------------------------ */
+/* Public variables --------------------------------------------------- */
 /* Public function prototypes ----------------------------------------- */
 
 /**
- * @brief Initialize display variables with defaults
+ * @brief Initialize display hardware
  */
-void bsp_display_init_context(bsp_display_info_t *ctx);
-
-/**
- * @brief Initialize TFT hardware (SPI, rotation, backlight)
- */
-void bsp_display_init_screen(bsp_display_info_t *ctx);
+void bsp_display_init(void);
 
 /**
  * @brief Set backlight brightness percentage (0-100)
  */
-void bsp_display_set_brightness_percent(bsp_display_info_t *ctx, int percent);
+void bsp_display_set_brightness_percent(int percent);
 
 /**
  * @brief Get current brightness percentage
  */
-uint8_t bsp_display_get_brightness_percent(const bsp_display_info_t *ctx);
+uint8_t bsp_display_get_brightness_percent(void);
 
 /**
- * @brief Show download screen using direct TFT drawing.
- *        Use it first before LVGL is fully initialized.
+ * @brief Show splash/download screen before LVGL is ready
  */
-void bsp_display_show_dowload(bsp_display_info_t *ctx);
+void bsp_display_show_splash(void);
 
 /**
  * @brief Get TFT driver pointer for LVGL library
  */
-TFT_eSPI *bsp_display_get_driver(bsp_display_info_t *ctx);
+TFT_eSPI *bsp_display_get_driver(void);
 
-#endif /*End file _BSP_DISPLAY_H_*/
+#endif /* _BSP_DISPLAY_H_ */
 
 /* End of file -------------------------------------------------------- */

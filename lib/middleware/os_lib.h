@@ -49,8 +49,6 @@
   xTaskCreatePinnedToCore((func), #thread_name, thread_name##_stack, NULL, thread_name##_priority, \
                           &thread_name##_handle, 1)
 
-/* --- Semaphore Helpers (Giữ nguyên logic Static của bạn) --- */
-
 #define OS_SEM_DEFINE_STATIC(name)                   \
   static SemaphoreHandle_t name##_sem_handle = NULL; \
   static StaticSemaphore_t name##_sem_buffer
@@ -94,8 +92,6 @@
       name##_sem_handle = NULL;            \
     }                                      \
   } while (0)
-
-/* --- Mutex Helpers (Chuyển từ CMSIS sang Native) --- */
 
 #define OS_MUTEX_DEFINE_STATIC(name) static SemaphoreHandle_t name##_mutex = NULL
 #define OS_MUTEX_DEFINE_GLOBAL(name) SemaphoreHandle_t name##_mutex = NULL

@@ -185,9 +185,7 @@ typedef struct
 typedef struct
 {
   /* Hardware interfaces */
-  bsp_display_info_t display;
-  bsp_touch_t        touch;
-  lvgl_driver_t      lvgl;
+  lvgl_driver_t lvgl;
 
   /* UI widgets */
   sys_ui_widgets_t widgets;

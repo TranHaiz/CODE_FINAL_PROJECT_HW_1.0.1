@@ -18,8 +18,11 @@
 #include "os_lib.h"
 #include "sys_input.h"
 #include "sys_ui.h"
+#include "log_service.h"
 
 /* Private defines ---------------------------------------------------- */
+LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
+
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -29,10 +32,10 @@ char              g_buffer[256];
 uint16_t          g_data_len = 0;
 sys_input_data_t  g_input_data;
 
-OS_THREAD_DECLARE(sys_input_thread, 2048, 2);
+OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 2, 4096);
 
 /* Private function prototypes ---------------------------------------- */
-void sys_input_thread(void *param);
+void sys_input_thread_func(void *param);
 
 /* Function definitions ----------------------------------------------- */
 
@@ -42,7 +45,7 @@ void setup()
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
-  OS_THREAD_CREATE(sys_input_thread, sys_input_thread);
+  OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
 }
 
 void loop()
@@ -52,12 +55,12 @@ void loop()
 }
 
 /* Private definitions ----------------------------------------------- */
-void sys_input_thread(void *param)
+void sys_input_thread_func(void *param)
 {
-  (void) param;  // Unused parameter
-
+  Serial.println("System input thread started");
   // Initialize system input
   sys_input_init();
+  Serial.println("System input initialized");
 
   while (true)
   {

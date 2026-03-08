@@ -51,6 +51,7 @@
 #define COMPASS_I2C_SDA_PIN         (4)
 #define COMPASS_I2C_SCL_PIN         (5)
 #define COMPASS_I2C_ADDR            (0x1E)
+#define COMPASS_I2C_CLOCK           (100000)
 
 // SD Card SPI configuration
 #define BSP_SDCARD_DEFAULT_CS_PIN   (21)

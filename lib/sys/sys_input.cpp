@@ -16,6 +16,7 @@
 #include "sys_input.h"
 
 #include "bsp_acc.h"
+#include "bsp_compass.h"
 #include "bsp_dust_sensor.h"
 #include "bsp_gps.h"
 #include "log_service.h"
@@ -23,7 +24,7 @@
 #include <math.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 #define SYS_INPUT_DEFAULT_FILTER_ALPHA    (0.15f)   // Low-pass filter for acceleration
 #define SYS_INPUT_DEFAULT_ACCEL_THRESHOLD (0.20f)   // Vehicle tune: reduce accel noise integration
 #define SYS_INPUT_DEFAULT_COMP_FILTER_K   (0.92f)   // Vehicle tune: trust GPS more for stable speed
@@ -33,6 +34,10 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG);
 #define SYS_INPUT_ZUPT_ACCEL_THRESHOLD    (0.03f)   // Vehicle tune: avoid false stationary at cruise
 #define SYS_INPUT_ZUPT_TIME_THRESHOLD_MS  (1000)    // Time for ZUPT confirmation (ms)
 
+/* Compass filter settings */
+#define SYS_INPUT_COMPASS_EMA_ALPHA       (0.15f)  // EMA filter coefficient for compass
+#define SYS_INPUT_COMPASS_UPDATE_MS       (100)    // Compass update rate (10Hz)
+
 /* Private enumerate/structure ---------------------------------------- */
 
 /**
@@ -40,23 +45,29 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG);
  */
 typedef struct
 {
-  sys_input_data_t  data;              // Current sensor data
-  bsp_acc_t         acc_ctx;           // Accelerometer context
-  bsp_dust_sensor_t dust_ctx;          // Dust sensor context
-  size_t            last_update_ms;    // Last update timestamp
-  size_t            last_update_us;    // Last update timestamp (microseconds)
-  size_t            last_gps_ms;       // Last valid GPS timestamp
-  float             velocity_ins;      // INS-derived velocity
-  float             velocity_gps;      // GPS-derived velocity
-  float             accel_filtered;    // Filtered acceleration
-  float             offset_magnitude;  // Gravity offset
+  sys_input_data_t data;              // Current sensor data
+  size_t           last_update_ms;    // Last update timestamp
+  size_t           last_update_us;    // Last update timestamp (microseconds)
+  size_t           last_gps_ms;       // Last valid GPS timestamp
+  float            velocity_ins;      // INS-derived velocity
+  float            velocity_gps;      // GPS-derived velocity
+  float            accel_filtered;    // Filtered acceleration
+  float            offset_magnitude;  // Gravity offset
   /* Zero-Velocity Update (ZUPT) Detection */
   bool   is_stationary;       // Stationary state flag
   size_t stationary_time_ms;  // Duration in stationary state (ms)
+  /* Compass filter state */
+  float  compass_ema_x;        // EMA filtered X
+  float  compass_ema_y;        // EMA filtered Y
+  float  compass_ema_z;        // EMA filtered Z
+  float  compass_ema_alpha;    // EMA filter coefficient
+  size_t compass_last_ms;      // Last compass update timestamp
+  bool   compass_filter_init;  // Filter initialized flag
   /* State tracking */
   bool acc_ready;      // Accelerometer ready flag
   bool gps_ready;      // GPS ready flag
   bool dust_ready;     // Dust sensor ready flag
+  bool compass_ready;  // Compass ready flag
   bool initialized;    // Initialization flag
   bool is_calibrated;  // Calibration flag
 } sys_input_context_t;
@@ -74,6 +85,8 @@ static void              sys_input_update_gps_data(void);
 static void              sys_input_detect_zupt(float accel_ms2);
 static void              sys_input_fuse_velocity_gps_ins(void);
 static void              sys_input_read_dust_sensor(void);
+static void              sys_input_read_compass(void);
+static const char       *sys_input_deg_to_direction_str(float deg);
 
 /* Function definitions ----------------------------------------------- */
 
@@ -86,6 +99,8 @@ void sys_input_init(void)
   {
     return;
   }
+
+  LOG_DBG("Initializing system input...");
 
   // Initialize data structure
   g_input_ctx.data.velocity_ms        = 0.0f;
@@ -108,26 +123,45 @@ void sys_input_init(void)
   g_input_ctx.acc_ready          = false;
   g_input_ctx.gps_ready          = false;
   g_input_ctx.dust_ready         = false;
+  /* Compass initialization */
+  g_input_ctx.data.heading_deg    = 0.0f;
+  g_input_ctx.data.direction_str  = "N";
+  g_input_ctx.compass_ema_x       = 0.0f;
+  g_input_ctx.compass_ema_y       = 0.0f;
+  g_input_ctx.compass_ema_z       = 0.0f;
+  g_input_ctx.compass_ema_alpha   = SYS_INPUT_COMPASS_EMA_ALPHA;
+  g_input_ctx.compass_last_ms     = 0;
+  g_input_ctx.compass_filter_init = false;
+  g_input_ctx.compass_ready       = false;
   /* State */
   g_input_ctx.is_calibrated = false;
   g_input_ctx.initialized   = true;
 
-  if (bsp_acc_init(&g_input_ctx.acc_ctx) == STATUS_OK && bsp_acc_begin(&g_input_ctx.acc_ctx) == STATUS_OK)
+  LOG_DBG("Init ACC");
+  if (bsp_acc_init() == STATUS_OK)
   {
     g_input_ctx.acc_ready = true;
   }
 
+  LOG_DBG("Init GPS");
   if (bsp_gps_init(nullptr) == STATUS_OK)
   {
     g_input_ctx.gps_ready = true;
   }
 
-  if (bsp_dust_sensor_init(&g_input_ctx.dust_ctx) == STATUS_OK
-      && bsp_dust_sensor_begin(&g_input_ctx.dust_ctx) == STATUS_OK)
+  LOG_DBG("Init Dust Sensor");
+  if (bsp_dust_sensor_init() == STATUS_OK)
   {
     g_input_ctx.dust_ready = true;
   }
 
+  LOG_DBG("Init Compass");
+  if (bsp_compass_init() == STATUS_OK)
+  {
+    g_input_ctx.compass_ready = true;
+  }
+
+  LOG_DBG("Start calibration - keep device stationary...");
   // Perform one-shot calibration at init when sensor is stationary.
   if (g_input_ctx.acc_ready)
   {
@@ -180,6 +214,9 @@ status_function_t sys_input_process(void)
   // Read dust sensor
   sys_input_read_dust_sensor();
 
+  // Read compass
+  sys_input_read_compass();
+
   // Update timestamp
   g_input_ctx.data.timestamp_ms = current_time_ms;
   g_input_ctx.last_update_us    = current_time_us;
@@ -220,7 +257,7 @@ static status_function_t sys_input_calibrate_internal(void)
   for (uint16_t i = 0; i < samples; i++)
   {
     bsp_acc_raw_data_t accel_data = { 0 };
-    if (bsp_acc_read_raw(&g_input_ctx.acc_ctx, &accel_data) == STATUS_OK)
+    if (bsp_acc_read_raw(&accel_data) == STATUS_OK)
     {
       sum_magnitude += sys_input_calculate_magnitude((float) accel_data.accel_x, (float) accel_data.accel_y,
                                                      (float) accel_data.accel_z);
@@ -250,7 +287,7 @@ static void sys_input_update_ins_velocity(float dt)
   // Read raw IMU data
   bsp_acc_raw_data_t accel_data = { 0 };
 
-  if (bsp_acc_read_raw(&g_input_ctx.acc_ctx, &accel_data) != STATUS_OK)
+  if (bsp_acc_read_raw(&accel_data) != STATUS_OK)
   {
     return;
   }
@@ -411,13 +448,101 @@ static void sys_input_read_dust_sensor(void)
     return;
   }
 
-  (void) bsp_dust_sensor_update(&g_input_ctx.dust_ctx);
-
-  uint16_t density = 0;
-  if (bsp_dust_sensor_get_density(&g_input_ctx.dust_ctx, &density) == STATUS_OK)
+  bsp_dust_sensor_data_t dust_data;
+  if (bsp_dust_sensor_read(&dust_data) == STATUS_OK)
   {
-    g_input_ctx.data.dust_concentration = (float) density;
+    g_input_ctx.data.dust_concentration = (float) dust_data.dust_density;
   }
+}
+
+/**
+ * @brief Direction strings for compass
+ */
+static const char *s_direction_strings[] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
+
+/**
+ * @brief Convert degrees to cardinal direction string
+ */
+static const char *sys_input_deg_to_direction_str(float deg)
+{
+  uint8_t idx = 0;
+  if (deg < 22.5f || deg >= 337.5f)
+    idx = 0;  // N
+  else if (deg < 67.5f)
+    idx = 1;  // NE
+  else if (deg < 112.5f)
+    idx = 2;  // E
+  else if (deg < 157.5f)
+    idx = 3;  // SE
+  else if (deg < 202.5f)
+    idx = 4;  // S
+  else if (deg < 247.5f)
+    idx = 5;  // SW
+  else if (deg < 292.5f)
+    idx = 6;  // W
+  else
+    idx = 7;  // NW
+
+  return s_direction_strings[idx];
+}
+
+/**
+ * @brief Read and filter compass data
+ *
+ * Applies EMA (Exponential Moving Average) filter to raw compass data
+ * and calculates heading in degrees with cardinal direction.
+ */
+static void sys_input_read_compass(void)
+{
+  if (!g_input_ctx.compass_ready)
+  {
+    return;
+  }
+
+  // Rate limiting: update at configured interval
+  size_t current_ms = millis();
+  if ((current_ms - g_input_ctx.compass_last_ms) < SYS_INPUT_COMPASS_UPDATE_MS)
+  {
+    return;
+  }
+  g_input_ctx.compass_last_ms = current_ms;
+
+  // Read raw data from sensor
+  bsp_compass_raw_data_t raw_data;
+  if (bsp_compass_read_raw(&raw_data) != STATUS_OK)
+  {
+    return;
+  }
+
+  // Apply EMA filter
+  float alpha = g_input_ctx.compass_ema_alpha;
+  if (!g_input_ctx.compass_filter_init)
+  {
+    g_input_ctx.compass_ema_x       = (float) raw_data.raw_x;
+    g_input_ctx.compass_ema_y       = (float) raw_data.raw_y;
+    g_input_ctx.compass_ema_z       = (float) raw_data.raw_z;
+    g_input_ctx.compass_filter_init = true;
+  }
+  else
+  {
+    g_input_ctx.compass_ema_x = alpha * raw_data.raw_x + (1.0f - alpha) * g_input_ctx.compass_ema_x;
+    g_input_ctx.compass_ema_y = alpha * raw_data.raw_y + (1.0f - alpha) * g_input_ctx.compass_ema_y;
+    g_input_ctx.compass_ema_z = alpha * raw_data.raw_z + (1.0f - alpha) * g_input_ctx.compass_ema_z;
+  }
+
+  // Calculate heading from filtered X and Y
+  float heading_rad = atan2f(g_input_ctx.compass_ema_y, g_input_ctx.compass_ema_x);
+  float heading_deg = heading_rad * 180.0f / M_PI;
+
+  // Normalize to 0-360 degrees
+  if (heading_deg < 0.0f)
+  {
+    heading_deg += 360.0f;
+  }
+
+  // Update main data structure
+  g_input_ctx.data.heading_deg   = heading_deg;
+  g_input_ctx.data.direction_str = sys_input_deg_to_direction_str(heading_deg);
 }
 
 /* Private definitions ----------------------------------------------- */

@@ -51,7 +51,7 @@ typedef void (*log_handler_t)(const char *message, size_t len);
 /* Public macros ------------------------------------------------------ */
 #define LOG_MODULE_REGISTER(name, level)             \
   static const char       *LOG_TAG          = #name; \
-  static const log_level_t LOG_MODULE_LEVEL = level
+  static const log_level_t LOG_MODULE_LEVEL = level;
 
 #if LOG_ENABLE
 
