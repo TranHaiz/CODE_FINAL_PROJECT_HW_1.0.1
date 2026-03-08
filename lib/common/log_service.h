@@ -22,7 +22,7 @@
 /* Public defines ----------------------------------------------------- */
 #define LOG_ENABLE        (1)
 #define LOG_USB_ENABLE    (1)
-#define LOG_SDCARD_ENABLE (1)
+#define LOG_SDCARD_ENABLE (0)
 
 /**
  * @brief Serial baudrate
@@ -55,10 +55,30 @@ typedef void (*log_handler_t)(const char *message, size_t len);
 
 #if LOG_ENABLE
 
-#define LOG_ERR(fmt, ...) log_service_print(LOG_LEVEL_ERROR, LOG_TAG, fmt, ##__VA_ARGS__)
-#define LOG_WRN(fmt, ...) log_service_print(LOG_LEVEL_WARN, LOG_TAG, fmt, ##__VA_ARGS__)
-#define LOG_INF(fmt, ...) log_service_print(LOG_LEVEL_INFO, LOG_TAG, fmt, ##__VA_ARGS__)
-#define LOG_DBG(fmt, ...) log_service_print(LOG_LEVEL_DBG, LOG_TAG, fmt, ##__VA_ARGS__)
+#define LOG_ERR(fmt, ...)                                              \
+  do                                                                   \
+  {                                                                    \
+    if (LOG_MODULE_LEVEL >= LOG_LEVEL_ERROR)                           \
+      log_service_print(LOG_LEVEL_ERROR, LOG_TAG, fmt, ##__VA_ARGS__); \
+  } while (0)
+#define LOG_WRN(fmt, ...)                                             \
+  do                                                                  \
+  {                                                                   \
+    if (LOG_MODULE_LEVEL >= LOG_LEVEL_WARN)                           \
+      log_service_print(LOG_LEVEL_WARN, LOG_TAG, fmt, ##__VA_ARGS__); \
+  } while (0)
+#define LOG_INF(fmt, ...)                                             \
+  do                                                                  \
+  {                                                                   \
+    if (LOG_MODULE_LEVEL >= LOG_LEVEL_INFO)                           \
+      log_service_print(LOG_LEVEL_INFO, LOG_TAG, fmt, ##__VA_ARGS__); \
+  } while (0)
+#define LOG_DBG(fmt, ...)                                            \
+  do                                                                 \
+  {                                                                  \
+    if (LOG_MODULE_LEVEL >= LOG_LEVEL_DBG)                           \
+      log_service_print(LOG_LEVEL_DBG, LOG_TAG, fmt, ##__VA_ARGS__); \
+  } while (0)
 #else
 
 #define LOG_ERR(fmt, ...)  // NULL

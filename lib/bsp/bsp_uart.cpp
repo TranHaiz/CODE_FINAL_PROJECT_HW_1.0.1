@@ -39,21 +39,53 @@ void bsp_uart_init(bsp_uart_config_t *config)
     .source_clk          = UART_SCLK_APB,  // S3 sử dụng DEFAULT thay vì APB cũ
   };
 
-  // 1. Cài đặt Driver
-  uart_driver_install(config->port, RX_BUF_SIZE * 2, RX_BUF_SIZE * 2, 20, &bsp_uart_queues[config->port], 0);
-  uart_param_config(config->port, &uart_config);
-  uart_set_pin(config->port, config->tx_pin, config->rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+  // 1. Cài đặt Driver - check for errors
+  esp_err_t ret =
+    uart_driver_install(config->port, RX_BUF_SIZE * 2, RX_BUF_SIZE * 2, 20, &bsp_uart_queues[config->port], 0);
+  if (ret != ESP_OK)
+  {
+    Serial.printf("[UART] Driver install failed: 0x%x\n", ret);
+    return;
+  }
+
+  ret = uart_param_config(config->port, &uart_config);
+  if (ret != ESP_OK)
+  {
+    Serial.printf("[UART] Param config failed: 0x%x\n", ret);
+    return;
+  }
+
+  ret = uart_set_pin(config->port, config->tx_pin, config->rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+  if (ret != ESP_OK)
+  {
+    Serial.printf("[UART] Set pin failed: 0x%x\n", ret);
+    return;
+  }
 
   // 2. Kích hoạt Idle Detection (Timeout)
   // Sau khi nhận byte cuối, nếu im lặng 10 symbol sẽ bắn sự kiện UART_DATA
   uart_set_rx_timeout(config->port, 10);
 
   // 3. Tạo Task xử lý (Sử dụng heap để truyền config vào task an toàn)
+  // Add a small delay to ensure FreeRTOS scheduler is fully ready before task creation
+  vTaskDelay(pdMS_TO_TICKS(10));
+
   bsp_uart_config_t *task_cfg = new bsp_uart_config_t(*config);
+  if (task_cfg == NULL)
+  {
+    Serial.println("[UART] Failed to allocate config for task");
+    return;
+  }
 
   char task_name[20];
   snprintf(task_name, sizeof(task_name), "uart_task_%d", config->port);
-  xTaskCreate(uart_event_task, task_name, 4096, (void *) task_cfg, 12, NULL);
+  BaseType_t task_ret = xTaskCreate(uart_event_task, task_name, 4096, (void *) task_cfg, 12, NULL);
+  if (task_ret != pdPASS)
+  {
+    Serial.printf("[UART] Task creation failed: %d\n", task_ret);
+    delete task_cfg;
+    return;
+  }
 }
 
 void bsp_uart_write(uart_port_t uart_num, const char *data, size_t len)
@@ -68,8 +100,23 @@ static void uart_event_task(void *pvParameters)
   bsp_uart_config_t cfg = *(bsp_uart_config_t *) pvParameters;
   delete (bsp_uart_config_t *) pvParameters;  // Giải phóng vùng nhớ tạm đã malloc ở init
 
+  // Safety check: ensure queue handle is valid
+  if (bsp_uart_queues[cfg.port] == NULL)
+  {
+    Serial.printf("[UART Task %d] Queue handle is NULL, aborting\n", cfg.port);
+    vTaskDelete(NULL);
+    return;
+  }
+
   uart_event_t event;
   uint8_t     *dtmp = (uint8_t *) malloc(RX_BUF_SIZE);
+
+  if (dtmp == NULL)
+  {
+    Serial.println("[UART Task] Failed to allocate buffer");
+    vTaskDelete(NULL);
+    return;
+  }
 
   for (;;)
   {
