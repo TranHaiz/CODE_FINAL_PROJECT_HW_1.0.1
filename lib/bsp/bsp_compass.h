@@ -130,7 +130,7 @@ typedef struct
   float                   filtered_z;     // Filtered Z-axis value
   bsp_compass_direction_t direction;      // Cardinal direction
   const char             *direction_str;  // Direction string ("N", "NE", etc.)
-  uint32_t                timestamp_ms;   // Timestamp of last reading
+  size_t                  timestamp_ms;   // Timestamp of last reading
   bool                    is_valid;       // True if reading is valid
   bool                    is_overflow;    // True if overflow detected
 } bsp_compass_data_t;
@@ -153,7 +153,7 @@ typedef struct
   uint8_t            i2c_addr;        // I2C address (default 0x1E)
   uint8_t            sda_pin;         // I2C SDA pin
   uint8_t            scl_pin;         // I2C SCL pin
-  uint32_t           i2c_clock;       // I2C clock frequency
+  size_t             i2c_clock;       // I2C clock frequency
   bsp_compass_rate_t data_rate;       // Data output rate
   bsp_compass_gain_t gain;            // Gain setting
   bsp_compass_mode_t mode;            // Operating mode
@@ -175,7 +175,7 @@ typedef struct
   float                      ema_x;           // EMA filtered X
   float                      ema_y;           // EMA filtered Y
   float                      ema_z;           // EMA filtered Z
-  uint32_t                   last_update_ms;  // Last update timestamp
+  size_t                     last_update_ms;  // Last update timestamp
   bool                       is_initialized;  // Initialization flag
   bool                       filter_ready;    // Filter initialized flag
 } bsp_compass_t;

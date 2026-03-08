@@ -44,12 +44,12 @@
  */
 typedef struct
 {
-  uint32_t bg_color;
-  uint32_t border_color;
-  uint32_t text_color;
-  int      border_width;
-  int      radius;
-  int      padding;
+  size_t bg_color;
+  size_t border_color;
+  size_t text_color;
+  int    border_width;
+  int    radius;
+  int    padding;
 } sys_ui_widget_info_t;
 
 /* Public function prototypes ----------------------------------------- */
@@ -59,7 +59,7 @@ typedef struct
  * @param bg_color Background color (hex)
  * @return Screen object pointer
  */
-lv_obj_t *sys_ui_widget_create_screen(uint32_t bg_color);
+lv_obj_t *sys_ui_widget_create_screen(size_t bg_color);
 
 /**
  * @brief Create a card widget (container with border)
@@ -73,7 +73,7 @@ lv_obj_t *sys_ui_widget_create_screen(uint32_t bg_color);
  *
  * @return Card object pointer
  */
-lv_obj_t *sys_ui_widget_create_card(lv_obj_t *parent, int x, int y, int w, int h, uint32_t border_color);
+lv_obj_t *sys_ui_widget_create_card(lv_obj_t *parent, int x, int y, int w, int h, size_t border_color);
 
 /**
  * @brief Create a card with custom style
@@ -110,8 +110,8 @@ lv_obj_t *sys_ui_widget_createButton(lv_obj_t   *parent,
                                      int         w,
                                      int         h,
                                      const char *label,
-                                     uint32_t    bg_color,
-                                     uint32_t    text_color);
+                                     size_t      bg_color,
+                                     size_t      text_color);
 
 /**
  * @brief Create a label
@@ -126,7 +126,7 @@ lv_obj_t *sys_ui_widget_createButton(lv_obj_t   *parent,
  * @return Label object pointer
  */
 lv_obj_t *
-sys_ui_widget_createLabel(lv_obj_t *parent, int x, int y, const char *text, uint32_t color, const lv_font_t *font);
+sys_ui_widget_createLabel(lv_obj_t *parent, int x, int y, const char *text, size_t color, const lv_font_t *font);
 
 /**
  * @brief Create a panel (container without border)
@@ -140,7 +140,7 @@ sys_ui_widget_createLabel(lv_obj_t *parent, int x, int y, const char *text, uint
  *
  * @return Panel object pointer
  */
-lv_obj_t *sys_ui_widget_createPanel(lv_obj_t *parent, int x, int y, int w, int h, uint32_t bg_color);
+lv_obj_t *sys_ui_widget_createPanel(lv_obj_t *parent, int x, int y, int w, int h, size_t bg_color);
 
 /**
  * @brief Create an arc (for speedometer, gauges)
@@ -162,8 +162,8 @@ lv_obj_t *sys_ui_widget_createArc(lv_obj_t *parent,
                                   int       radius,
                                   int       start_angle,
                                   int       end_angle,
-                                  uint32_t  bg_color,
-                                  uint32_t  indicator_color);
+                                  size_t    bg_color,
+                                  size_t    indicator_color);
 
 /**
  * @brief Create a bar (for battery, progress)
@@ -187,8 +187,8 @@ lv_obj_t *sys_ui_widget_createBar(lv_obj_t *parent,
                                   int       h,
                                   int       min_val,
                                   int       max_val,
-                                  uint32_t  bg_color,
-                                  uint32_t  indicator_color);
+                                  size_t    bg_color,
+                                  size_t    indicator_color);
 
 /**
  * @brief Create a slider
@@ -214,8 +214,8 @@ lv_obj_t *sys_ui_widget_create_slider(lv_obj_t *parent,
                                       int       min_val,
                                       int       max_val,
                                       int       initial_val,
-                                      uint32_t  bg_color,
-                                      uint32_t  indicator_color);
+                                      size_t    bg_color,
+                                      size_t    indicator_color);
 
 /**
  * @brief Create a chart
@@ -230,7 +230,7 @@ lv_obj_t *sys_ui_widget_create_slider(lv_obj_t *parent,
  *
  * @return Chart object pointer
  */
-lv_obj_t *sys_ui_widget_createChart(lv_obj_t *parent, int x, int y, int w, int h, int point_count, uint32_t bg_color);
+lv_obj_t *sys_ui_widget_createChart(lv_obj_t *parent, int x, int y, int w, int h, int point_count, size_t bg_color);
 
 /**
  * @brief Add series to chart
@@ -240,7 +240,7 @@ lv_obj_t *sys_ui_widget_createChart(lv_obj_t *parent, int x, int y, int w, int h
  *
  * @return Chart series pointer
  */
-lv_chart_series_t *sys_ui_widget_addChartSeries(lv_obj_t *chart, uint32_t color);
+lv_chart_series_t *sys_ui_widget_addChartSeries(lv_obj_t *chart, size_t color);
 
 /**
  * @brief Create a status LED (small circular indicator)
@@ -253,7 +253,7 @@ lv_chart_series_t *sys_ui_widget_addChartSeries(lv_obj_t *chart, uint32_t color)
  *
  * @return LED object pointer
  */
-lv_obj_t *sys_ui_widget_createLed(lv_obj_t *parent, int x, int y, int size, uint32_t color);
+lv_obj_t *sys_ui_widget_createLed(lv_obj_t *parent, int x, int y, int size, size_t color);
 
 /**
  * @brief Set widget clickable and add click callback
@@ -315,7 +315,7 @@ void sys_ui_widget_set_arc_value(lv_obj_t *arc, int value);
  *
  * @return none
  */
-void sys_ui_widget_set_arc_color(lv_obj_t *arc, uint32_t color);
+void sys_ui_widget_set_arc_color(lv_obj_t *arc, size_t color);
 
 /**
  * @brief Update label color
@@ -325,7 +325,7 @@ void sys_ui_widget_set_arc_color(lv_obj_t *arc, uint32_t color);
  *[in]
  * @return none
  */
-void sys_ui_widget_set_label_color(lv_obj_t *label, uint32_t color);
+void sys_ui_widget_set_label_color(lv_obj_t *label, size_t color);
 
 #endif /*End file _SYS_UI_WIDGET_H_*/
 

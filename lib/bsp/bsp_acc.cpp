@@ -38,15 +38,10 @@ status_function_t bsp_acc_init(bsp_acc_t *ctx)
 
   // Set default configuration
   bsp_acc_config_t default_config = {
-    .i2c_addr            = BSP_ACC_DEFAULT_I2C_ADDR,
-    .sda_pin             = BSP_ACC_DEFAULT_SDA_PIN,
-    .scl_pin             = BSP_ACC_DEFAULT_SCL_PIN,
-    .calibration_count   = BSP_ACC_DEFAULT_CALIBRATION_COUNT,
-    .sample_delay_ms     = BSP_ACC_DEFAULT_SAMPLE_DELAY_MS,
-    .alpha               = BSP_ACC_DEFAULT_ALPHA,
-    .accel_threshold_ms2 = BSP_ACC_DEFAULT_ACCEL_THRESHOLD,
-    .friction_factor     = BSP_ACC_DEFAULT_FRICTION_FACTOR,
-    .update_rate_ms      = BSP_ACC_DEFAULT_UPDATE_RATE_MS,
+    .i2c_addr       = BSP_ACC_I2C_ADDR,
+    .sda_pin        = BSP_ACC_SDA_PIN,
+    .scl_pin        = BSP_ACC_SCL_PIN,
+    .update_rate_ms = BSP_ACC_DEFAULT_UPDATE_RATE_MS,
   };
 
   return bsp_acc_init_with_config(ctx, &default_config);
@@ -63,10 +58,10 @@ status_function_t bsp_acc_init_with_config(bsp_acc_t *ctx, const bsp_acc_config_
   ctx->config = *config;
 
   // Initialize I2C with custom pins
-  Wire.begin(config->sda_pin, config->scl_pin);
+  Wire.begin(BSP_ACC_SDA_PIN, BSP_ACC_SCL_PIN);
 
   // Create LSM6DS3 sensor object
-  ctx->sensor = new LSM6DS3(I2C_MODE, config->i2c_addr);
+  ctx->sensor = new LSM6DS3(I2C_MODE, BSP_ACC_I2C_ADDR);
 
   if (ctx->sensor == nullptr)
   {
@@ -76,13 +71,8 @@ status_function_t bsp_acc_init_with_config(bsp_acc_t *ctx, const bsp_acc_config_
 
   // Initialize data structures
   ctx->data.accel_magnitude = 0.0f;
-  ctx->data.accel_filtered  = 0.0f;
-  ctx->data.accel_ms2       = 0.0f;
-  ctx->data.velocity_ms     = 0.0f;
-  ctx->data.velocity_kmh    = 0.0f;
   ctx->data.timestamp_ms    = 0;
   ctx->data.is_valid        = false;
-  ctx->data.is_calibrated   = false;
 
   ctx->raw_data.accel_x = 0.0f;
   ctx->raw_data.accel_y = 0.0f;
@@ -93,13 +83,11 @@ status_function_t bsp_acc_init_with_config(bsp_acc_t *ctx, const bsp_acc_config_
   ctx->raw_data.temp_c  = 0.0f;
 
   // Initialize state
-  ctx->callback         = nullptr;
-  ctx->raw_callback     = nullptr;
-  ctx->offset_magnitude = 0.0f;
-  ctx->last_update_us   = 0;
-  ctx->last_update_ms   = 0;
-  ctx->is_initialized   = false;
-  ctx->is_calibrated    = false;
+  ctx->callback       = nullptr;
+  ctx->raw_callback   = nullptr;
+  ctx->last_update_us = 0;
+  ctx->last_update_ms = 0;
+  ctx->is_initialized = false;
 
   Serial.printf("[ACC] Initialized with I2C addr=0x%02X, SDA=%d, SCL=%d\n", config->i2c_addr, config->sda_pin,
                 config->scl_pin);
@@ -147,38 +135,6 @@ status_function_t bsp_acc_begin(bsp_acc_t *ctx)
   return STATUS_OK;
 }
 
-status_function_t bsp_acc_calibrate(bsp_acc_t *ctx)
-{
-  if (ctx == nullptr || ctx->sensor == nullptr || !ctx->is_initialized)
-  {
-    return STATUS_ERROR;
-  }
-
-  Serial.println("[ACC] Starting calibration... Keep sensor stationary!");
-
-  float sum_magnitude = 0.0f;
-
-  for (uint16_t i = 0; i < ctx->config.calibration_count; i++)
-  {
-    float x = ctx->sensor->readFloatAccelX();
-    float y = ctx->sensor->readFloatAccelY();
-    float z = ctx->sensor->readFloatAccelZ();
-
-    sum_magnitude += bsp_acc_calculate_magnitude(x, y, z);
-
-    delay(ctx->config.sample_delay_ms);
-  }
-
-  ctx->offset_magnitude   = sum_magnitude / (float) ctx->config.calibration_count;
-  ctx->is_calibrated      = true;
-  ctx->data.is_calibrated = true;
-  ctx->last_update_us     = micros();
-
-  Serial.printf("[ACC] Calibration complete. Gravity offset: %.4f g\n", ctx->offset_magnitude);
-
-  return STATUS_OK;
-}
-
 status_function_t bsp_acc_update(bsp_acc_t *ctx)
 {
   if (ctx == nullptr || ctx->sensor == nullptr || !ctx->is_initialized)
@@ -186,10 +142,9 @@ status_function_t bsp_acc_update(bsp_acc_t *ctx)
     return STATUS_ERROR;
   }
 
-  // Calculate time delta
-  uint32_t current_time_us = micros();
-  float    dt              = (current_time_us - ctx->last_update_us) / 1000000.0f;
-  ctx->last_update_us      = current_time_us;
+  // Update timestamps
+  ctx->last_update_us = micros();
+  ctx->last_update_ms = OS_GET_TICK();
 
   // Read raw accelerometer data
   ctx->raw_data.accel_x = ctx->sensor->readFloatAccelX();
@@ -210,41 +165,8 @@ status_function_t bsp_acc_update(bsp_acc_t *ctx)
 
   ctx->data.accel_magnitude = current_magnitude;
 
-  // Process data only if calibrated
-  if (ctx->is_calibrated)
-  {
-    // Remove gravity offset
-    float accel_clear = current_magnitude - ctx->offset_magnitude;
-
-    // Apply low-pass filter
-    ctx->data.accel_filtered = ctx->config.alpha * accel_clear + (1.0f - ctx->config.alpha) * ctx->data.accel_filtered;
-
-    // Convert to m/s²
-    ctx->data.accel_ms2 = ctx->data.accel_filtered * BSP_ACC_GRAVITY_MS2;
-
-    // Integrate to calculate velocity
-    if (fabsf(ctx->data.accel_ms2) > ctx->config.accel_threshold_ms2)
-    {
-      ctx->data.velocity_ms += ctx->data.accel_ms2 * dt;
-    }
-    else
-    {
-      // Apply friction when acceleration is below threshold
-      ctx->data.velocity_ms *= ctx->config.friction_factor;
-    }
-
-    // Ensure velocity is not negative
-    if (ctx->data.velocity_ms < 0.0f)
-    {
-      ctx->data.velocity_ms = 0.0f;
-    }
-
-    // Convert to km/h
-    ctx->data.velocity_kmh = ctx->data.velocity_ms * 3.6f;
-  }
-
   // Update timestamp and validity
-  ctx->data.timestamp_ms = OS_GET_TICK();
+  ctx->data.timestamp_ms = ctx->last_update_ms;
   ctx->data.is_valid     = true;
 
   // Call callbacks if registered
@@ -291,50 +213,14 @@ status_function_t bsp_acc_get_data(bsp_acc_t *ctx, bsp_acc_data_t *data)
   return STATUS_OK;
 }
 
-status_function_t bsp_acc_get_velocity_ms(bsp_acc_t *ctx, float *velocity_ms)
+status_function_t bsp_acc_get_magnitude(bsp_acc_t *ctx, float *mag_g)
 {
-  if (ctx == nullptr || velocity_ms == nullptr)
+  if (ctx == nullptr || mag_g == nullptr)
   {
     return STATUS_ERROR;
   }
 
-  *velocity_ms = ctx->data.velocity_ms;
-  return STATUS_OK;
-}
-
-status_function_t bsp_acc_get_velocity_kmh(bsp_acc_t *ctx, float *velocity_kmh)
-{
-  if (ctx == nullptr || velocity_kmh == nullptr)
-  {
-    return STATUS_ERROR;
-  }
-
-  *velocity_kmh = ctx->data.velocity_kmh;
-  return STATUS_OK;
-}
-
-status_function_t bsp_acc_get_accel_ms2(bsp_acc_t *ctx, float *accel_ms2)
-{
-  if (ctx == nullptr || accel_ms2 == nullptr)
-  {
-    return STATUS_ERROR;
-  }
-
-  *accel_ms2 = ctx->data.accel_ms2;
-  return STATUS_OK;
-}
-
-status_function_t bsp_acc_reset_velocity(bsp_acc_t *ctx)
-{
-  if (ctx == nullptr)
-  {
-    return STATUS_ERROR;
-  }
-
-  ctx->data.velocity_ms  = 0.0f;
-  ctx->data.velocity_kmh = 0.0f;
-
-  Serial.println("[ACC] Velocity reset to zero");
+  *mag_g = ctx->data.accel_magnitude;
   return STATUS_OK;
 }
 
@@ -360,50 +246,14 @@ status_function_t bsp_acc_register_raw_callback(bsp_acc_t *ctx, bsp_acc_raw_call
   return STATUS_OK;
 }
 
-status_function_t bsp_acc_set_filter_alpha(bsp_acc_t *ctx, float alpha)
-{
-  if (ctx == nullptr)
-  {
-    return STATUS_ERROR;
-  }
-
-  if (alpha < 0.0f || alpha > 1.0f)
-  {
-    Serial.println("[ACC] WARNING: Alpha should be between 0.0 and 1.0");
-    return STATUS_ERROR;
-  }
-
-  ctx->config.alpha = alpha;
-  Serial.printf("[ACC] Filter alpha set to %.2f\n", alpha);
-  return STATUS_OK;
-}
-
-status_function_t bsp_acc_set_threshold(bsp_acc_t *ctx, float threshold_ms2)
-{
-  if (ctx == nullptr)
-  {
-    return STATUS_ERROR;
-  }
-
-  if (threshold_ms2 < 0.0f)
-  {
-    Serial.println("[ACC] WARNING: Threshold should be positive");
-    return STATUS_ERROR;
-  }
-
-  ctx->config.accel_threshold_ms2 = threshold_ms2;
-  Serial.printf("[ACC] Acceleration threshold set to %.2f m/s²\n", threshold_ms2);
-  return STATUS_OK;
-}
-
-bool bsp_acc_is_calibrated(bsp_acc_t *ctx)
+bool bsp_acc_is_initialized(bsp_acc_t *ctx)
 {
   if (ctx == nullptr)
   {
     return false;
   }
 
-  return ctx->is_calibrated;
+  return ctx->is_initialized;
 }
 
 int8_t bsp_acc_scan_i2c(uint8_t sda_pin, uint8_t scl_pin)
@@ -452,7 +302,6 @@ status_function_t bsp_acc_deinit(bsp_acc_t *ctx)
   }
 
   ctx->is_initialized = false;
-  ctx->is_calibrated  = false;
   ctx->callback       = nullptr;
   ctx->raw_callback   = nullptr;
 

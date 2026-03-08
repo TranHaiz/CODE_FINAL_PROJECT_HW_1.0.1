@@ -57,8 +57,9 @@
 #define BSP_SDCARD_DEFAULT_SCK_PIN  (47)
 #define BSP_SDCARD_DEFAULT_MOSI_PIN (48)
 #define BSP_SDCARD_DEFAULT_MISO_PIN (45)
-#define BSP_SDCARD_DEFAULT_SPI_FREQ (4000000)   // 4MHz default
-#define BSP_SDCARD_MAX_SPI_FREQ     (40000000)  // 40MHz max
+#define SDCARD_MIN_SPI_FREQ         (1000000)   // 1MHz min
+#define SDCARD_NORMAL_SPI_FREQ      (4000000)   // 4MHz normal
+#define SDCARD_MAX_SPI_FREQ         (24000000)  // 24MHz max
 
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */

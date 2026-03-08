@@ -36,7 +36,7 @@ typedef struct
   uint16_t running_average;   // Running average dust density in µg/m³
   float    baseline_voltage;  // Current baseline (zero-dust) voltage
   float    sensitivity;       // Sensor sensitivity factor
-  uint32_t timestamp_ms;      // Timestamp of last reading
+  size_t   timestamp_ms;      // Timestamp of last reading
   bool     is_valid;          // True if reading is valid
 } bsp_dust_sensor_data_t;
 
@@ -81,7 +81,7 @@ typedef struct
   bsp_dust_sensor_config_t   config;          // Sensor configuration
   bsp_dust_sensor_data_t     data;            // Current sensor data
   bsp_dust_sensor_callback_t callback;        // User callback function
-  uint32_t                   last_update_ms;  // Last update timestamp
+  size_t                     last_update_ms;  // Last update timestamp
   bool                       is_initialized;  // Initialization flag
 } bsp_dust_sensor_t;
 

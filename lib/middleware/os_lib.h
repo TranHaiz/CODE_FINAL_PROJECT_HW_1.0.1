@@ -39,7 +39,7 @@
  */
 #define OS_THREAD_DECLARE(thread_name, priority, stack_size) \
   TaskHandle_t      thread_name##_handle   = NULL;           \
-  const uint32_t    thread_name##_stack    = (stack_size);   \
+  const size_t      thread_name##_stack    = (stack_size);   \
   const UBaseType_t thread_name##_priority = (priority)
 
 /**

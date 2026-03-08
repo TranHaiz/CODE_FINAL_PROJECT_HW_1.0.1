@@ -52,7 +52,7 @@ static void sys_ui_updateEnvironmentTelemetry(sys_ui_t *ctx);
 static void sys_ui_enterView(sys_ui_t *ctx, sys_ui_view_t view);
 static void sys_ui_returnToMain(sys_ui_t *ctx);
 static void sys_ui_logDistanceSample(sys_ui_t *ctx, float value);
-static void sys_ui_logTemperatureSample(sys_ui_t *ctx, float value, uint32_t timestamp);
+static void sys_ui_logTemperatureSample(sys_ui_t *ctx, float value, size_t timestamp);
 static void sys_ui_refreshTemperatureOverlay(sys_ui_t *ctx);
 static void sys_ui_register_lvgl_callbacks(sys_ui_t *ctx);
 static void sys_ui_showScreen(sys_ui_t *ctx, lv_obj_t *screen);
@@ -135,7 +135,7 @@ void sys_ui_begin(sys_ui_t *ctx)
   /* Register LVGL button event callbacks */
   sys_ui_register_lvgl_callbacks(ctx);
 
-  uint32_t now                 = OS_GET_TICK();
+  size_t now                   = OS_GET_TICK();
   ctx->session_start_ms        = now;
   ctx->last_speed_update       = now;
   ctx->last_second_tick        = now;
@@ -151,7 +151,7 @@ void sys_ui_run(sys_ui_t *ctx)
 {
   assert(ctx != nullptr);
 
-  uint32_t now = OS_GET_TICK();
+  size_t now = OS_GET_TICK();
 
   /* Update speed and distance */
   if (now - ctx->last_speed_update >= SYS_UI_SPEED_REFRESH_MS)
@@ -474,7 +474,7 @@ static void sys_ui_createSettingsScreen(sys_ui_t *ctx)
   lv_obj_set_pos(bg_label, 40, 120);
   lv_obj_set_style_text_color(bg_label, lv_color_hex(SYS_UI_COLOR_TEXT), 0);
 
-  uint32_t colors[3] = { 0x000000, 0xFFFFFF, 0x7B7B7B };
+  size_t colors[3] = { 0x000000, 0xFFFFFF, 0x7B7B7B };
   for (int i = 0; i < 3; ++i)
   {
     w->color_btns[i] = lv_btn_create(w->settings_screen);
@@ -890,8 +890,8 @@ static void sys_ui_drawDistanceOverlay(sys_ui_t *ctx)
     sys_ui_createDistanceScreen(ctx);
   }
 
-  uint32_t now   = OS_GET_TICK();
-  float    hours = (now - ctx->session_start_ms) / 3600000.0f;
+  size_t now   = OS_GET_TICK();
+  float  hours = (now - ctx->session_start_ms) / 3600000.0f;
   if (hours < 0.001f)
     hours = 0.001f;
   float avgSpeed = ctx->distance_km / hours;
@@ -1074,7 +1074,7 @@ static void sys_ui_logDistanceSample(sys_ui_t *ctx, float value)
   ctx->distanceHistory[SYS_UI_MAX_DISTANCE_LOG - 1] = value;
 }
 
-static void sys_ui_logTemperatureSample(sys_ui_t *ctx, float value, uint32_t timestamp)
+static void sys_ui_logTemperatureSample(sys_ui_t *ctx, float value, size_t timestamp)
 {
   if (ctx->temperature_sample_count < SYS_UI_MAX_TEMP_SAMPLES)
   {
@@ -1187,7 +1187,7 @@ static void sys_ui_color_btn_cb(lv_event_t *e)
 
   int btn_index = (int) (intptr_t) lv_event_get_user_data(e);
 
-  uint32_t colors[3] = { 0x000000, 0xFFFFFF, 0x7B7B7B };
+  size_t colors[3] = { 0x000000, 0xFFFFFF, 0x7B7B7B };
   if (btn_index >= 0 && btn_index < 3)
   {
     g_ui_ctx->background_color    = colors[btn_index];

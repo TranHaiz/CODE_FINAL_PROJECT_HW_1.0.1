@@ -22,7 +22,7 @@ static void lvgl_input_read_cb(lv_indev_t *indev, lv_indev_data_t *data);
 /* Static reference to driver for callbacks */
 static lvgl_driver_t *g_lvgl_driver                              = nullptr;
 static void (*g_touch_callback)(lv_indev_t *, lv_indev_data_t *) = nullptr;
-static uint32_t g_last_tick                                      = 0;
+static size_t g_last_tick                                        = 0;
 
 /**
  * Flush callback - called by LVGL to update display
@@ -132,9 +132,9 @@ void bsp_lvgl_task(lvgl_driver_t *ctx)
   }
 
   /* Update LVGL tick */
-  uint32_t now     = OS_GET_TICK();
-  uint32_t elapsed = now - g_last_tick;
-  g_last_tick      = now;
+  size_t now     = OS_GET_TICK();
+  size_t elapsed = now - g_last_tick;
+  g_last_tick    = now;
   lv_tick_inc(elapsed);
 
   /* Process LVGL tasks */

@@ -21,16 +21,14 @@
 #include <Wire.h>
 
 /* Public defines ----------------------------------------------------- */
-#define BSP_ACC_DEFAULT_I2C_ADDR          (0x6B)
-#define BSP_ACC_DEFAULT_SDA_PIN           (4)
-#define BSP_ACC_DEFAULT_SCL_PIN           (5)
-#define BSP_ACC_DEFAULT_CALIBRATION_COUNT (200)
-#define BSP_ACC_DEFAULT_SAMPLE_DELAY_MS   (5)
-#define BSP_ACC_DEFAULT_ALPHA             (0.15f)   // Low-pass filter coefficient
-#define BSP_ACC_DEFAULT_ACCEL_THRESHOLD   (0.15f)   // Acceleration threshold in m/s²
-#define BSP_ACC_DEFAULT_FRICTION_FACTOR   (0.98f)   // Simulated friction factor
-#define BSP_ACC_DEFAULT_UPDATE_RATE_MS    (20)      // 50Hz sampling rate
-#define BSP_ACC_GRAVITY_MS2               (9.806f)  // Earth gravity in m/s²
+#define BSP_ACC_I2C_ADDR               (0x6B)
+#define BSP_ACC_SDA_PIN                (4)
+#define BSP_ACC_SCL_PIN                (5)
+#define BSP_ACC_CALIBRATION_SAMPLE     (200)
+#define BSP_ACC_SAMPLE_DELAY_MS        (5)
+
+#define BSP_ACC_DEFAULT_UPDATE_RATE_MS (20)      // 50Hz sampling rate
+#define BSP_ACC_GRAVITY_MS2            (9.806f)  // Earth gravity in m/s²
 
 /* Public enumerate/structure ----------------------------------------- */
 /**
@@ -52,14 +50,9 @@ typedef struct
  */
 typedef struct
 {
-  float    accel_magnitude;  // Total acceleration magnitude in g
-  float    accel_filtered;   // Filtered acceleration (gravity removed)
-  float    accel_ms2;        // Acceleration in m/s²
-  float    velocity_ms;      // Velocity in m/s
-  float    velocity_kmh;     // Velocity in km/h
-  uint32_t timestamp_ms;     // Timestamp of last reading
-  bool     is_valid;         // True if reading is valid
-  bool     is_calibrated;    // True if sensor is calibrated
+  float  accel_magnitude;  // Total acceleration magnitude in g
+  size_t timestamp_ms;     // Timestamp of last reading
+  bool   is_valid;         // True if reading is valid
 } bsp_acc_data_t;
 
 /**
@@ -77,15 +70,10 @@ typedef void (*bsp_acc_raw_callback_t)(bsp_acc_raw_data_t *data);
  */
 typedef struct
 {
-  uint8_t  i2c_addr;             // I2C address (0x6A or 0x6B)
-  uint8_t  sda_pin;              // I2C SDA pin
-  uint8_t  scl_pin;              // I2C SCL pin
-  uint16_t calibration_count;    // Number of samples for calibration
-  uint16_t sample_delay_ms;      // Delay between calibration samples
-  float    alpha;                // Low-pass filter coefficient (0.0 - 1.0)
-  float    accel_threshold_ms2;  // Acceleration threshold in m/s²
-  float    friction_factor;      // Friction simulation factor (0.0 - 1.0)
-  uint16_t update_rate_ms;       // Update rate in milliseconds
+  uint8_t  i2c_addr;        // I2C address (0x6A or 0x6B)
+  uint8_t  sda_pin;         // I2C SDA pin
+  uint8_t  scl_pin;         // I2C SCL pin
+  uint16_t update_rate_ms;  // Update rate in milliseconds
 } bsp_acc_config_t;
 
 /**
@@ -93,17 +81,15 @@ typedef struct
  */
 typedef struct
 {
-  LSM6DS3               *sensor;            // Pointer to LSM6DS3 sensor object
-  bsp_acc_config_t       config;            // Sensor configuration
-  bsp_acc_data_t         data;              // Processed sensor data
-  bsp_acc_raw_data_t     raw_data;          // Raw sensor data
-  bsp_acc_callback_t     callback;          // User callback for processed data
-  bsp_acc_raw_callback_t raw_callback;      // User callback for raw data
-  float                  offset_magnitude;  // Gravity offset from calibration
-  uint32_t               last_update_us;    // Last update timestamp (microseconds)
-  uint32_t               last_update_ms;    // Last update timestamp (milliseconds)
-  bool                   is_initialized;    // Initialization flag
-  bool                   is_calibrated;     // Calibration flag
+  LSM6DS3               *sensor;          // Pointer to LSM6DS3 sensor object
+  bsp_acc_config_t       config;          // Sensor configuration
+  bsp_acc_data_t         data;            // Processed sensor data
+  bsp_acc_raw_data_t     raw_data;        // Raw sensor data
+  bsp_acc_callback_t     callback;        // User callback for processed data
+  bsp_acc_raw_callback_t raw_callback;    // User callback for raw data
+  size_t                 last_update_us;  // Last update timestamp (microseconds)
+  size_t                 last_update_ms;  // Last update timestamp (milliseconds)
+  bool                   is_initialized;  // Initialization flag
 } bsp_acc_t;
 
 /* Public macros ------------------------------------------------------ */
@@ -139,16 +125,6 @@ status_function_t bsp_acc_init_with_config(bsp_acc_t *ctx, const bsp_acc_config_
 status_function_t bsp_acc_begin(bsp_acc_t *ctx);
 
 /**
- * @brief Calibrate the accelerometer (remove gravity offset)
- * @note  Sensor should be stationary during calibration
- *
- * @param[in] ctx     Pointer to accelerometer context
- *
- * @return status_function_t Status of operation
- */
-status_function_t bsp_acc_calibrate(bsp_acc_t *ctx);
-
-/**
  * @brief Update sensor readings and process data
  *
  * @param[in] ctx     Pointer to accelerometer context
@@ -178,43 +154,14 @@ status_function_t bsp_acc_read_raw(bsp_acc_t *ctx, bsp_acc_raw_data_t *data);
 status_function_t bsp_acc_get_data(bsp_acc_t *ctx, bsp_acc_data_t *data);
 
 /**
- * @brief Get current velocity in m/s
+ * @brief Get current acceleration magnitude in g
  *
- * @param[in]  ctx         Pointer to accelerometer context
- * @param[out] velocity_ms Pointer to velocity value
- *
- * @return status_function_t Status of operation
- */
-status_function_t bsp_acc_get_velocity_ms(bsp_acc_t *ctx, float *velocity_ms);
-
-/**
- * @brief Get current velocity in km/h
- *
- * @param[in]  ctx          Pointer to accelerometer context
- * @param[out] velocity_kmh Pointer to velocity value
+ * @param[in]  ctx   Pointer to accelerometer context
+ * @param[out] mag_g Pointer to magnitude value
  *
  * @return status_function_t Status of operation
  */
-status_function_t bsp_acc_get_velocity_kmh(bsp_acc_t *ctx, float *velocity_kmh);
-
-/**
- * @brief Get current acceleration in m/s²
- *
- * @param[in]  ctx       Pointer to accelerometer context
- * @param[out] accel_ms2 Pointer to acceleration value
- *
- * @return status_function_t Status of operation
- */
-status_function_t bsp_acc_get_accel_ms2(bsp_acc_t *ctx, float *accel_ms2);
-
-/**
- * @brief Reset velocity to zero
- *
- * @param[in] ctx     Pointer to accelerometer context
- *
- * @return status_function_t Status of operation
- */
-status_function_t bsp_acc_reset_velocity(bsp_acc_t *ctx);
+status_function_t bsp_acc_get_magnitude(bsp_acc_t *ctx, float *mag_g);
 
 /**
  * @brief Register callback for processed data
@@ -237,33 +184,13 @@ status_function_t bsp_acc_register_callback(bsp_acc_t *ctx, bsp_acc_callback_t c
 status_function_t bsp_acc_register_raw_callback(bsp_acc_t *ctx, bsp_acc_raw_callback_t callback);
 
 /**
- * @brief Set low-pass filter coefficient
- *
- * @param[in] ctx   Pointer to accelerometer context
- * @param[in] alpha Filter coefficient (0.0 - 1.0, lower = smoother)
- *
- * @return status_function_t Status of operation
- */
-status_function_t bsp_acc_set_filter_alpha(bsp_acc_t *ctx, float alpha);
-
-/**
- * @brief Set acceleration threshold
- *
- * @param[in] ctx          Pointer to accelerometer context
- * @param[in] threshold_ms2 Threshold in m/s²
- *
- * @return status_function_t Status of operation
- */
-status_function_t bsp_acc_set_threshold(bsp_acc_t *ctx, float threshold_ms2);
-
-/**
- * @brief Check if sensor is calibrated
+ * @brief Check if sensor is initialized
  *
  * @param[in] ctx     Pointer to accelerometer context
  *
- * @return true if calibrated, false otherwise
+ * @return true if initialized, false otherwise
  */
-bool bsp_acc_is_calibrated(bsp_acc_t *ctx);
+bool bsp_acc_is_initialized(bsp_acc_t *ctx);
 
 /**
  * @brief Scan I2C bus for devices (debug helper)

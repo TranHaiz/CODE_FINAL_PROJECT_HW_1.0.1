@@ -193,16 +193,16 @@ typedef struct
   sys_ui_widgets_t widgets;
 
   /* Timing */
-  uint32_t last_speed_update;
-  uint32_t last_second_tick;
-  uint32_t last_time_update_screen;
+  size_t last_speed_update;
+  size_t last_second_tick;
+  size_t last_time_update_screen;
 
   /* Speed and distance tracking */
-  uint32_t frame_counter;
-  float    current_speed;
-  float    target_speed;
-  float    distance_km;
-  int      prev_speed_int;
+  size_t frame_counter;
+  float  current_speed;
+  float  target_speed;
+  float  distance_km;
+  int    prev_speed_int;
 
   /* Countdown timer */
   int remaining_minutes;
@@ -216,25 +216,25 @@ typedef struct
   int   brightness_percent;
 
   /* Setting/theme */
-  uint32_t background_color;
+  size_t background_color;
 
   /* State tracking */
-  uint32_t      session_start_ms;
+  size_t        session_start_ms;
   sys_ui_view_t view;
   uint16_t      last_touch_x;
   uint16_t      last_touch_y;
   bool          pending_main_redraw;
 
   /* History data */
-  char     rentalHistory[SYS_UI_MAX_RENTAL_HISTORY][32];
-  int      rental_history_count;
-  float    distanceHistory[SYS_UI_MAX_DISTANCE_LOG];
-  int      distance_history_count;
-  float    temperatureHistory[SYS_UI_MAX_TEMP_SAMPLES];
-  uint32_t temperatureTimestamps[SYS_UI_MAX_TEMP_SAMPLES];
-  int      temperature_sample_count;
-  int      temperature_zoom;
-  int      temperature_pan;
+  char   rentalHistory[SYS_UI_MAX_RENTAL_HISTORY][32];
+  int    rental_history_count;
+  float  distanceHistory[SYS_UI_MAX_DISTANCE_LOG];
+  int    distance_history_count;
+  float  temperatureHistory[SYS_UI_MAX_TEMP_SAMPLES];
+  size_t temperatureTimestamps[SYS_UI_MAX_TEMP_SAMPLES];
+  int    temperature_sample_count;
+  int    temperature_zoom;
+  int    temperature_pan;
 } sys_ui_t;
 
 /* Public macros ------------------------------------------------------ */

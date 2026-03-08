@@ -286,7 +286,7 @@ status_function_t bsp_dust_sensor_update(bsp_dust_sensor_t *ctx)
     return STATUS_ERROR;
   }
 
-  uint32_t now = OS_GET_TICK();
+  size_t now = OS_GET_TICK();
 
   // Check if it's time to update
   if (now - ctx->last_update_ms >= ctx->config.update_rate_ms)

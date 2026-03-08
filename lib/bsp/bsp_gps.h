@@ -35,7 +35,7 @@ typedef struct
   double   altitude;        // Altitude in meters
   double   speed_kmph;      // Speed in km/h
   double   course;          // Course in degrees
-  uint32_t satellites;      // Number of satellites in use
+  size_t   satellites;      // Number of satellites in use
   double   hdop;            // Horizontal Dilution of Precision
   uint16_t year;            // Year
   uint8_t  month;           // Month
@@ -151,7 +151,7 @@ bool bsp_gps_is_fixed(void);
  * @brief Get number of satellites in view
  * @return Number of satellites
  */
-uint32_t bsp_gps_get_satellites(void);
+size_t bsp_gps_get_satellites(void);
 
 /**
  * @brief Set GPS update rate
@@ -182,7 +182,7 @@ status_function_t bsp_gps_configure_nmea(uint8_t msg_mask);
  * @param baudrate New baudrate (9600, 19200, 38400, 57600, 115200)
  * @return STATUS_OK on success, STATUS_ERROR on failure
  */
-status_function_t bsp_gps_set_baudrate(uint32_t baudrate);
+status_function_t bsp_gps_set_baudrate(size_t baudrate);
 
 /**
  * @brief Reset GPS module to factory defaults

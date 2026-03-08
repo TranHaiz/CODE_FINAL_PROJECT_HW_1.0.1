@@ -17,7 +17,7 @@
 #include <stdio.h>
 
 /* Function definitions ----------------------------------------------- */
-lv_obj_t *sys_ui_widget_create_screen(uint32_t bg_color)
+lv_obj_t *sys_ui_widget_create_screen(size_t bg_color)
 {
   lv_obj_t *screen = lv_obj_create(nullptr);
   lv_obj_set_style_bg_color(screen, lv_color_hex(bg_color), 0);
@@ -25,7 +25,7 @@ lv_obj_t *sys_ui_widget_create_screen(uint32_t bg_color)
   return screen;
 }
 
-lv_obj_t *sys_ui_widget_create_card(lv_obj_t *parent, int x, int y, int w, int h, uint32_t border_color)
+lv_obj_t *sys_ui_widget_create_card(lv_obj_t *parent, int x, int y, int w, int h, size_t border_color)
 {
   lv_obj_t *card = lv_obj_create(parent);
   lv_obj_set_pos(card, x, y);
@@ -60,8 +60,8 @@ lv_obj_t *sys_ui_widget_createButton(lv_obj_t   *parent,
                                      int         w,
                                      int         h,
                                      const char *label,
-                                     uint32_t    bg_color,
-                                     uint32_t    text_color)
+                                     size_t      bg_color,
+                                     size_t      text_color)
 {
   lv_obj_t *btn = lv_btn_create(parent);
   lv_obj_set_pos(btn, x, y);
@@ -78,7 +78,7 @@ lv_obj_t *sys_ui_widget_createButton(lv_obj_t   *parent,
 }
 
 lv_obj_t *
-sys_ui_widget_createLabel(lv_obj_t *parent, int x, int y, const char *text, uint32_t color, const lv_font_t *font)
+sys_ui_widget_createLabel(lv_obj_t *parent, int x, int y, const char *text, size_t color, const lv_font_t *font)
 {
   lv_obj_t *label = lv_label_create(parent);
   lv_label_set_text(label, text);
@@ -91,7 +91,7 @@ sys_ui_widget_createLabel(lv_obj_t *parent, int x, int y, const char *text, uint
   return label;
 }
 
-lv_obj_t *sys_ui_widget_createPanel(lv_obj_t *parent, int x, int y, int w, int h, uint32_t bg_color)
+lv_obj_t *sys_ui_widget_createPanel(lv_obj_t *parent, int x, int y, int w, int h, size_t bg_color)
 {
   lv_obj_t *panel = lv_obj_create(parent);
   lv_obj_set_pos(panel, x, y);
@@ -110,8 +110,8 @@ lv_obj_t *sys_ui_widget_createArc(lv_obj_t *parent,
                                   int       radius,
                                   int       start_angle,
                                   int       end_angle,
-                                  uint32_t  bg_color,
-                                  uint32_t  indicator_color)
+                                  size_t    bg_color,
+                                  size_t    indicator_color)
 {
   lv_obj_t *arc = lv_arc_create(parent);
   lv_obj_set_pos(arc, cx - radius, cy - radius);
@@ -136,8 +136,8 @@ lv_obj_t *sys_ui_widget_createBar(lv_obj_t *parent,
                                   int       h,
                                   int       min_val,
                                   int       max_val,
-                                  uint32_t  bg_color,
-                                  uint32_t  indicator_color)
+                                  size_t    bg_color,
+                                  size_t    indicator_color)
 {
   lv_obj_t *bar = lv_bar_create(parent);
   lv_obj_set_pos(bar, x, y);
@@ -157,8 +157,8 @@ lv_obj_t *sys_ui_widget_create_slider(lv_obj_t *parent,
                                       int       min_val,
                                       int       max_val,
                                       int       initial_val,
-                                      uint32_t  bg_color,
-                                      uint32_t  indicator_color)
+                                      size_t    bg_color,
+                                      size_t    indicator_color)
 {
   lv_obj_t *slider = lv_slider_create(parent);
   lv_obj_set_pos(slider, x, y);
@@ -170,7 +170,7 @@ lv_obj_t *sys_ui_widget_create_slider(lv_obj_t *parent,
   return slider;
 }
 
-lv_obj_t *sys_ui_widget_createChart(lv_obj_t *parent, int x, int y, int w, int h, int point_count, uint32_t bg_color)
+lv_obj_t *sys_ui_widget_createChart(lv_obj_t *parent, int x, int y, int w, int h, int point_count, size_t bg_color)
 {
   lv_obj_t *chart = lv_chart_create(parent);
   lv_obj_set_pos(chart, x, y);
@@ -181,12 +181,12 @@ lv_obj_t *sys_ui_widget_createChart(lv_obj_t *parent, int x, int y, int w, int h
   return chart;
 }
 
-lv_chart_series_t *sys_ui_widget_addChartSeries(lv_obj_t *chart, uint32_t color)
+lv_chart_series_t *sys_ui_widget_addChartSeries(lv_obj_t *chart, size_t color)
 {
   return lv_chart_add_series(chart, lv_color_hex(color), LV_CHART_AXIS_PRIMARY_Y);
 }
 
-lv_obj_t *sys_ui_widget_createLed(lv_obj_t *parent, int x, int y, int size, uint32_t color)
+lv_obj_t *sys_ui_widget_createLed(lv_obj_t *parent, int x, int y, int size, size_t color)
 {
   lv_obj_t *led = lv_obj_create(parent);
   lv_obj_set_pos(led, x, y);
@@ -240,14 +240,14 @@ void sys_ui_widget_set_arc_value(lv_obj_t *arc, int value)
   lv_arc_set_value(arc, value);
 }
 
-void sys_ui_widget_set_arc_color(lv_obj_t *arc, uint32_t color)
+void sys_ui_widget_set_arc_color(lv_obj_t *arc, size_t color)
 {
   if (arc == nullptr)
     return;
   lv_obj_set_style_arc_color(arc, lv_color_hex(color), LV_PART_INDICATOR);
 }
 
-void sys_ui_widget_set_label_color(lv_obj_t *label, uint32_t color)
+void sys_ui_widget_set_label_color(lv_obj_t *label, size_t color)
 {
   if (label == nullptr)
     return;

@@ -133,7 +133,7 @@ bool bsp_gps_is_fixed(void)
   return s_gps.location.isValid() && s_gps.location.age() < 5000;
 }
 
-uint32_t bsp_gps_get_satellites(void)
+size_t bsp_gps_get_satellites(void)
 {
   if (s_gps.satellites.isValid())
   {
@@ -269,7 +269,7 @@ status_function_t bsp_gps_configure_nmea(uint8_t msg_mask)
   return STATUS_OK;
 }
 
-status_function_t bsp_gps_set_baudrate(uint32_t baudrate)
+status_function_t bsp_gps_set_baudrate(size_t baudrate)
 {
   if (!s_gps_initialized)
   {

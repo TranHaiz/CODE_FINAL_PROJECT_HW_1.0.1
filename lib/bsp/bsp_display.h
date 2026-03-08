@@ -23,7 +23,7 @@
 
 // clang-format off
 #define BSP_DISPLAY_RGB_TO_HEX(r, g, b) \
-(((uint32_t) (r) << 16) | ((uint32_t) (g) << 8) | (uint32_t) (b))
+(((size_t) (r) << 16) | ((size_t) (g) << 8) | (size_t) (b))
 
 #define BSP_DISPLAY_RGB_TO_565(r, g, b) \
   ((((uint16_t) (r) >> 3) << 11) | (((uint16_t) (g) >> 2) << 5) | ((uint16_t) (b) >> 3))

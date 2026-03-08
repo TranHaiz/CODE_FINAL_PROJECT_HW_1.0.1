@@ -102,8 +102,8 @@ void bsp_display_set_brightness_percent(bsp_display_info_t *ctx, int percent)
 
 #if defined(ESP32) && defined(TFT_BL)
   bsp_display_ensure_backlight_channel(ctx);
-  uint32_t max_duty = (1 << BACKLIGHT_PWM_BITS) - 1;
-  uint32_t duty     = map(ctx->brightness_percent, 0, 100, 0, max_duty);
+  size_t max_duty = (1 << BACKLIGHT_PWM_BITS) - 1;
+  size_t duty     = map(ctx->brightness_percent, 0, 100, 0, max_duty);
   ledcWrite(BACKLIGHT_PWM_CH, duty);
 #endif
 }

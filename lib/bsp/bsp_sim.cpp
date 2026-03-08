@@ -48,7 +48,7 @@ static char    request_buffer[64];
 /**
  * @brief  Send command and wait for specific response or timeout
  */
-static bool bsp_sim_send_and_wait_response(const char *cmd, const char *resp, uint32_t timeout);
+static bool bsp_sim_send_and_wait_response(const char *cmd, const char *resp, size_t timeout);
 
 /**
  * @brief Find raw data response from DMA RX buffer
@@ -200,10 +200,10 @@ status_function_t bsp_sim_get_raw_data_firebase(uint8_t *raw_data_buffer, uint16
 }
 
 /* Private definitions ----------------------------------------------- */
-static bool bsp_sim_send_and_wait_response(const char *cmd, const char *resp, uint32_t timeout)
+static bool bsp_sim_send_and_wait_response(const char *cmd, const char *resp, size_t timeout)
 {
   SIM_SEND(cmd);
-  uint32_t start_tick = OS_GET_TICK();
+  size_t start_tick = OS_GET_TICK();
   while ((OS_GET_TICK() - start_tick) < timeout)
   {
     if (is_sim_rsp)
