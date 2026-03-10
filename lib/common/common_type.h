@@ -50,6 +50,12 @@ typedef struct
 
 typedef struct
 {
+  float temperature;
+  float humidity;
+} temp_hum_data_t;
+
+typedef struct
+{
   uint8_t             batt_level;
   float               speed;
   gps_position_type_t position;

@@ -20,7 +20,6 @@
 #include "sys_input.h"
 #include "sys_ui.h"
 
-
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
 
@@ -76,8 +75,9 @@ void sys_input_thread_func(void *param)
       // Get current data
       if (sys_input_get_data(&g_input_data) == STATUS_OK)
       {
-        Serial.printf("Velocity: %.2f m/s, Distance: %.2f m, Dust: %.2f\r\n", g_input_data.velocity_ms,
-                      g_input_data.distance_m, g_input_data.dust_concentration);
+        Serial.printf("Velocity: %.2f m/s, Distance: %.2f m, Dust: %.2f, Temp: %.2f°C, Humidity: %.2f%%\r\n",
+                      g_input_data.velocity_ms, g_input_data.distance_m, g_input_data.dust_concentration,
+                      g_input_data.temp_hum.temperature, g_input_data.temp_hum.humidity);
       }
     }
 

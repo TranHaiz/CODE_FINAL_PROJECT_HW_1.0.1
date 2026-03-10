@@ -21,7 +21,7 @@
 #include "common_type.h"
 
 /* Public defines ----------------------------------------------------- */
-#define SYS_INPUT_UPDATE_RATE_MS (20)  // 50Hz update rate
+#define SYS_INPUT_UPDATE_RATE_MS (1000)  // 50Hz update rate
 
 /* Public enumerate/structure ----------------------------------------- */
 
@@ -30,21 +30,19 @@
  */
 typedef struct
 {
-  float       velocity_ms;         // Velocity in m/s
-  float       velocity_kmh;        // Velocity in km/h
-  float       distance_m;          // Total distance traveled in meters
-  float       dust_concentration;  // Dust concentration level
-  float       heading_deg;         // Compass heading in degrees (0-360)
-  const char *direction_str;       // Compass direction string ("N", "NE", etc.)
-  size_t      timestamp_ms;        // Timestamp of last update
+  float           velocity_ms;         // Velocity in m/s
+  float           velocity_kmh;        // Velocity in km/h
+  float           distance_m;          // Total distance traveled in meters
+  float           dust_concentration;  // Dust concentration level
+  float           heading_deg;         // Compass heading in degrees (0-360)
+  const char     *direction_str;       // Compass direction string ("N", "NE", etc.)
+  temp_hum_data_t temp_hum;            // Temperature and humidity data
+  size_t          timestamp_ms;        // Timestamp of last update
 } sys_input_data_t;
 
 /* Public macros ------------------------------------------------------ */
-
 /* Public variables --------------------------------------------------- */
-
 /* Public function prototypes ----------------------------------------- */
-
 /**
  * @brief Initialize system input with sensors
  *

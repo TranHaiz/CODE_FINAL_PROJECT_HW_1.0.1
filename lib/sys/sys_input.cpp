@@ -19,6 +19,7 @@
 #include "bsp_compass.h"
 #include "bsp_dust_sensor.h"
 #include "bsp_gps.h"
+#include "bsp_temp_hum.h"
 #include "log_service.h"
 
 #include <math.h>
@@ -64,12 +65,13 @@ typedef struct
   size_t compass_last_ms;      // Last compass update timestamp
   bool   compass_filter_init;  // Filter initialized flag
   /* State tracking */
-  bool acc_ready;      // Accelerometer ready flag
-  bool gps_ready;      // GPS ready flag
-  bool dust_ready;     // Dust sensor ready flag
-  bool compass_ready;  // Compass ready flag
-  bool initialized;    // Initialization flag
-  bool is_calibrated;  // Calibration flag
+  bool acc_ready;       // Accelerometer ready flag
+  bool gps_ready;       // GPS ready flag
+  bool dust_ready;      // Dust sensor ready flag
+  bool temp_hum_ready;  // Temperature and humidity sensor ready flag
+  bool compass_ready;   // Compass ready flag
+  bool initialized;     // Initialization flag
+  bool is_calibrated;   // Calibration flag
 } sys_input_context_t;
 
 /* Private macros ----------------------------------------------------- */
@@ -103,11 +105,13 @@ void sys_input_init(void)
   LOG_DBG("Initializing system input...");
 
   // Initialize data structure
-  g_input_ctx.data.velocity_ms        = 0.0f;
-  g_input_ctx.data.velocity_kmh       = 0.0f;
-  g_input_ctx.data.distance_m         = 0.0f;
-  g_input_ctx.data.dust_concentration = 0.0f;
-  g_input_ctx.data.timestamp_ms       = 0;
+  g_input_ctx.data.velocity_ms          = 0.0f;
+  g_input_ctx.data.velocity_kmh         = 0.0f;
+  g_input_ctx.data.distance_m           = 0.0f;
+  g_input_ctx.data.dust_concentration   = 0.0f;
+  g_input_ctx.data.temp_hum.temperature = 0.0f;
+  g_input_ctx.data.temp_hum.humidity    = 0.0f;
+  g_input_ctx.data.timestamp_ms         = 0;
 
   // Initialize state variables
   g_input_ctx.last_update_ms   = 0;
@@ -140,25 +144,36 @@ void sys_input_init(void)
   LOG_DBG("Init ACC");
   if (bsp_acc_init() == STATUS_OK)
   {
+    LOG_DBG("ACC initialized successfully");
     g_input_ctx.acc_ready = true;
   }
 
   LOG_DBG("Init GPS");
   if (bsp_gps_init(nullptr) == STATUS_OK)
   {
+    LOG_DBG("GPS initialized successfully");
     g_input_ctx.gps_ready = true;
   }
 
   LOG_DBG("Init Dust Sensor");
   if (bsp_dust_sensor_init() == STATUS_OK)
   {
+    LOG_DBG("Dust sensor initialized successfully");
     g_input_ctx.dust_ready = true;
   }
 
   LOG_DBG("Init Compass");
   if (bsp_compass_init() == STATUS_OK)
   {
+    LOG_DBG("Compass initialized successfully");
     g_input_ctx.compass_ready = true;
+  }
+
+  LOG_DBG("Init Temp/Hum Sensor");
+  if (bsp_temp_hum_init() == STATUS_OK)
+  {
+    LOG_DBG("Temp/Hum sensor initialized successfully");
+    g_input_ctx.temp_hum_ready = true;
   }
 
   LOG_DBG("Start calibration - keep device stationary...");
@@ -216,6 +231,15 @@ status_function_t sys_input_process(void)
 
   // Read compass
   sys_input_read_compass();
+
+  // Read temperature and humidity data
+  if (g_input_ctx.temp_hum_ready)
+  {
+    if (bsp_temp_hum_read(&g_input_ctx.data.temp_hum) == STATUS_OK)
+    {
+      // Do nothing
+    }
+  }
 
   // Update timestamp
   g_input_ctx.data.timestamp_ms = current_time_ms;

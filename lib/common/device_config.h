@@ -54,6 +54,12 @@
 #define COMPASS_I2C_ADDR            (0x1E)
 #define COMPASS_I2C_CLOCK           (100000)
 
+// SHT31 Temperature and Humidity Sensor I2C configuration
+#define TEMP_HUM_I2C_SDA_PIN       (4)
+#define TEMP_HUM_I2C_SCL_PIN       (5)
+#define TEMP_HUM_I2C_ADDR          (0x44)
+#define TEMP_HUM_I2C_CLOCK         (100000)
+
 // SD Card SPI configuration
 #define BSP_SDCARD_DEFAULT_CS_PIN   (21)
 #define BSP_SDCARD_DEFAULT_SCK_PIN  (47)
