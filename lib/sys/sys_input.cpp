@@ -36,7 +36,7 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 #define SYS_INPUT_ZUPT_TIME_THRESHOLD_MS  (1000)    // Time for ZUPT confirmation (ms)
 
 /* Compass filter settings */
-#define SYS_INPUT_COMPASS_EMA_ALPHA       (0.15f)  // EMA filter coefficient for compass
+#define COMPASS_EMA_ALPHA                 (0.15f)  // EMA filter coefficient for compass
 #define SYS_INPUT_COMPASS_UPDATE_MS       (100)    // Compass update rate (10Hz)
 
 /* Private enumerate/structure ---------------------------------------- */
@@ -133,7 +133,7 @@ void sys_input_init(void)
   g_input_ctx.compass_ema_x       = 0.0f;
   g_input_ctx.compass_ema_y       = 0.0f;
   g_input_ctx.compass_ema_z       = 0.0f;
-  g_input_ctx.compass_ema_alpha   = SYS_INPUT_COMPASS_EMA_ALPHA;
+  g_input_ctx.compass_ema_alpha   = COMPASS_EMA_ALPHA;
   g_input_ctx.compass_last_ms     = 0;
   g_input_ctx.compass_filter_init = false;
   g_input_ctx.compass_ready       = false;
@@ -535,6 +535,7 @@ static void sys_input_read_compass(void)
   bsp_compass_raw_data_t raw_data;
   if (bsp_compass_read_raw(&raw_data) != STATUS_OK)
   {
+    LOG_ERR("Read compass fail");
     return;
   }
 
@@ -549,9 +550,9 @@ static void sys_input_read_compass(void)
   }
   else
   {
-    g_input_ctx.compass_ema_x = alpha * raw_data.raw_x + (1.0f - alpha) * g_input_ctx.compass_ema_x;
-    g_input_ctx.compass_ema_y = alpha * raw_data.raw_y + (1.0f - alpha) * g_input_ctx.compass_ema_y;
-    g_input_ctx.compass_ema_z = alpha * raw_data.raw_z + (1.0f - alpha) * g_input_ctx.compass_ema_z;
+    g_input_ctx.compass_ema_x = alpha * raw_data.raw_x + (1.0f - COMPASS_EMA_ALPHA) * g_input_ctx.compass_ema_x;
+    g_input_ctx.compass_ema_y = alpha * raw_data.raw_y + (1.0f - COMPASS_EMA_ALPHA) * g_input_ctx.compass_ema_y;
+    g_input_ctx.compass_ema_z = alpha * raw_data.raw_z + (1.0f - COMPASS_EMA_ALPHA) * g_input_ctx.compass_ema_z;
   }
 
   // Calculate heading from filtered X and Y
