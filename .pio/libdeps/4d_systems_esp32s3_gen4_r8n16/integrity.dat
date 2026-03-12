@@ -1,6 +1,7 @@
-lvgl/lvgl@^9.1.0
-adafruit/Adafruit SHT31 Library @ ^2.2.2
 bodmer/TFT_eSPI@^2.5.43
 sparkfun/SparkFun LSM6DS3 Breakout@^1.0.3
-luciansabo/Sharp GP2Y Dust Sensor@^1.1.0
+lvgl/lvgl@^9.1.0
+adafruit/Adafruit SHT31 Library @ ^2.2.2
 mikalhart/TinyGPSPlus@^1.1.0
+luciansabo/Sharp GP2Y Dust Sensor@^1.1.0
+adafruit/RTClib @ ^2.1.3

@@ -54,6 +54,27 @@ typedef struct
   float humidity;
 } temp_hum_data_t;
 
+typedef enum
+{
+  SUNDAY = 1,
+  MONDAY,
+  TUESDAY,
+  WEDNESDAY,
+  THURSDAY,
+  FRIDAY,
+  SATURDAY
+} day_in_week_t;
+typedef struct
+{
+  uint8_t       second;  // Seconds [0-59]
+  uint8_t       minute;  // Minutes [0-59]
+  uint8_t       hour;    // Hours [0-23]
+  day_in_week_t day;     // Day of week [1-7]
+  uint8_t       date;    // Day of month [1-31]
+  uint8_t       month;   // Month [1-12]
+  uint32_t      year;    // Full year (e.g. 2025)
+} timeline_t;
+
 typedef struct
 {
   uint8_t             batt_level;
