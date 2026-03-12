@@ -75,9 +75,12 @@ void sys_input_thread_func(void *param)
       // Get current data
       if (sys_input_get_data(&g_input_data) == STATUS_OK)
       {
-        Serial.printf("Velocity: %.2f m/s, Distance: %.2f m, Dust: %.2f, Temp: %.2f°C, Humidity: %.2f%%, Direction: %d\r\n",
-                      g_input_data.velocity_ms, g_input_data.distance_m, g_input_data.dust_concentration,
-                      g_input_data.temp_hum.temperature, g_input_data.temp_hum.humidity, g_input_data.heading_deg);
+        LOG_INF("Velocity: %.2f", g_input_data.velocity_ms);
+        LOG_INF("Distance: %.2f", g_input_data.distance_m);
+        LOG_INF("Dust: %.2f", g_input_data.dust_concentration);
+        LOG_INF("Heading: %.2f %s", g_input_data.heading_deg, g_input_data.direction_str);
+        LOG_INF("Temp: %.2f C, Humidity: %.2f %%", g_input_data.temp_hum.temperature, g_input_data.temp_hum.humidity);
+        LOG_INF("GPS: Lat (%.6f, %.6f)", g_input_data.gps_position.latitude, g_input_data.gps_position.longitude);
       }
     }
 
