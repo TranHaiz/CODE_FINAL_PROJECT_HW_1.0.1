@@ -15,6 +15,7 @@
 #define _COMMON_TYPE_H_
 /* Includes ----------------------------------------------------------- */
 #include "assert.h"
+#include "device_info.h"
 #include "esp_check.h"
 
 #include <Arduino.h>
@@ -23,6 +24,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 
 /* Public defines ----------------------------------------------------- */
 /* Public enumerate/structure ----------------------------------------- */
@@ -75,12 +77,22 @@ typedef struct
   uint32_t      year;    // Full year (e.g. 2025)
 } timeline_t;
 
+#if (CONFIG_FIREBASE_SERVER == true)
 typedef struct
 {
   uint8_t             batt_level;
   float               speed;
   gps_position_type_t position;
 } firebase_data_t;
+#endif
+
+#if (CONFIG_MQTT_SERVER == true)
+typedef struct
+{
+  char *topic;
+  char *payload;
+} mqtt_message_t;
+#endif
 
 /* Public macros ------------------------------------------------------ */
 #define STRING2NUMBER(x)   #x

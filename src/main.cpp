@@ -11,7 +11,7 @@
  */
 
 /* Includes ----------------------------------------------------------- */
-
+#include "bsp_sim.h"
 #include "common_type.h"
 #include "device_config.h"
 #include "device_info.h"
@@ -32,10 +32,17 @@ char              g_buffer[256];
 uint16_t          g_data_len = 0;
 sys_input_data_t  g_input_data;
 
+#if (CONFIG_MQTT_SERVER == true)
+mqtt_message_t g_mqtt_msg = { .topic = "haq-trk-001/topic", .payload = "Hello from esp32" };
+
+#endif  // CONFIG_MQTT_SERVER
+
 OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 2, 4096);
+OS_THREAD_DECLARE(sys_network_thread, tskIDLE_PRIORITY + 3, 8192);
 
 /* Private function prototypes ---------------------------------------- */
 void sys_input_thread_func(void *param);
+void sys_network_thread_func(void *param);
 
 /* Function definitions ----------------------------------------------- */
 
@@ -45,7 +52,8 @@ void setup()
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
-  OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
+  // OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
+  OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
 }
 
 void loop()
@@ -85,6 +93,36 @@ void sys_input_thread_func(void *param)
     }
 
     OS_DELAY_MS(SYS_INPUT_UPDATE_RATE_MS);
+  }
+}
+
+void sys_network_thread_func(void *param)
+{
+  LOG_INF("System network thread started");
+  bsp_sim_init();
+  if (bsp_sim_mqtt_deinit() != STATUS_OK)
+  {
+    // Do nothing
+  }
+  if (bsp_sim_mqtt_init() != STATUS_OK)
+  {
+    LOG_ERR("Failed to initialize MQTT");
+    while (1)
+    {
+      OS_DELAY_MS(1000);
+    }
+  }
+  else
+  {
+    bsp_sim_mqtt_sub("haq-trk-001/command", [](const char *topic, const uint8_t *data, size_t len)
+                     { LOG_INF("Received MQTT message on topic %s: %.*s", topic, (int) len, data); });
+  }
+  LOG_INF("MQTT initialized");
+  OS_DELAY_MS(2000);  // Wait for MQTT to stabilize
+  while (1)
+  {
+    bsp_sim_mqtt_pub(&g_mqtt_msg);
+    OS_DELAY_MS(1000);
   }
 }
 

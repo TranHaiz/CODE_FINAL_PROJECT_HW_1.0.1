@@ -41,6 +41,12 @@ typedef enum
   SIM_DATA_FIELD_MAX
 } sim_data_field_t;
 
+#if (CONFIG_MQTT_SERVER == true)
+
+typedef void (*bsp_sim_mqtt_callback_t)(const char *topic, const uint8_t *data, size_t len);
+
+#endif  // CONFIG_MQTT_SERVER
+
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
 extern uint8_t sim_raw_data[SIM_RAW_RSP_SIZE];
@@ -73,7 +79,33 @@ status_function_t bsp_sim_send_data_firebase(firebase_data_t *data);
 status_function_t bsp_sim_get_raw_data_firebase(uint8_t *raw_data_buffer, uint16_t *size);
 
 #elif (CONFIG_MQTT_SERVER == true)
-// Not implemented yet
+#include "device_info.h"
+
+/**
+ * @brief Initialize MQTT service on SIM module
+ */
+status_function_t bsp_sim_mqtt_init(void);
+
+/**
+ * @brief Publish MQTT message using mqtt_message_t
+ */
+status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg);
+
+/**
+ * @brief Subscribe to a topic. The provided callback will be invoked when
+ *        a new message arrives (callback signature: void (*cb)(const char *topic, const uint8_t *data, size_t len)).
+ */
+status_function_t bsp_sim_mqtt_sub(const char *topic, bsp_sim_mqtt_callback_t cb);
+
+/**
+ * @brief Get buffered MQTT message (if any). Copies into provided buffer and returns size via out_size.
+ */
+status_function_t bsp_sim_mqtt_get(uint8_t *out_buf, uint16_t *out_size);
+
+/**
+ * @brief Deinitialize MQTT service on SIM module
+ */
+status_function_t bsp_sim_mqtt_deinit(void);
 #endif
 
 #endif /* End file _BSP_SIM_H_ */
