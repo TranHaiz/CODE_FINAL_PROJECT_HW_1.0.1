@@ -26,28 +26,27 @@
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
-#define ACC_FILTER_ALPHA            (0.15f)  // Low-pass filter for acceleration
-#define ACC_THRESHOLD               (0.30f)  // Vehicle tune: reduce accel noise integration
+// Acc parameters
+#define ACC_FILTER_ALPHA            (0.15f)
+#define ACC_THRESHOLD               (0.30f)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
-#define INS_DRIFT_RATE              (0.02f)  // INS drift rate per second (m/s per s)
-#define ZUPT_ACC_THRESHOLD          (0.03f)  // Vehicle tune: avoid false stationary at cruise
-#define ZUPT_TIME_THRESHOLD_MS      (1000)   // Time for ZUPT confirmation (ms)
+#define INS_DRIFT_RATE              (0.02f)
+#define ZUPT_ACC_THRESHOLD          (0.03f)
+#define ZUPT_TIME_THRESHOLD_MS      (1000)
 
-#define COMP_FILTER_K               (0.92f)  // Vehicle tune: trust GPS more for stable speed
-#define GRAVITY_MS2                 (9.806f) // Earth gravity in m/s²
-#define GPS_VALID_TIMEOUT_MS        (2000)   // GPS data validity timeout
+// Compass parameters
+#define COMPASS_EMA_ALPHA           (0.15f)
+#define COMPASS_UPDATE_MS           (100)
 
-/* Compass filter settings */
-#define COMPASS_EMA_ALPHA           (0.15f)  // EMA filter coefficient for compass
-#define COMPASS_UPDATE_MS           (100)    // Compass update rate (10Hz)
+#define GRAVITY_MS2                 (9.806f)
+#define COMP_FILTER_K               (0.92f)
+#define GPS_VALID_TIMEOUT_MS        (2000)
 
-/* INS velocity decay per second (dt-normalized, replaces magic 0.98f) */
-#define INS_DECAY_PER_SECOND        (0.98f)  // Fraction of velocity retained per 20 ms tick
+#define INS_DECAY_PER_SECOND        (0.98f)
 
-/* Unit conversion */
-#define KMH_TO_MS                   (1.0f / 3.6f)  // km/h → m/s
-#define MS_TO_KMH                   (3.6f)          // m/s → km/h
-#define US_TO_S                     (1000000.0f)    // microseconds → seconds
+#define KMH_TO_MS                   (1.0f / 3.6f)
+#define MS_TO_KMH                   (3.6f)
+#define US_TO_S                     (1000000.0f)
 
 /* Private enumerate/structure ---------------------------------------- */
 
