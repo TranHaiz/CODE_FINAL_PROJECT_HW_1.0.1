@@ -3,14 +3,10 @@
  * @copyright  Copyright (C) 2025 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
  * @version    major.minor.patch
- * @date       2026-01-17
+ * @date       2026-02-27
  * @author     Hai Tran
  *
- * @brief      BSP driver for SIM module (UART DMA Idle)
- *              - Init SIM module
- *              - API contact SMS
- *              - API call via phone number
- *              - API contact with firebase
+ * @brief      BSP for SIM module
  *
  */
 
@@ -384,6 +380,7 @@ status_function_t bsp_sim_mqtt_sub(const char *topic, bsp_sim_mqtt_callback_t cb
   snprintf(cmd, sizeof(cmd), "AT+CMQTTTOPIC=0,%d\r\n", (int) topic_len);
   if (bsp_sim_send_and_wait_response(cmd, ">", 2000) == false)
   {
+    LOG_DBG("Topic length: %d", topic_len);
     LOG_ERR("Failed to set MQTT topic for subscription: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
@@ -391,45 +388,44 @@ status_function_t bsp_sim_mqtt_sub(const char *topic, bsp_sim_mqtt_callback_t cb
   // Step 2: Send topic string
   if (bsp_sim_send_and_wait_response(topic, "OK", 2000) == false)
   {
-    LOG_ERR("Failed to send MQTT topic for subscription: %s", sim_rx_buffer);
+    LOG_ERR("Failed to send MQTT topic for subscription 1: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
-  // Step 3: Subscribe — wait for "+CMQTTSUB: 0," regardless of error code,
-  //         then parse the code manually
-  snprintf(cmd, sizeof(cmd), "AT+CMQTTSUB=0,1\r\n");
-  if (bsp_sim_send_and_wait_response(cmd, "+CMQTTSUB: 0,", 5000) == false)
+  // Step 3: Subscribe
+  snprintf(cmd, sizeof(cmd), "AT+CMQTTSUB=0,%d,1\r\n", (int) topic_len);
+  if (bsp_sim_send_and_wait_response(cmd, ">", 5000) == false)
   {
     LOG_ERR("No response to CMQTTSUB: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
+  if (bsp_sim_send_and_wait_response(topic, "OK", 2000) == false)
+  {
+    LOG_ERR("Failed to send MQTT topic for subscription 2: %s", sim_rx_buffer);
+    int err_code = -1;
+    if (sscanf((char *) sim_rx_buffer, "+CMQTTSUB: 0,%d", &err_code) != 1)
+    {
+      LOG_ERR("Failed to parse CMQTTSUB response: %s", sim_rx_buffer);
+    }
 
-  // Parse error code from "+CMQTTSUB: 0,<code>"
-  int err_code = -1;
-  if (sscanf((char *) sim_rx_buffer, "+CMQTTSUB: 0,%d", &err_code) != 1)
-  {
-    LOG_ERR("Failed to parse CMQTTSUB response: %s", sim_rx_buffer);
-    return STATUS_ERROR;
-  }
-
-  // 0  = subscribed successfully
-  // 18 = already subscribed from a previous session — acceptable
-  if (err_code == 0)
-  {
-    LOG_DBG("MQTT subscribed to topic: %s", topic);
-  }
-  else if (err_code == 18)
-  {
-    LOG_WRN("Topic already subscribed (code 18) — reusing existing subscription: %s", topic);
-  }
-  else
-  {
-    LOG_ERR("MQTT subscribe failed with code %d: %s", err_code, sim_rx_buffer);
-    return STATUS_ERROR;
+    // 0  = subscribed successfully
+    // 18 = already subscribed from a previous session — acceptable
+    if (err_code == 0)
+    {
+      LOG_DBG("MQTT subscribed to topic: %s", topic);
+    }
+    else if (err_code == 18)
+    {
+      LOG_WRN("Topic already subscribed (code 18) — reusing existing subscription: %s", topic);
+    }
+    else
+    {
+      LOG_ERR("MQTT subscribe failed with code %d: %s", err_code, sim_rx_buffer);
+      return STATUS_ERROR;
+    }
   }
 
   sim_mqtt_cb = cb;
-
   return STATUS_OK;
 }
 
