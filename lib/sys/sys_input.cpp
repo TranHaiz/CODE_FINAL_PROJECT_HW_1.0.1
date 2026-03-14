@@ -27,19 +27,27 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 #define ACC_FILTER_ALPHA            (0.15f)  // Low-pass filter for acceleration
-#define ACC_THRESHOLD               (0.20f)  // Vehicle tune: reduce accel noise integration
+#define ACC_THRESHOLD               (0.30f)  // Vehicle tune: reduce accel noise integration
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
 #define INS_DRIFT_RATE              (0.02f)  // INS drift rate per second (m/s per s)
 #define ZUPT_ACC_THRESHOLD          (0.03f)  // Vehicle tune: avoid false stationary at cruise
 #define ZUPT_TIME_THRESHOLD_MS      (1000)   // Time for ZUPT confirmation (ms)
 
-#define COMP_FILTER_K               (0.92f)   // Vehicle tune: trust GPS more for stable speed
-#define GRAVITY_MS2                 (9.806f)  // Earth gravity in m/s²
-#define GPS_VALID_TIMEOUT_MS        (2000)    // GPS data validity timeout
+#define COMP_FILTER_K               (0.92f)  // Vehicle tune: trust GPS more for stable speed
+#define GRAVITY_MS2                 (9.806f) // Earth gravity in m/s²
+#define GPS_VALID_TIMEOUT_MS        (2000)   // GPS data validity timeout
 
 /* Compass filter settings */
 #define COMPASS_EMA_ALPHA           (0.15f)  // EMA filter coefficient for compass
 #define COMPASS_UPDATE_MS           (100)    // Compass update rate (10Hz)
+
+/* INS velocity decay per second (dt-normalized, replaces magic 0.98f) */
+#define INS_DECAY_PER_SECOND        (0.98f)  // Fraction of velocity retained per 20 ms tick
+
+/* Unit conversion */
+#define KMH_TO_MS                   (1.0f / 3.6f)  // km/h → m/s
+#define MS_TO_KMH                   (3.6f)          // m/s → km/h
+#define US_TO_S                     (1000000.0f)    // microseconds → seconds
 
 /* Private enumerate/structure ---------------------------------------- */
 
@@ -61,8 +69,8 @@ typedef struct
   float  offset_magnitude;
 
   /* Zero-Velocity Update (ZUPT) Detection */
-  bool   is_stationary;
-  size_t stationary_time_ms;
+  bool     is_stationary;
+  uint32_t stationary_time_ms;
 
   /* Compass filter state */
   float  compass_ema_x;
@@ -94,13 +102,13 @@ static sys_input_context_t input_ctx = { 0 };
 
 /* Private function prototypes ---------------------------------------- */
 static float             sys_input_calculate_magnitude(float x, float y, float z);
-static status_function_t sys_input_caculate_offset_mag(void);
+static status_function_t sys_input_calculate_offset_mag(void);
 static void              sys_input_update_ins_velocity(float dt);
 static void              sys_input_update_gps_data(void);
-static void              sys_input_detect_zupt(float accel_ms2);
+static void              sys_input_detect_zupt(float accel_ms2, float dt);
 static void              sys_input_fuse_velocity_gps_ins(void);
 static void              sys_input_read_dust_sensor(void);
-static void              sys_input_read_compass(void);
+static void              sys_input_read_compass(size_t current_ms);
 static const char       *sys_input_deg_to_direction_str(float deg);
 static void              sys_input_gps_callback(bsp_gps_data_t *data);
 
@@ -193,9 +201,11 @@ void sys_input_init(void)
 
   LOG_DBG("Start calibration - keep device stationary...");
   // Perform one-shot calibration at init when sensor is stationary.
+  // NOTE: This call blocks for ~1 second (200 samples x 5 ms delay).
+  //       Must be called from a context that allows blocking (e.g. main loop / init task).
   if (input_ctx.acc_ready)
   {
-    (void) sys_input_caculate_offset_mag();
+    (void) sys_input_calculate_offset_mag();
   }
 }
 
@@ -209,10 +219,10 @@ status_function_t sys_input_process(void)
     return STATUS_ERROR;
   }
 
-  // Get current timestamp
+  // Capture timestamps once per cycle to keep all sub-functions consistent
   size_t current_time_us = micros();
   size_t current_time_ms = millis();
-  float  dt = (input_ctx.last_update_us == 0) ? 0.02f : (current_time_us - input_ctx.last_update_us) / 1000000.0f;
+  float  dt = (input_ctx.last_update_us == 0) ? 0.02f : (current_time_us - input_ctx.last_update_us) / US_TO_S;
 
   // Limit dt to avoid large jumps
   if (dt > 0.1f)
@@ -229,25 +239,27 @@ status_function_t sys_input_process(void)
   }
 
   input_ctx.data.velocity_ms  = input_ctx.velocity_ins;
-  input_ctx.data.velocity_kmh = input_ctx.data.velocity_ms * 3.6f;
+  input_ctx.data.velocity_kmh = input_ctx.data.velocity_ms * MS_TO_KMH;
 
   // // Detect ZUPT state to correct INS drift
-  // sys_input_detect_zupt(input_ctx.acc_filtered * GRAVITY_MS2);
-  // // Caculate  velocity using GPS and INS data
+  // sys_input_detect_zupt(input_ctx.acc_filtered * GRAVITY_MS2, dt);
+  // // Calculate velocity using GPS and INS data
   // sys_input_fuse_velocity_gps_ins();
 
-  // Update distance
-  if (input_ctx.data.velocity_ms > 0.01f && dt > 0.0f)
+  // Update distance — only when INS is calibrated and velocity is meaningful
+  if (input_ctx.is_offset_mag_ready && input_ctx.data.velocity_ms > 0.01f && dt > 0.0f)
   {
     input_ctx.data.distance_m += input_ctx.data.velocity_ms * dt;
   }
 
-  // Read compass
-  sys_input_read_compass();
+  // Read compass — pass current_time_ms to avoid redundant millis() call
+  sys_input_read_compass(current_time_ms);
 
-  // Read environmental sensors
-  if (current_time_ms - input_ctx.last_env_update_ms >= SYS_INPUT_ENV_UPDATE_RATE_MS)
+  // Read environmental sensors at configured rate
+  if ((current_time_ms - input_ctx.last_env_update_ms) >= SYS_INPUT_ENV_UPDATE_RATE_MS)
   {
+    input_ctx.last_env_update_ms = current_time_ms;  // FIX: update timestamp to enforce rate limiting
+
     sys_input_read_dust_sensor();
     if (input_ctx.temp_hum_ready)
     {
@@ -287,9 +299,10 @@ status_function_t sys_input_get_data(sys_input_data_t *data)
 
 /**
  * @brief Calibrate system (set gravity offset)
- * @note  Must be called once on stationary device to calibrate IMU
+ * @note  Must be called once on stationary device to calibrate IMU.
+ *        Blocks for approximately (ACC_OFFSET_MAGNITUDE_SAMPLE * 5) ms.
  */
-static status_function_t sys_input_caculate_offset_mag(void)
+static status_function_t sys_input_calculate_offset_mag(void)
 {
   if (!input_ctx.initialized)
   {
@@ -356,9 +369,10 @@ static void sys_input_update_ins_velocity(float dt)
   }
   else
   {
-    // Apply velocity decay when no significant acceleration (INS drift correction)
-    // input_ctx.velocity_ins *= (1.0f - INS_DRIFT_RATE * dt);
-    input_ctx.velocity_ins *= 0.98f;
+    // Apply dt-normalized velocity decay when no significant acceleration (INS drift correction).
+    // powf(INS_DECAY_PER_SECOND, dt / 0.02f) normalizes the decay to be frequency-independent:
+    // at 50 Hz (dt=0.02s) decay = 0.98 per tick; at 10 Hz (dt=0.1s) decay = 0.98^5 ≈ 0.904 per tick.
+    input_ctx.velocity_ins *= powf(INS_DECAY_PER_SECOND, dt / 0.02f);
   }
 
   // Ensure INS velocity is not negative
@@ -385,7 +399,7 @@ static void sys_input_update_gps_data(void)
   if (input_ctx.is_new_gps_data_available && input_ctx.gps_data_buffer.location_valid)
   {
     // Update GPS velocity (convert km/h to m/s)
-    input_ctx.velocity_gps = (float) (input_ctx.gps_data_buffer.speed_kmph / 3.6);
+    input_ctx.velocity_gps = (float) (input_ctx.gps_data_buffer.speed_kmph * KMH_TO_MS);
 
     // Update timestamp on valid GPS sample
     input_ctx.last_gps_ms = millis();
@@ -398,9 +412,12 @@ static void sys_input_update_gps_data(void)
 
 /**
  * @brief Detect Zero-Velocity Update (ZUPT) state
+ * @param accel_ms2  Filtered acceleration magnitude in m/s²
+ * @param dt         Time delta in seconds (used for accurate time accumulation)
+ *
  * Used to recognize stationary periods and reduce INS drift
  */
-static void sys_input_detect_zupt(float accel_ms2)
+static void sys_input_detect_zupt(float accel_ms2, float dt)
 {
   if (fabsf(accel_ms2) < ZUPT_ACC_THRESHOLD)
   {
@@ -412,7 +429,8 @@ static void sys_input_detect_zupt(float accel_ms2)
     }
     else
     {
-      input_ctx.stationary_time_ms += 20;  // Assuming 50Hz update rate
+      // FIX: accumulate real elapsed time instead of assuming fixed 20 ms tick
+      input_ctx.stationary_time_ms += (uint32_t) (dt * 1000.0f);
     }
 
     // If confirmed stationary for threshold time, reset INS velocity
@@ -478,7 +496,7 @@ static void sys_input_fuse_velocity_gps_ins(void)
 
   // Update fused velocity
   input_ctx.data.velocity_ms  = fused_velocity;
-  input_ctx.data.velocity_kmh = fused_velocity * 3.6f;
+  input_ctx.data.velocity_kmh = fused_velocity * MS_TO_KMH;
 }
 
 /**
@@ -532,11 +550,12 @@ static const char *sys_input_deg_to_direction_str(float deg)
 
 /**
  * @brief Read and filter compass data
+ * @param current_ms  Current timestamp in ms (passed in to avoid redundant millis() call)
  *
  * Applies EMA (Exponential Moving Average) filter to raw compass data
  * and calculates heading in degrees with cardinal direction.
  */
-static void sys_input_read_compass(void)
+static void sys_input_read_compass(size_t current_ms)
 {
   if (!input_ctx.compass_ready)
   {
@@ -544,7 +563,6 @@ static void sys_input_read_compass(void)
   }
 
   // Rate limiting: update at configured interval
-  size_t current_ms = millis();
   if ((current_ms - input_ctx.compass_last_ms) < COMPASS_UPDATE_MS)
   {
     return;
@@ -560,6 +578,8 @@ static void sys_input_read_compass(void)
   }
 
   // Apply EMA filter
+  // FIX: use local 'alpha' consistently for both multiply terms instead of mixing
+  //      the local variable with the COMPASS_EMA_ALPHA constant.
   float alpha = input_ctx.compass_ema_alpha;
   if (!input_ctx.compass_filter_init)
   {
@@ -570,9 +590,9 @@ static void sys_input_read_compass(void)
   }
   else
   {
-    input_ctx.compass_ema_x = alpha * raw_data.raw_x + (1.0f - COMPASS_EMA_ALPHA) * input_ctx.compass_ema_x;
-    input_ctx.compass_ema_y = alpha * raw_data.raw_y + (1.0f - COMPASS_EMA_ALPHA) * input_ctx.compass_ema_y;
-    input_ctx.compass_ema_z = alpha * raw_data.raw_z + (1.0f - COMPASS_EMA_ALPHA) * input_ctx.compass_ema_z;
+    input_ctx.compass_ema_x = alpha * raw_data.raw_x + (1.0f - alpha) * input_ctx.compass_ema_x;
+    input_ctx.compass_ema_y = alpha * raw_data.raw_y + (1.0f - alpha) * input_ctx.compass_ema_y;
+    input_ctx.compass_ema_z = alpha * raw_data.raw_z + (1.0f - alpha) * input_ctx.compass_ema_z;
   }
 
   // Calculate heading from filtered X and Y
@@ -596,9 +616,12 @@ static void sys_input_gps_callback(bsp_gps_data_t *data)
   {
     return;
   }
+
+  // FIX: use the data pointer passed by BSP directly instead of calling
+  //      bsp_gps_get_data() again, which is redundant and risks a race condition.
+  input_ctx.gps_data_buffer           = *data;
   input_ctx.is_new_gps_data_available = true;
-  bsp_gps_get_data(&input_ctx.gps_data_buffer);
-  input_ctx.last_gps_ms = millis();
+  input_ctx.last_gps_ms               = millis();
 }
 
 /* End of file -------------------------------------------------------- */
