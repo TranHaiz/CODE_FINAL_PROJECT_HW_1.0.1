@@ -52,8 +52,8 @@ void setup()
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
-  // OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
-  OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
+  OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
+  // OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
 }
 
 void loop()

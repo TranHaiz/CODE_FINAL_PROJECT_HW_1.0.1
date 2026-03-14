@@ -45,6 +45,7 @@ static bool    is_sim_rsp = false;
 static uint8_t sim_rx_buffer[SIM_RX_BUFFER_SIZE];
 static char    json_data_buffer[128];
 static char    request_buffer[64];
+static bool    is_sim_ready = false;
 
 /* Private function prototypes ---------------------------------------- */
 /**
@@ -105,22 +106,41 @@ status_function_t bsp_sim_init(void)
   bsp_sim_send_and_wait_response("AT+STSF=0\r\n", "OK", 1000);
 
   bsp_sim_send_and_wait_response("AT\r\n", "OK", 2000);
-  bsp_sim_send_and_wait_response("AT+CPIN?\r\n", "+CPIN: READY", 2000);
+
+  if (!bsp_sim_send_and_wait_response("AT+CPIN?\r\n", "+CPIN: READY", 2000))
+  {
+    LOG_ERR("SIM card not ready: %s", sim_rx_buffer);
+    is_sim_ready = false;
+    return STATUS_ERROR;
+  }
+
   bsp_sim_send_and_wait_response("AT+CREG?\r\n", "+CREG: 0,1", 3000);
   bsp_sim_send_and_wait_response("AT+CGATT?\r\n", "+CGATT: 1", 3000);
-  bsp_sim_send_and_wait_response("AT+CGDCONT=1,\"IP\",\"v-internet\"\r\n", "OK", 2000);
+
+  if (!bsp_sim_send_and_wait_response("AT+CGDCONT=1,\"IP\",\"v-internet\"\r\n", "OK", 2000))
+  {
+    is_sim_ready = false;
+    return STATUS_ERROR;
+  }
+
   bsp_sim_send_and_wait_response("AT+CGACT=1,1\r\n", "OK", 3000);
 
-  bool res = true;
 #if (CONFIG_FIREBASE_SERVER == true)
-  res = bsp_sim_send_and_wait_response("AT+HTTPINIT\r\n", "OK", 5000);
-#endif
-
+  bool res = true;
+  res      = bsp_sim_send_and_wait_response("AT+HTTPINIT\r\n", "OK", 5000);
   if (res == false)
   {
     return STATUS_ERROR;
   }
+#endif
+
+  is_sim_ready = true;
   return STATUS_OK;
+}
+
+bool bsp_sim_is_lte_ready(void)
+{
+  return is_sim_ready;
 }
 
 status_function_t bsp_sim_reset_http(void)
@@ -539,7 +559,6 @@ static void bsp_sim_rsp_callback(uart_port_t uart_num, uint8_t *data, size_t len
 
 #include <stdio.h>
 #include <string.h>
-
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                  */

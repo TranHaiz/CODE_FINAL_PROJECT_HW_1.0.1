@@ -26,18 +26,20 @@
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
-#define ACC_FILTER_ALPHA       (0.15f)   // Low-pass filter for acceleration
-#define ACC_THRESHOLD          (0.20f)   // Vehicle tune: reduce accel noise integration
-#define COMP_FILTER_K          (0.92f)   // Vehicle tune: trust GPS more for stable speed
-#define GRAVITY_MS2            (9.806f)  // Earth gravity in m/s²
-#define GPS_VALID_TIMEOUT_MS   (2000)    // GPS data validity timeout
-#define INS_DRIFT_RATE         (0.02f)   // INS drift rate per second (m/s per s)
-#define ZUPT_ACC_THRESHOLD     (0.03f)   // Vehicle tune: avoid false stationary at cruise
-#define ZUPT_TIME_THRESHOLD_MS (1000)    // Time for ZUPT confirmation (ms)
+#define ACC_FILTER_ALPHA            (0.15f)  // Low-pass filter for acceleration
+#define ACC_THRESHOLD               (0.20f)  // Vehicle tune: reduce accel noise integration
+#define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
+#define INS_DRIFT_RATE              (0.02f)  // INS drift rate per second (m/s per s)
+#define ZUPT_ACC_THRESHOLD          (0.03f)  // Vehicle tune: avoid false stationary at cruise
+#define ZUPT_TIME_THRESHOLD_MS      (1000)   // Time for ZUPT confirmation (ms)
+
+#define COMP_FILTER_K               (0.92f)   // Vehicle tune: trust GPS more for stable speed
+#define GRAVITY_MS2                 (9.806f)  // Earth gravity in m/s²
+#define GPS_VALID_TIMEOUT_MS        (2000)    // GPS data validity timeout
 
 /* Compass filter settings */
-#define COMPASS_EMA_ALPHA      (0.15f)  // EMA filter coefficient for compass
-#define COMPASS_UPDATE_MS      (100)    // Compass update rate (10Hz)
+#define COMPASS_EMA_ALPHA           (0.15f)  // EMA filter coefficient for compass
+#define COMPASS_UPDATE_MS           (100)    // Compass update rate (10Hz)
 
 /* Private enumerate/structure ---------------------------------------- */
 
@@ -48,34 +50,41 @@ typedef struct
 {
   // GPS data management
   bool           is_new_gps_data_available;
-  bsp_gps_data_t gps_data_buffer;  // Buffer for latest GPS data
-  size_t         last_gps_ms;      // Last valid GPS timestamp
-  float          velocity_gps;     // GPS-derived velocity
+  bsp_gps_data_t gps_data_buffer;
+  size_t         last_gps_ms;
+  float          velocity_gps;
 
-  sys_input_data_t data;              // Current sensor data
-  size_t           last_update_ms;    // Last update timestamp
-  size_t           last_update_us;    // Last update timestamp (microseconds)
-  float            velocity_ins;      // INS-derived velocity
-  float            acc_filtered;      // Filtered acceleration
-  float            offset_magnitude;  // Gravity offset
+  size_t last_update_ms;
+  size_t last_update_us;
+  float  velocity_ins;
+  float  acc_filtered;
+  float  offset_magnitude;
+
   /* Zero-Velocity Update (ZUPT) Detection */
-  bool   is_stationary;       // Stationary state flag
-  size_t stationary_time_ms;  // Duration in stationary state (ms)
+  bool   is_stationary;
+  size_t stationary_time_ms;
+
   /* Compass filter state */
-  float  compass_ema_x;        // EMA filtered X
-  float  compass_ema_y;        // EMA filtered Y
-  float  compass_ema_z;        // EMA filtered Z
-  float  compass_ema_alpha;    // EMA filter coefficient
-  size_t compass_last_ms;      // Last compass update timestamp
-  bool   compass_filter_init;  // Filter initialized flag
+  float  compass_ema_x;
+  float  compass_ema_y;
+  float  compass_ema_z;
+  float  compass_ema_alpha;
+  size_t compass_last_ms;
+  bool   compass_filter_init;
+
+  bool compass_ready;
+  bool acc_ready;
+  bool gps_ready;
+
   /* State tracking */
-  bool acc_ready;       // Accelerometer ready flag
-  bool gps_ready;       // GPS ready flag
-  bool dust_ready;      // Dust sensor ready flag
-  bool temp_hum_ready;  // Temperature and humidity sensor ready flag
-  bool compass_ready;   // Compass ready flag
-  bool initialized;     // Initialization flag
-  bool is_calibrated;   // Calibration flag
+  bool     dust_ready;
+  bool     temp_hum_ready;
+  bool     initialized;
+  bool     is_offset_mag_ready;
+  uint32_t last_env_update_ms;
+
+  // temporary data for output
+  sys_input_data_t data;  // Current sensor data
 } sys_input_context_t;
 
 /* Private macros ----------------------------------------------------- */
@@ -85,7 +94,7 @@ static sys_input_context_t input_ctx = { 0 };
 
 /* Private function prototypes ---------------------------------------- */
 static float             sys_input_calculate_magnitude(float x, float y, float z);
-static status_function_t sys_input_calibrate_internal(void);
+static status_function_t sys_input_caculate_offset_mag(void);
 static void              sys_input_update_ins_velocity(float dt);
 static void              sys_input_update_gps_data(void);
 static void              sys_input_detect_zupt(float accel_ms2);
@@ -117,6 +126,7 @@ void sys_input_init(void)
   input_ctx.data.temp_hum.temperature = 0.0f;
   input_ctx.data.temp_hum.humidity    = 0.0f;
   input_ctx.data.timestamp_ms         = 0;
+  input_ctx.last_env_update_ms        = 0;
 
   // Initialize state variables
   input_ctx.last_update_ms   = 0;
@@ -143,8 +153,8 @@ void sys_input_init(void)
   input_ctx.compass_filter_init = false;
   input_ctx.compass_ready       = false;
   /* State */
-  input_ctx.is_calibrated = false;
-  input_ctx.initialized   = true;
+  input_ctx.is_offset_mag_ready = false;
+  input_ctx.initialized         = true;
 
   LOG_DBG("Init ACC");
   if (bsp_acc_init() == STATUS_OK)
@@ -185,7 +195,7 @@ void sys_input_init(void)
   // Perform one-shot calibration at init when sensor is stationary.
   if (input_ctx.acc_ready)
   {
-    (void) sys_input_calibrate_internal();
+    (void) sys_input_caculate_offset_mag();
   }
 }
 
@@ -213,36 +223,38 @@ status_function_t sys_input_process(void)
   // Update GPS data
   sys_input_update_gps_data();
 
-  // Update INS velocity if calibrated
-  if (input_ctx.is_calibrated && input_ctx.acc_ready)
+  if (input_ctx.is_offset_mag_ready && input_ctx.acc_ready)
   {
     sys_input_update_ins_velocity(dt);
   }
 
-  // Detect stationary state (ZUPT)
-  sys_input_detect_zupt(input_ctx.acc_filtered * GRAVITY_MS2);
+  input_ctx.data.velocity_ms  = input_ctx.velocity_ins;
+  input_ctx.data.velocity_kmh = input_ctx.data.velocity_ms * 3.6f;
 
-  // Perform GPS/INS fusion with fixed complementary weight
-  sys_input_fuse_velocity_gps_ins();
+  // // Detect ZUPT state to correct INS drift
+  // sys_input_detect_zupt(input_ctx.acc_filtered * GRAVITY_MS2);
+  // // Caculate  velocity using GPS and INS data
+  // sys_input_fuse_velocity_gps_ins();
 
-  // Update distance based on fused velocity
+  // Update distance
   if (input_ctx.data.velocity_ms > 0.01f && dt > 0.0f)
   {
     input_ctx.data.distance_m += input_ctx.data.velocity_ms * dt;
   }
 
-  // Read dust sensor
-  sys_input_read_dust_sensor();
-
   // Read compass
   sys_input_read_compass();
 
-  // Read temperature and humidity data
-  if (input_ctx.temp_hum_ready)
+  // Read environmental sensors
+  if (current_time_ms - input_ctx.last_env_update_ms >= SYS_INPUT_ENV_UPDATE_RATE_MS)
   {
-    if (bsp_temp_hum_read(&input_ctx.data.temp_hum) == STATUS_OK)
+    sys_input_read_dust_sensor();
+    if (input_ctx.temp_hum_ready)
     {
-      // Do nothing
+      if (bsp_temp_hum_read(&input_ctx.data.temp_hum) == STATUS_OK)
+      {
+        // Do nothing
+      }
     }
   }
 
@@ -277,7 +289,7 @@ status_function_t sys_input_get_data(sys_input_data_t *data)
  * @brief Calibrate system (set gravity offset)
  * @note  Must be called once on stationary device to calibrate IMU
  */
-static status_function_t sys_input_calibrate_internal(void)
+static status_function_t sys_input_caculate_offset_mag(void)
 {
   if (!input_ctx.initialized)
   {
@@ -285,22 +297,21 @@ static status_function_t sys_input_calibrate_internal(void)
   }
 
   // Take multiple samples to average gravity offset
-  float    sum_magnitude = 0.0f;
-  uint16_t samples       = 50;
+  float sum_magnitude = 0.0f;
 
-  for (uint16_t i = 0; i < samples; i++)
+  for (uint16_t i = 0; i < ACC_OFFSET_MAGNITUDE_SAMPLE; i++)
   {
     bsp_acc_raw_data_t accel_data = { 0 };
     if (bsp_acc_get_raw_data(&accel_data) == STATUS_OK)
     {
-      sum_magnitude += sys_input_calculate_magnitude((float) accel_data.accel_x, (float) accel_data.accel_y,
-                                                     (float) accel_data.accel_z);
+      sum_magnitude +=
+        sys_input_calculate_magnitude((float) accel_data.acc_x, (float) accel_data.acc_y, (float) accel_data.acc_z);
     }
-    delay(10);
+    delay(5);
   }
 
-  input_ctx.offset_magnitude = sum_magnitude / (float) samples;
-  input_ctx.is_calibrated    = true;
+  input_ctx.offset_magnitude    = sum_magnitude / (float) ACC_OFFSET_MAGNITUDE_SAMPLE;
+  input_ctx.is_offset_mag_ready = true;
 
   return STATUS_OK;
 }
@@ -327,13 +338,13 @@ static void sys_input_update_ins_velocity(float dt)
   }
 
   // Calculate current acceleration magnitude
-  float current_magnitude = sys_input_calculate_magnitude(accel_data.accel_x, accel_data.accel_y, accel_data.accel_z);
+  float current_magnitude = sys_input_calculate_magnitude(accel_data.acc_x, accel_data.acc_y, accel_data.acc_z);
 
   // Remove gravity offset
-  float accel_clear = current_magnitude - input_ctx.offset_magnitude;
+  float acc_clear = current_magnitude - input_ctx.offset_magnitude;
 
   // Apply low-pass filter to acceleration
-  input_ctx.acc_filtered = ACC_FILTER_ALPHA * accel_clear + (1.0f - ACC_FILTER_ALPHA) * input_ctx.acc_filtered;
+  input_ctx.acc_filtered = ACC_FILTER_ALPHA * acc_clear + (1.0f - ACC_FILTER_ALPHA) * input_ctx.acc_filtered;
 
   // Convert to m/s²
   float accel_ms2 = input_ctx.acc_filtered * GRAVITY_MS2;
@@ -346,7 +357,8 @@ static void sys_input_update_ins_velocity(float dt)
   else
   {
     // Apply velocity decay when no significant acceleration (INS drift correction)
-    input_ctx.velocity_ins *= (1.0f - INS_DRIFT_RATE * dt);
+    // input_ctx.velocity_ins *= (1.0f - INS_DRIFT_RATE * dt);
+    input_ctx.velocity_ins *= 0.98f;
   }
 
   // Ensure INS velocity is not negative
@@ -439,7 +451,7 @@ static void sys_input_fuse_velocity_gps_ins(void)
     gps_valid      = (gps_age < GPS_VALID_TIMEOUT_MS) && (input_ctx.velocity_gps > 0.0f);
   }
 
-  if (gps_valid && input_ctx.is_calibrated)
+  if (gps_valid && input_ctx.is_offset_mag_ready)
   {
     // Apply fixed complementary filter fusion
     float k        = COMP_FILTER_K;
@@ -448,7 +460,7 @@ static void sys_input_fuse_velocity_gps_ins(void)
     // Lightly re-anchor INS to fused result to limit long-term drift.
     input_ctx.velocity_ins = fused_velocity;
   }
-  else if (input_ctx.is_calibrated)
+  else if (input_ctx.is_offset_mag_ready)
   {
     // GPS not available: use INS only.
     fused_velocity = input_ctx.velocity_ins;

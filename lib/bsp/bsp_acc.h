@@ -21,13 +21,13 @@
 /* Public enumerate/structure ----------------------------------------- */
 typedef struct
 {
-  float accel_x;  // Acceleration X-axis in g
-  float accel_y;  // Acceleration Y-axis in g
-  float accel_z;  // Acceleration Z-axis in g
-  float gyro_x;   // Angular velocity X-axis in dps
-  float gyro_y;   // Angular velocity Y-axis in dps
-  float gyro_z;   // Angular velocity Z-axis in dps
-  float temp_c;   // Temperature in Celsius
+  float acc_x;   // Acceleration X-axis in g
+  float acc_y;   // Acceleration Y-axis in g
+  float acc_z;   // Acceleration Z-axis in g
+  float gyro_x;  // Angular velocity X-axis in dps
+  float gyro_y;  // Angular velocity Y-axis in dps
+  float gyro_z;  // Angular velocity Z-axis in dps
+  float temp_c;  // Temperature in Celsius
 } bsp_acc_raw_data_t;
 
 typedef struct

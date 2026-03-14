@@ -58,6 +58,11 @@ extern uint8_t sim_raw_data[SIM_RAW_RSP_SIZE];
 status_function_t bsp_sim_init(void);
 
 /**
+ * @brief  Check if SIM module is ready (SIM card detected and registered on network)
+ */
+bool bsp_sim_is_ready(void);
+
+/**
  * @brief  Reset SIM HTTP service
  */
 status_function_t bsp_sim_reset_http(void);

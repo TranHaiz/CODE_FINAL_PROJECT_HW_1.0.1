@@ -135,9 +135,9 @@ status_function_t bsp_acc_get_raw_data(bsp_acc_raw_data_t *data)
   }
 
   // Read accelerometer data
-  data->accel_x = acc_handler.sensor->readFloatAccelX();
-  data->accel_y = acc_handler.sensor->readFloatAccelY();
-  data->accel_z = acc_handler.sensor->readFloatAccelZ();
+  data->acc_x = acc_handler.sensor->readFloatAccelX();
+  data->acc_y = acc_handler.sensor->readFloatAccelY();
+  data->acc_z = acc_handler.sensor->readFloatAccelZ();
 
   // Read gyroscope data
   data->gyro_x = acc_handler.sensor->readFloatGyroX();
@@ -162,8 +162,8 @@ status_function_t bsp_acc_get_data(bsp_acc_data_t *data)
   }
 
   // Calculate magnitude from current raw data
-  float magnitude = bsp_acc_calculate_magnitude(acc_handler.raw_data.accel_x, acc_handler.raw_data.accel_y,
-                                                acc_handler.raw_data.accel_z);
+  float magnitude =
+    bsp_acc_calculate_magnitude(acc_handler.raw_data.acc_x, acc_handler.raw_data.acc_y, acc_handler.raw_data.acc_z);
 
   acc_handler.processed_data.accel_magnitude = magnitude;
   acc_handler.processed_data.timestamp_ms    = acc_handler.last_update_ms;
