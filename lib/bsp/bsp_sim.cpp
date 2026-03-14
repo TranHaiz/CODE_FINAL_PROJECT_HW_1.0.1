@@ -60,7 +60,8 @@ static bool    is_sim_ready = false;
 #if (CONFIG_MQTT_SERVER == true)
 static bsp_sim_mqtt_callback_t sim_mqtt_cb = NULL;
 static uint8_t                 sim_mqtt_buf[512];
-static uint16_t                sim_mqtt_buf_len = 0;
+static uint16_t                sim_mqtt_buf_len              = 0;
+static char                    client_id[MQTT_CLIENT_ID_LEN] = "001";
 
 #endif  // CONFIG_MQTT_SERVER
 
@@ -276,7 +277,6 @@ status_function_t bsp_sim_get_raw_data_firebase(uint8_t *raw_data_buffer, uint16
 status_function_t bsp_sim_mqtt_init(void)
 {
   char cmd[128];
-  char client_id[MQTT_CLIENT_ID_LEN];
 
   /* 1. Start MQTT Service */
   if (bsp_sim_send_and_wait_response("AT+CMQTTSTART\r\n", "+CMQTTSTART: 0", 5000) == false)
@@ -632,7 +632,7 @@ bsp_sim_parse_raw_data(uint8_t *source, uint16_t source_len, uint8_t *dest, uint
 #if (CONFIG_MQTT_SERVER == true)
 static void build_client_id(char *buf, size_t buf_size)
 {
-  const char *dev_id = "1"; /* cung cấp bởi tầng BSP */
+  const char *dev_id = "1";
   if (dev_id == NULL || dev_id[0] == '\0')
   {
     snprintf(buf, buf_size, "haq-trk-unknown");
