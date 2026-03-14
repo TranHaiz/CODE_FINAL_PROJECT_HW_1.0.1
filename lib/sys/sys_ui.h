@@ -179,77 +179,19 @@ typedef struct
   lv_obj_t          *pan_right_btn;
 } sys_ui_widgets_t;
 
-/**
- * @brief Full UI context structure
- */
-typedef struct
-{
-  /* Hardware interfaces */
-  lvgl_driver_t lvgl;
-
-  /* UI widgets */
-  sys_ui_widgets_t widgets;
-
-  /* Timing */
-  size_t last_speed_update;
-  size_t last_second_tick;
-  size_t last_time_update_screen;
-
-  /* Speed and distance tracking */
-  size_t frame_counter;
-  float  current_speed;
-  float  target_speed;
-  float  distance_km;
-  int    prev_speed_int;
-
-  /* Countdown timer */
-  int remaining_minutes;
-  int remaining_seconds;
-
-  /* Environment telemetry */
-  float temperature_C;
-  float humidity;
-  int   air_quality;
-  int   battery_percent;
-  int   brightness_percent;
-
-  /* Setting/theme */
-  size_t background_color;
-
-  /* State tracking */
-  size_t        session_start_ms;
-  sys_ui_view_t view;
-  uint16_t      last_touch_x;
-  uint16_t      last_touch_y;
-  bool          pending_main_redraw;
-
-  /* History data */
-  char   rentalHistory[SYS_UI_MAX_RENTAL_HISTORY][32];
-  int    rental_history_count;
-  float  distanceHistory[SYS_UI_MAX_DISTANCE_LOG];
-  int    distance_history_count;
-  float  temperatureHistory[SYS_UI_MAX_TEMP_SAMPLES];
-  size_t temperatureTimestamps[SYS_UI_MAX_TEMP_SAMPLES];
-  int    temperature_sample_count;
-  int    temperature_zoom;
-  int    temperature_pan;
-} sys_ui_t;
 
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
-extern sys_ui_t g_ui;
-
 /* Public function prototypes ----------------------------------------- */
-
 /**
  * @brief Initialize UI system (display, LVGL, widgets)
  */
-void sys_ui_begin(sys_ui_t *ctx);
+void sys_ui_init(void);
 
 /**
- * @brief Run UI loop iteration (update telemetry, refresh display)
+ * @brief Process UI loop iteration (update telemetry, refresh display)
  */
-void sys_ui_run(sys_ui_t *ctx);
+void sys_ui_process(void);
 
 #endif /*End file _SYS_UI_H_*/
 

@@ -19,7 +19,7 @@
 #include "os_lib.h"
 #include "sys_input.h"
 #include "sys_network.h"
-#include "sys_ui.h"
+#include "sys_ui_simple.h"
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
@@ -33,17 +33,14 @@ char              g_buffer[256];
 uint16_t          g_data_len = 0;
 sys_input_data_t  g_input_data;
 
-#if (CONFIG_MQTT_SERVER == true)
-mqtt_message_t g_mqtt_msg = { .topic = "haq-trk-001/topic", .payload = "Hello from esp32" };
-
-#endif  // CONFIG_MQTT_SERVER
-
 OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 2, 4096);
 OS_THREAD_DECLARE(sys_network_thread, tskIDLE_PRIORITY + 3, 8192);
+OS_THREAD_DECLARE(sys_ui_thread, tskIDLE_PRIORITY + 2, 16384);
 
 /* Private function prototypes ---------------------------------------- */
 void sys_input_thread_func(void *param);
 void sys_network_thread_func(void *param);
+void sys_ui_thread_func(void *param);
 
 /* Function definitions ----------------------------------------------- */
 
@@ -54,7 +51,8 @@ void setup()
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
   OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
-  OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
+  // OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
+  OS_THREAD_CREATE(sys_ui_thread, sys_ui_thread_func);
 }
 
 void loop()
@@ -85,6 +83,7 @@ void sys_input_thread_func(void *param)
       if (sys_input_get_data(&g_input_data) == STATUS_OK)
       {
         is_data_network_ready = true;
+        is_ui_data_ready      = true;
       }
     }
 
@@ -99,6 +98,17 @@ void sys_network_thread_func(void *param)
   while (true)
   {
     sys_network_process();
+    OS_DELAY_MS(100);
+  }
+}
+
+void sys_ui_thread_func(void *param)
+{
+  sys_ui_simple_init();
+
+  while (true)
+  {
+    sys_ui_simple_process();
     OS_DELAY_MS(100);
   }
 }

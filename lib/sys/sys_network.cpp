@@ -363,7 +363,7 @@ static void net_build_payload(const sys_input_data_t *data, char *buf, size_t bu
            "}",
            data->timestamp_ms, data->velocity_kmh, data->distance_m, data->heading_deg,
            (data->direction_str != NULL) ? data->direction_str : "?", data->gps_position.latitude,
-           data->gps_position.longitude, data->dust_concentration, data->temp_hum.temperature, data->temp_hum.humidity);
+           data->gps_position.longitude, data->dust_value, data->temp_hum.temperature, data->temp_hum.humidity);
 }
 
 static bool sys_network_build_payload(sys_input_data_t *data)
@@ -374,21 +374,21 @@ static bool sys_network_build_payload(sys_input_data_t *data)
     return false;
   }
 
-  int written = snprintf(mqtt_payload_buffer, MQTT_MESSAGE_MAX_LEN,
-                         "{"
-                         "\"velocity_ms\":%.2f,"
-                         "\"velocity_kmh\":%.2f,"
-                         "\"distance_m\":%.1f,"
-                         "\"direction\":%.1f %s,"
-                         "\"position\":(%.6f,%.6f),"
-                         "\"dust\":%.1f,"
-                         "\"temp\":%.1f,"
-                         "\"hum\":%.1f"
-                         "}",
-                         data->velocity_ms, data->velocity_kmh, data->distance_m, data->heading_deg,
-                         (data->direction_str != NULL) ? data->direction_str : "?", data->gps_position.latitude,
-                         data->gps_position.longitude, data->dust_concentration, data->temp_hum.temperature,
-                         data->temp_hum.humidity);
+  int written =
+    snprintf(mqtt_payload_buffer, MQTT_MESSAGE_MAX_LEN,
+             "{"
+             "\"velocity_ms\":%.2f,"
+             "\"velocity_kmh\":%.2f,"
+             "\"distance_m\":%.1f,"
+             "\"direction\":%.1f %s,"
+             "\"position\":(%.6f,%.6f),"
+             "\"dust\":%.1f,"
+             "\"temp\":%.1f,"
+             "\"hum\":%.1f"
+             "}",
+             data->velocity_ms, data->velocity_kmh, data->distance_m, data->heading_deg,
+             (data->direction_str != NULL) ? data->direction_str : "?", data->gps_position.latitude,
+             data->gps_position.longitude, data->dust_value, data->temp_hum.temperature, data->temp_hum.humidity);
 
   if (written < 0 || written >= (int) MQTT_MESSAGE_MAX_LEN)
   {

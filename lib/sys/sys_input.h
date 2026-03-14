@@ -31,15 +31,15 @@
  */
 typedef struct
 {
-  float               velocity_ms;         // Velocity in m/s
-  float               velocity_kmh;        // Velocity in km/h
-  float               distance_m;          // Total distance traveled in meters
-  float               dust_concentration;  // Dust concentration level
-  float               heading_deg;         // Compass heading in degrees (0-360)
-  const char         *direction_str;       // Compass direction string ("N", "NE", etc.)
-  temp_hum_data_t     temp_hum;            // Temperature and humidity data
-  size_t              timestamp_ms;        // Timestamp of last update
-  gps_position_type_t gps_position;        // GPS position data
+  float               velocity_ms;    // Velocity in m/s
+  float               velocity_kmh;   // Velocity in km/h
+  float               distance_m;     // Total distance traveled in meters
+  float               dust_value;     // Dust concentration level
+  float               heading_deg;    // Compass heading in degrees (0-360)
+  const char         *direction_str;  // Compass direction string ("N", "NE", etc.)
+  temp_hum_data_t     temp_hum;       // Temperature and humidity data
+  size_t              timestamp_ms;   // Timestamp of last update
+  gps_position_type_t gps_position;   // GPS position data
 } sys_input_data_t;
 
 /* Public macros ------------------------------------------------------ */

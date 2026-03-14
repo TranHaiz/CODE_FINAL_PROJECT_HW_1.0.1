@@ -129,7 +129,7 @@ void sys_input_init(void)
   input_ctx.data.velocity_ms          = 0.0f;
   input_ctx.data.velocity_kmh         = 0.0f;
   input_ctx.data.distance_m           = 0.0f;
-  input_ctx.data.dust_concentration   = 0.0f;
+  input_ctx.data.dust_value           = 0.0f;
   input_ctx.data.temp_hum.temperature = 0.0f;
   input_ctx.data.temp_hum.humidity    = 0.0f;
   input_ctx.data.timestamp_ms         = 0;
@@ -505,14 +505,14 @@ static void sys_input_read_dust_sensor(void)
 {
   if (!input_ctx.dust_ready)
   {
-    input_ctx.data.dust_concentration = 0.0f;
+    input_ctx.data.dust_value = 0.0f;
     return;
   }
 
   bsp_dust_sensor_data_t dust_data;
   if (bsp_dust_sensor_read(&dust_data) == STATUS_OK)
   {
-    input_ctx.data.dust_concentration = (float) dust_data.dust_density;
+    input_ctx.data.dust_value = (float) dust_data.dust_density;
   }
 }
 

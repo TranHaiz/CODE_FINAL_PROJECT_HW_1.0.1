@@ -14,20 +14,74 @@
 /* Includes ----------------------------------------------------------- */
 #include "sys_ui.h"
 
+#include "log_service.h"
 #include "os_lib.h"
 
 #include <string.h>
 
 /* Private defines ---------------------------------------------------- */
+LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_CLAMP(val, minv, maxv) ((val) < (minv) ? (minv) : ((val) > (maxv) ? (maxv) : (val)))
 
+/* Private enumerate/structure ---------------------------------------- */
+typedef struct
+{
+  /* Hardware interfaces */
+  lvgl_driver_t lvgl;
+
+  /* UI widgets */
+  sys_ui_widgets_t widgets;
+
+  /* Timing */
+  size_t last_speed_update;
+  size_t last_second_tick;
+  size_t last_time_update_screen;
+
+  /* Speed and distance tracking */
+  size_t frame_counter;
+  float  current_speed;
+  float  target_speed;
+  float  distance_km;
+  int    prev_speed_int;
+
+  /* Countdown timer */
+  int remaining_minutes;
+  int remaining_seconds;
+
+  /* Environment telemetry */
+  float temperature_C;
+  float humidity;
+  int   air_quality;
+  int   battery_percent;
+  int   brightness_percent;
+
+  /* Setting/theme */
+  size_t background_color;
+
+  /* State tracking */
+  size_t        session_start_ms;
+  sys_ui_view_t view;
+  uint16_t      last_touch_x;
+  uint16_t      last_touch_y;
+  bool          pending_main_redraw;
+
+  /* History data */
+  char   rentalHistory[SYS_UI_MAX_RENTAL_HISTORY][32];
+  int    rental_history_count;
+  float  distanceHistory[SYS_UI_MAX_DISTANCE_LOG];
+  int    distance_history_count;
+  float  temperatureHistory[SYS_UI_MAX_TEMP_SAMPLES];
+  size_t temperatureTimestamps[SYS_UI_MAX_TEMP_SAMPLES];
+  int    temperature_sample_count;
+  int    temperature_zoom;
+  int    temperature_pan;
+} sys_ui_t;
+
 /* Public variables --------------------------------------------------- */
-sys_ui_t g_ui;
-
 /* Private variables -------------------------------------------------- */
-static sys_ui_t *g_ui_ctx = nullptr;
+sys_ui_t ui_ctx;
 
-/* Forward declarations for LVGL callbacks */
+/* Private function prototypes ---------------------------------------- */
 static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data);
 static void sys_ui_settings_btn_cb(lv_event_t *e);
 static void sys_ui_out_btn_cb(lv_event_t *e);
@@ -43,30 +97,29 @@ static void sys_ui_time_card_cb(lv_event_t *e);
 static void sys_ui_distance_card_cb(lv_event_t *e);
 static void sys_ui_env_card_cb(lv_event_t *e);
 
-/* Private function prototypes ---------------------------------------- */
-static void sys_ui_initializeTelemetry(sys_ui_t *ctx);
-static void sys_ui_initializeWidgets(sys_ui_widgets_t *w);
-static void sys_ui_updateSpeedAndDistance(sys_ui_t *ctx);
-static void sys_ui_updateCountdown(sys_ui_t *ctx);
-static void sys_ui_updateEnvironmentTelemetry(sys_ui_t *ctx);
+static void sys_ui_init_data(sys_ui_t *ctx);
+static void sys_ui_reset_full_widget(sys_ui_widgets_t *w);
+static void sys_ui_update_speed_n_distance(sys_ui_t *ctx);
+static void sys_ui_update_countdown(sys_ui_t *ctx);
+static void sys_ui_update_env_data(sys_ui_t *ctx);
 static void sys_ui_enterView(sys_ui_t *ctx, sys_ui_view_t view);
 static void sys_ui_returnToMain(sys_ui_t *ctx);
 static void sys_ui_logDistanceSample(sys_ui_t *ctx, float value);
 static void sys_ui_logTemperatureSample(sys_ui_t *ctx, float value, size_t timestamp);
 static void sys_ui_refreshTemperatureOverlay(sys_ui_t *ctx);
 static void sys_ui_register_lvgl_callbacks(sys_ui_t *ctx);
-static void sys_ui_showScreen(sys_ui_t *ctx, lv_obj_t *screen);
-static void sys_ui_createMainScreen(sys_ui_t *ctx);
+static void sys_ui_show_screen(sys_ui_t *ctx, lv_obj_t *screen);
+static void sys_ui_main_screen(sys_ui_t *ctx);
 static void sys_ui_createSettingsScreen(sys_ui_t *ctx);
 static void sys_ui_createOutScreen(sys_ui_t *ctx);
 static void sys_ui_createTimeHistoryScreen(sys_ui_t *ctx);
 static void sys_ui_createDistanceScreen(sys_ui_t *ctx);
 static void sys_ui_createTemperatureScreen(sys_ui_t *ctx);
-static void sys_ui_drawFullUI(sys_ui_t *ctx);
-static void sys_ui_updateSpeed(sys_ui_t *ctx, int speedKph);
-static void sys_ui_updateTime(sys_ui_t *ctx, int minutes, int seconds);
-static void sys_ui_updateDistance(sys_ui_t *ctx, float distance_km);
-static void sys_ui_updateEnvironment(sys_ui_t *ctx, float temperature_C, float humidity, int air_quality);
+static void sys_ui_init_full_widget(sys_ui_t *ctx);
+static void sys_ui_update_speed(sys_ui_t *ctx, int speedKph);
+static void sys_ui_update_time(sys_ui_t *ctx, int minutes, int seconds);
+static void sys_ui_update_distance(sys_ui_t *ctx, float distance_km);
+static void sys_ui_update_env(sys_ui_t *ctx, float temperature_C, float humidity, int air_quality);
 static void sys_ui_drawSettingsOverlay(sys_ui_t *ctx);
 static void sys_ui_drawOutOverlay(sys_ui_t *ctx);
 static void sys_ui_drawTimeHistoryOverlay(sys_ui_t *ctx);
@@ -74,121 +127,111 @@ static void sys_ui_drawDistanceOverlay(sys_ui_t *ctx);
 static void sys_ui_drawTemperatureOverlay(sys_ui_t *ctx);
 
 /* Function definitions ----------------------------------------------- */
-void sys_ui_begin(sys_ui_t *ctx)
+void sys_ui_init(void)
 {
-  assert(ctx != nullptr);
-
-  ctx->last_speed_update        = 0;
-  ctx->last_second_tick         = 0;
-  ctx->last_time_update_screen  = 0;
-  ctx->frame_counter            = 0;
-  ctx->current_speed            = 0.0f;
-  ctx->target_speed             = 0.0f;
-  ctx->distance_km              = 0.0f;
-  ctx->prev_speed_int           = -1;
-  ctx->remaining_minutes        = 0;
-  ctx->remaining_seconds        = 0;
-  ctx->temperature_C            = 0.0f;
-  ctx->humidity                 = 0.0f;
-  ctx->air_quality              = 0;
-  ctx->battery_percent          = 85;
-  ctx->brightness_percent       = 80;
-  ctx->background_color         = SYS_UI_COLOR_BG;
-  ctx->session_start_ms         = OS_GET_TICK();
-  ctx->view                     = SYS_UI_VIEW_MAIN;
-  ctx->last_touch_x             = 0;
-  ctx->last_touch_y             = 0;
-  ctx->pending_main_redraw      = false;
-  ctx->rental_history_count     = 0;
-  ctx->distance_history_count   = 0;
-  ctx->temperature_sample_count = 0;
-  ctx->temperature_zoom         = 1;
-  ctx->temperature_pan          = 0;
-
-  printf("[SYS_UI] Starting initialization...\n");
+  ui_ctx.last_speed_update        = 0;
+  ui_ctx.last_second_tick         = 0;
+  ui_ctx.last_time_update_screen  = 0;
+  ui_ctx.frame_counter            = 0;
+  ui_ctx.current_speed            = 0.0f;
+  ui_ctx.target_speed             = 0.0f;
+  ui_ctx.distance_km              = 0.0f;
+  ui_ctx.prev_speed_int           = -1;
+  ui_ctx.remaining_minutes        = 0;
+  ui_ctx.remaining_seconds        = 0;
+  ui_ctx.temperature_C            = 0.0f;
+  ui_ctx.humidity                 = 0.0f;
+  ui_ctx.air_quality              = 0;
+  ui_ctx.battery_percent          = 85;
+  ui_ctx.brightness_percent       = 80;
+  ui_ctx.background_color         = SYS_UI_COLOR_BG;
+  ui_ctx.session_start_ms         = OS_GET_TICK();
+  ui_ctx.view                     = SYS_UI_VIEW_MAIN;
+  ui_ctx.last_touch_x             = 0;
+  ui_ctx.last_touch_y             = 0;
+  ui_ctx.pending_main_redraw      = false;
+  ui_ctx.rental_history_count     = 0;
+  ui_ctx.distance_history_count   = 0;
+  ui_ctx.temperature_sample_count = 0;
+  ui_ctx.temperature_zoom         = 1;
+  ui_ctx.temperature_pan          = 0;
 
   /* Initialize widget pointers */
-  sys_ui_initializeWidgets(&ctx->widgets);
+  sys_ui_reset_full_widget(&ui_ctx.widgets);
 
-  /* Initialize hardware display */
-  /* Initialize display (singleton) */
+  // Int first display
   bsp_display_init();
   bsp_display_show_splash();
 
-  /* Initialize LVGL driver */
-  ctx->lvgl.user_data = ctx;
-  bsp_lvgl_init(&ctx->lvgl, bsp_display_get_driver());
-  bsp_lvgl_set_touch_callback(&ctx->lvgl, sys_ui_lvgl_touch_read_cb);
+  // Initialize LVGL driver
+  ui_ctx.lvgl.user_data = &ui_ctx;
+  bsp_lvgl_init(&ui_ctx.lvgl, bsp_display_get_driver());
+  bsp_lvgl_set_touch_callback(&ui_ctx.lvgl, sys_ui_lvgl_touch_read_cb);
 
-  /* Initialize telemetry data */
-  sys_ui_initializeTelemetry(ctx);
+  // Init UI data (speed, time, env, history)
+  sys_ui_init_data(&ui_ctx);
 
   /* Set brightness */
-  bsp_display_set_brightness_percent(ctx->brightness_percent);
+  bsp_display_set_brightness_percent(ui_ctx.brightness_percent);
 
   /* Create and show main screen */
-  sys_ui_drawFullUI(ctx);
-
-  /* Store global context for LVGL callbacks */
-  g_ui_ctx = ctx;
+  sys_ui_init_full_widget(&ui_ctx);
 
   /* Register LVGL button event callbacks */
-  sys_ui_register_lvgl_callbacks(ctx);
+  sys_ui_register_lvgl_callbacks(&ui_ctx);
 
-  size_t now                   = OS_GET_TICK();
-  ctx->session_start_ms        = now;
-  ctx->last_speed_update       = now;
-  ctx->last_second_tick        = now;
-  ctx->last_time_update_screen = now;
+  size_t now                     = OS_GET_TICK();
+  ui_ctx.session_start_ms        = now;
+  ui_ctx.last_speed_update       = now;
+  ui_ctx.last_second_tick        = now;
+  ui_ctx.last_time_update_screen = now;
 
   /* Initialize touch */
   bsp_touch_init();
 
-  printf("[SYS_UI] Init complete\n");
+  LOG_DBG("[SYS_UI] Init complete\n");
 }
 
-void sys_ui_run(sys_ui_t *ctx)
+void sys_ui_process(void)
 {
-  assert(ctx != nullptr);
-
   size_t now = OS_GET_TICK();
 
   /* Update speed and distance */
-  if (now - ctx->last_speed_update >= SYS_UI_SPEED_REFRESH_MS)
+  if (now - ui_ctx.last_speed_update >= SYS_UI_SPEED_REFRESH_MS)
   {
-    ctx->last_speed_update = now;
-    ++ctx->frame_counter;
-    sys_ui_updateSpeedAndDistance(ctx);
+    ui_ctx.last_speed_update = now;
+    ++ui_ctx.frame_counter;
+    sys_ui_update_speed_n_distance(&ui_ctx);
   }
 
   /* Update countdown timer */
-  if (now - ctx->last_second_tick >= SYS_UI_COUNTDOWN_MS)
+  if (now - ui_ctx.last_second_tick >= SYS_UI_COUNTDOWN_MS)
   {
-    ctx->last_second_tick = now;
-    sys_ui_updateCountdown(ctx);
+    ui_ctx.last_second_tick = now;
+    sys_ui_update_countdown(&ui_ctx);
   }
 
   /* Update environment telemetry */
-  if (now - ctx->last_time_update_screen >= SYS_UI_ENVIRONMENT_MS)
+  if (now - ui_ctx.last_time_update_screen >= SYS_UI_ENVIRONMENT_MS)
   {
-    ctx->last_time_update_screen = now;
-    sys_ui_updateEnvironmentTelemetry(ctx);
+    ui_ctx.last_time_update_screen = now;
+    sys_ui_update_env_data(&ui_ctx);
   }
 
   /* Handle pending main screen redraw */
-  if (ctx->view == SYS_UI_VIEW_MAIN && ctx->pending_main_redraw)
+  if (ui_ctx.view == SYS_UI_VIEW_MAIN && ui_ctx.pending_main_redraw)
   {
-    sys_ui_drawFullUI(ctx);
-    sys_ui_register_lvgl_callbacks(ctx);
-    ctx->pending_main_redraw = false;
+    sys_ui_init_full_widget(&ui_ctx);
+    sys_ui_register_lvgl_callbacks(&ui_ctx);
+    ui_ctx.pending_main_redraw = false;
   }
 
   /* Handle LVGL tasks */
-  bsp_lvgl_task(&ctx->lvgl);
+  bsp_lvgl_task(&ui_ctx.lvgl);
 }
 
 /* Private definitions ----------------------------------------------- */
-static void sys_ui_initializeWidgets(sys_ui_widgets_t *w)
+static void sys_ui_reset_full_widget(sys_ui_widgets_t *w)
 {
   w->active_screen        = nullptr;
   w->main_screen          = nullptr;
@@ -246,7 +289,7 @@ static void sys_ui_initializeWidgets(sys_ui_widgets_t *w)
   for (int i = 0; i < 4; ++i) w->history_labels[i] = nullptr;
 }
 
-static void sys_ui_initializeTelemetry(sys_ui_t *ctx)
+static void sys_ui_init_data(sys_ui_t *ctx)
 {
   ctx->remaining_minutes = 45;
   ctx->remaining_seconds = 0;
@@ -269,7 +312,7 @@ static void sys_ui_initializeTelemetry(sys_ui_t *ctx)
   }
 }
 
-static void sys_ui_showScreen(sys_ui_t *ctx, lv_obj_t *screen)
+static void sys_ui_show_screen(sys_ui_t *ctx, lv_obj_t *screen)
 {
   if (ctx == nullptr || screen == nullptr)
     return;
@@ -278,7 +321,7 @@ static void sys_ui_showScreen(sys_ui_t *ctx, lv_obj_t *screen)
   lv_screen_load(screen);
 }
 
-static void sys_ui_createMainScreen(sys_ui_t *ctx)
+static void sys_ui_main_screen(sys_ui_t *ctx)
 {
   sys_ui_widgets_t *w = &ctx->widgets;
 
@@ -633,21 +676,21 @@ static void sys_ui_createTemperatureScreen(sys_ui_t *ctx)
     SYS_UI_TEMP_BTN_W, SYS_UI_TEMP_BTN_H, ">", SYS_UI_COLOR_PRIMARY, SYS_UI_COLOR_BG);
 }
 
-static void sys_ui_drawFullUI(sys_ui_t *ctx)
+static void sys_ui_init_full_widget(sys_ui_t *ctx)
 {
   if (ctx->widgets.main_screen == nullptr)
   {
-    sys_ui_createMainScreen(ctx);
+    sys_ui_main_screen(ctx);
   }
 
-  sys_ui_showScreen(ctx, ctx->widgets.main_screen);
-  sys_ui_updateTime(ctx, ctx->remaining_minutes, ctx->remaining_seconds);
-  sys_ui_updateDistance(ctx, ctx->distance_km);
-  sys_ui_updateEnvironment(ctx, ctx->temperature_C, ctx->humidity, ctx->air_quality);
-  sys_ui_updateSpeed(ctx, static_cast<int>(ctx->current_speed));
+  sys_ui_show_screen(ctx, ctx->widgets.main_screen);
+  sys_ui_update_time(ctx, ctx->remaining_minutes, ctx->remaining_seconds);
+  sys_ui_update_distance(ctx, ctx->distance_km);
+  sys_ui_update_env(ctx, ctx->temperature_C, ctx->humidity, ctx->air_quality);
+  sys_ui_update_speed(ctx, static_cast<int>(ctx->current_speed));
 }
 
-static void sys_ui_updateSpeed(sys_ui_t *ctx, int speedKph)
+static void sys_ui_update_speed(sys_ui_t *ctx, int speedKph)
 {
   speedKph = SYS_UI_CLAMP(speedKph, 0, 40);
 
@@ -678,7 +721,7 @@ static void sys_ui_updateSpeed(sys_ui_t *ctx, int speedKph)
   }
 }
 
-static void sys_ui_updateTime(sys_ui_t *ctx, int minutes, int seconds)
+static void sys_ui_update_time(sys_ui_t *ctx, int minutes, int seconds)
 {
   sys_ui_widgets_t *w = &ctx->widgets;
   if (w->time_label == nullptr)
@@ -696,7 +739,7 @@ static void sys_ui_updateTime(sys_ui_t *ctx, int minutes, int seconds)
   lv_obj_set_style_text_color(w->time_label, timeColor, 0);
 }
 
-static void sys_ui_updateDistance(sys_ui_t *ctx, float distance_km)
+static void sys_ui_update_distance(sys_ui_t *ctx, float distance_km)
 {
   sys_ui_widgets_t *w = &ctx->widgets;
   if (w->distance_label == nullptr)
@@ -705,7 +748,7 @@ static void sys_ui_updateDistance(sys_ui_t *ctx, float distance_km)
   lv_label_set_text_fmt(w->distance_label, "%.2f", distance_km);
 }
 
-static void sys_ui_updateEnvironment(sys_ui_t *ctx, float temperature_C, float humidity, int air_quality)
+static void sys_ui_update_env(sys_ui_t *ctx, float temperature_C, float humidity, int air_quality)
 {
   sys_ui_widgets_t *w = &ctx->widgets;
 
@@ -735,7 +778,7 @@ static void sys_ui_updateEnvironment(sys_ui_t *ctx, float temperature_C, float h
   }
 }
 
-static void sys_ui_updateSpeedAndDistance(sys_ui_t *ctx)
+static void sys_ui_update_speed_n_distance(sys_ui_t *ctx)
 {
   float speedDelta  = static_cast<float>(random(-25, 26)) / 10.0f;
   ctx->target_speed = SYS_UI_CLAMP(ctx->target_speed + speedDelta, 0.0f, 35.0f);
@@ -745,10 +788,10 @@ static void sys_ui_updateSpeedAndDistance(sys_ui_t *ctx)
 
   if (ctx->view == SYS_UI_VIEW_MAIN)
   {
-    sys_ui_updateSpeed(ctx, static_cast<int>(ctx->current_speed));
+    sys_ui_update_speed(ctx, static_cast<int>(ctx->current_speed));
     if (ctx->frame_counter % 10 == 0)
     {
-      sys_ui_updateDistance(ctx, ctx->distance_km);
+      sys_ui_update_distance(ctx, ctx->distance_km);
     }
   }
   else
@@ -767,7 +810,7 @@ static void sys_ui_updateSpeedAndDistance(sys_ui_t *ctx)
   }
 }
 
-static void sys_ui_updateCountdown(sys_ui_t *ctx)
+static void sys_ui_update_countdown(sys_ui_t *ctx)
 {
   if (ctx->remaining_seconds > 0)
   {
@@ -781,7 +824,7 @@ static void sys_ui_updateCountdown(sys_ui_t *ctx)
 
   if (ctx->view == SYS_UI_VIEW_MAIN)
   {
-    sys_ui_updateTime(ctx, ctx->remaining_minutes, ctx->remaining_seconds);
+    sys_ui_update_time(ctx, ctx->remaining_minutes, ctx->remaining_seconds);
   }
   else if (ctx->view == SYS_UI_VIEW_TIME)
   {
@@ -793,7 +836,7 @@ static void sys_ui_updateCountdown(sys_ui_t *ctx)
   }
 }
 
-static void sys_ui_updateEnvironmentTelemetry(sys_ui_t *ctx)
+static void sys_ui_update_env_data(sys_ui_t *ctx)
 {
   ctx->temperature_C = SYS_UI_CLAMP(ctx->temperature_C + static_cast<float>(random(-10, 11)) / 10.0f, 20.0f, 40.0f);
   ctx->humidity      = SYS_UI_CLAMP(ctx->humidity + static_cast<float>(random(-20, 21)) / 10.0f, 40.0f, 95.0f);
@@ -803,7 +846,7 @@ static void sys_ui_updateEnvironmentTelemetry(sys_ui_t *ctx)
 
   if (ctx->view == SYS_UI_VIEW_MAIN)
   {
-    sys_ui_updateEnvironment(ctx, ctx->temperature_C, ctx->humidity, ctx->air_quality);
+    sys_ui_update_env(ctx, ctx->temperature_C, ctx->humidity, ctx->air_quality);
   }
   else if (ctx->view == SYS_UI_VIEW_TEMPERATURE)
   {
@@ -833,7 +876,7 @@ static void sys_ui_drawSettingsOverlay(sys_ui_t *ctx)
     lv_label_set_text_fmt(w->brightness_label, "%d%%", ctx->brightness_percent);
   }
 
-  sys_ui_showScreen(ctx, w->settings_screen);
+  sys_ui_show_screen(ctx, w->settings_screen);
 }
 
 static void sys_ui_drawOutOverlay(sys_ui_t *ctx)
@@ -845,7 +888,7 @@ static void sys_ui_drawOutOverlay(sys_ui_t *ctx)
     sys_ui_createOutScreen(ctx);
   }
 
-  sys_ui_showScreen(ctx, w->out_screen);
+  sys_ui_show_screen(ctx, w->out_screen);
 }
 
 static void sys_ui_drawTimeHistoryOverlay(sys_ui_t *ctx)
@@ -878,7 +921,7 @@ static void sys_ui_drawTimeHistoryOverlay(sys_ui_t *ctx)
                           ctx->remaining_seconds);
   }
 
-  sys_ui_showScreen(ctx, w->time_history_screen);
+  sys_ui_show_screen(ctx, w->time_history_screen);
 }
 
 static void sys_ui_drawDistanceOverlay(sys_ui_t *ctx)
@@ -917,7 +960,7 @@ static void sys_ui_drawDistanceOverlay(sys_ui_t *ctx)
     lv_chart_refresh(w->distance_chart);
   }
 
-  sys_ui_showScreen(ctx, w->distance_screen);
+  sys_ui_show_screen(ctx, w->distance_screen);
 }
 
 static void sys_ui_drawTemperatureOverlay(sys_ui_t *ctx)
@@ -975,7 +1018,7 @@ static void sys_ui_drawTemperatureOverlay(sys_ui_t *ctx)
     lv_chart_refresh(w->temp_chart);
   }
 
-  sys_ui_showScreen(ctx, w->temp_screen);
+  sys_ui_show_screen(ctx, w->temp_screen);
 }
 
 static void sys_ui_enterView(sys_ui_t *ctx, sys_ui_view_t view)
@@ -1057,7 +1100,7 @@ static void sys_ui_returnToMain(sys_ui_t *ctx)
 {
   ctx->view                = SYS_UI_VIEW_MAIN;
   ctx->pending_main_redraw = false;
-  sys_ui_drawFullUI(ctx);
+  sys_ui_init_full_widget(ctx);
   sys_ui_register_lvgl_callbacks(ctx);
 }
 
@@ -1131,143 +1174,110 @@ static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 static void sys_ui_settings_btn_cb(lv_event_t *e)
 {
   (void) e;
-  if (g_ui_ctx != nullptr)
-  {
-    printf("[LVGL] Settings button pressed\n");
-    sys_ui_enterView(g_ui_ctx, SYS_UI_VIEW_SETTINGS);
-  }
+  LOG_DBG("[LVGL] Settings button pressed\n");
+  sys_ui_enterView(&ui_ctx, SYS_UI_VIEW_SETTINGS);
 }
 
 static void sys_ui_out_btn_cb(lv_event_t *e)
 {
   (void) e;
-  if (g_ui_ctx != nullptr)
-  {
-    printf("[LVGL] Out button pressed\n");
-    sys_ui_enterView(g_ui_ctx, SYS_UI_VIEW_OUT);
-  }
+  LOG_DBG("[LVGL] Out button pressed\n");
+  sys_ui_enterView(&ui_ctx, SYS_UI_VIEW_OUT);
 }
 
 static void sys_ui_back_btn_cb(lv_event_t *e)
 {
   (void) e;
-  if (g_ui_ctx != nullptr)
-  {
-    printf("[LVGL] Back button pressed\n");
-    sys_ui_returnToMain(g_ui_ctx);
-  }
+  LOG_DBG("[LVGL] Back button pressed\n");
+  sys_ui_returnToMain(&ui_ctx);
 }
 
 static void sys_ui_extend_btn_cb(lv_event_t *e)
 {
   (void) e;
-  if (g_ui_ctx != nullptr)
-  {
-    printf("[LVGL] Extend button pressed\n");
-    g_ui_ctx->remaining_minutes += 30;
-    sys_ui_drawTimeHistoryOverlay(g_ui_ctx);
-  }
+  LOG_DBG("[LVGL] Extend button pressed\n");
+  ui_ctx.remaining_minutes += 30;
+  sys_ui_drawTimeHistoryOverlay(&ui_ctx);
 }
 
 static void sys_ui_brightness_slider_cb(lv_event_t *e)
 {
-  if (g_ui_ctx == nullptr)
-    return;
-
-  lv_obj_t *slider             = (lv_obj_t *) lv_event_get_target(e);
-  g_ui_ctx->brightness_percent = lv_slider_get_value(slider);
-  bsp_display_set_brightness_percent(g_ui_ctx->brightness_percent);
-  printf("[LVGL] Brightness changed to %d%%\n", g_ui_ctx->brightness_percent);
+  lv_obj_t *slider          = (lv_obj_t *) lv_event_get_target(e);
+  ui_ctx.brightness_percent = lv_slider_get_value(slider);
+  bsp_display_set_brightness_percent(ui_ctx.brightness_percent);
+  LOG_DBG("[LVGL] Brightness changed to %d%%\n", ui_ctx.brightness_percent);
 }
 
 static void sys_ui_color_btn_cb(lv_event_t *e)
 {
-  if (g_ui_ctx == nullptr)
-    return;
-
   int btn_index = (int) (intptr_t) lv_event_get_user_data(e);
 
   size_t colors[3] = { 0x000000, 0xFFFFFF, 0x7B7B7B };
   if (btn_index >= 0 && btn_index < 3)
   {
-    g_ui_ctx->background_color    = colors[btn_index];
-    g_ui_ctx->pending_main_redraw = true;
-    printf("[LVGL] Background color changed to index %d\n", btn_index);
+    ui_ctx.background_color    = colors[btn_index];
+    ui_ctx.pending_main_redraw = true;
+    LOG_DBG("[LVGL] Background color changed to index %d\n", btn_index);
   }
 }
 
 static void sys_ui_zoom_minus_btn_cb(lv_event_t *e)
 {
   (void) e;
-  if (g_ui_ctx != nullptr && g_ui_ctx->temperature_zoom > 1)
+  if (ui_ctx.temperature_zoom > 1)
   {
-    --g_ui_ctx->temperature_zoom;
-    sys_ui_refreshTemperatureOverlay(g_ui_ctx);
-    printf("[LVGL] Zoom- pressed, zoom=%d\n", g_ui_ctx->temperature_zoom);
+    --ui_ctx.temperature_zoom;
+    sys_ui_refreshTemperatureOverlay(&ui_ctx);
+    LOG_DBG("[LVGL] Zoom- pressed, zoom=%d\n", ui_ctx.temperature_zoom);
   }
 }
 
 static void sys_ui_zoom_plus_btn_cb(lv_event_t *e)
 {
   (void) e;
-  if (g_ui_ctx != nullptr && g_ui_ctx->temperature_zoom < 4)
+  if (ui_ctx.temperature_zoom < 4)
   {
-    ++g_ui_ctx->temperature_zoom;
-    sys_ui_refreshTemperatureOverlay(g_ui_ctx);
-    printf("[LVGL] Zoom+ pressed, zoom=%d\n", g_ui_ctx->temperature_zoom);
+    ++ui_ctx.temperature_zoom;
+    sys_ui_refreshTemperatureOverlay(&ui_ctx);
+    LOG_DBG("[LVGL] Zoom+ pressed, zoom=%d\n", ui_ctx.temperature_zoom);
   }
 }
 
 static void sys_ui_pan_left_btn_cb(lv_event_t *e)
 {
   (void) e;
-  if (g_ui_ctx != nullptr)
-  {
-    g_ui_ctx->temperature_pan -= 5;
-    sys_ui_refreshTemperatureOverlay(g_ui_ctx);
-    printf("[LVGL] Pan left pressed, pan=%d\n", g_ui_ctx->temperature_pan);
-  }
+  ui_ctx.temperature_pan -= 5;
+  sys_ui_refreshTemperatureOverlay(&ui_ctx);
+  LOG_DBG("[LVGL] Pan left pressed, pan=%d\n", ui_ctx.temperature_pan);
 }
 
 static void sys_ui_pan_right_btn_cb(lv_event_t *e)
 {
   (void) e;
-  if (g_ui_ctx != nullptr)
-  {
-    g_ui_ctx->temperature_pan += 5;
-    sys_ui_refreshTemperatureOverlay(g_ui_ctx);
-    printf("[LVGL] Pan right pressed, pan=%d\n", g_ui_ctx->temperature_pan);
-  }
+  ui_ctx.temperature_pan += 5;
+  sys_ui_refreshTemperatureOverlay(&ui_ctx);
+  LOG_DBG("[LVGL] Pan right pressed, pan=%d\n", ui_ctx.temperature_pan);
 }
 
 static void sys_ui_time_card_cb(lv_event_t *e)
 {
   (void) e;
-  if (g_ui_ctx != nullptr)
-  {
-    printf("[LVGL] Time card pressed\n");
-    sys_ui_enterView(g_ui_ctx, SYS_UI_VIEW_TIME);
-  }
+  LOG_DBG("[LVGL] Time card pressed\n");
+  sys_ui_enterView(&ui_ctx, SYS_UI_VIEW_TIME);
 }
 
 static void sys_ui_distance_card_cb(lv_event_t *e)
 {
   (void) e;
-  if (g_ui_ctx != nullptr)
-  {
-    printf("[LVGL] Distance card pressed\n");
-    sys_ui_enterView(g_ui_ctx, SYS_UI_VIEW_DISTANCE);
-  }
+  LOG_DBG("[LVGL] Distance card pressed\n");
+  sys_ui_enterView(&ui_ctx, SYS_UI_VIEW_DISTANCE);
 }
 
 static void sys_ui_env_card_cb(lv_event_t *e)
 {
   (void) e;
-  if (g_ui_ctx != nullptr)
-  {
-    printf("[LVGL] Environment card pressed\n");
-    sys_ui_enterView(g_ui_ctx, SYS_UI_VIEW_TEMPERATURE);
-  }
+  LOG_DBG("[LVGL] Environment card pressed\n");
+  sys_ui_enterView(&ui_ctx, SYS_UI_VIEW_TEMPERATURE);
 }
 
 static void sys_ui_register_lvgl_callbacks(sys_ui_t *ctx)
