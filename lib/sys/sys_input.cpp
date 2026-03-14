@@ -25,7 +25,7 @@
 #include <math.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
+LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_WARN)
 // Acc parameters
 #define ACC_FILTER_ALPHA            (0.15f)
 #define ACC_THRESHOLD               (0.30f)

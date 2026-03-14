@@ -3,14 +3,10 @@
  * @copyright  Copyright (C) 2025 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
  * @version    major.minor.patch
- * @date       2026-01-17
+ * @date       2026-02-27
  * @author     Hai Tran
  *
- * @brief      BSP driver for SIM module (UART DMA Idle)
- *              - Init SIM module
- *              - API contact SMS
- *              - API call via phone number
- *              - API contact with firebase
+ * @brief      BSP for SIM module
  *
  */
 

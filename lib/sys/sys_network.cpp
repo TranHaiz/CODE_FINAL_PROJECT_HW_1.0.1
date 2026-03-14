@@ -18,7 +18,7 @@
 #include "sys_input.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
+LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_INFO)
 #define MQTT_CLIENT_ID           "haq-trk-001"
 #define MQTT_PUB_TOPIC           "haq-trk-001/data"
 #define MQTT_TOPIC_COMMAND       "haq-trk-001/cmd"
@@ -233,8 +233,8 @@ static void net_run_mqtt_init(void)
   if (bsp_sim_mqtt_sub(MQTT_TOPIC_COMMAND, net_on_mqtt_message) != STATUS_OK)
   {
     LOG_WRN("MQTT subscribe failed");
-    // net_transition(NETWORK_STATE_ERROR);
-    // return;
+    net_transition(NETWORK_STATE_ERROR);
+    return;
   }
 
   LOG_DBG("MQTT initialized");
@@ -341,7 +341,7 @@ static void net_run_sim_hard_reset(void)
 
 static void net_on_mqtt_message(const char *topic, const uint8_t *data, size_t len)
 {
-  LOG_DBG("MQTT rx [%s]: %.*s", topic, (int) len, (const char *) data);
+  LOG_INF("MQTT rx [%s]: %.*s", topic, (int) len, (const char *) data);
 
   // TODO: parse command payload and push sys_cmd_t to g_q_cmd
 }
