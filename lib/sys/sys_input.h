@@ -21,7 +21,7 @@
 #include "common_type.h"
 
 /* Public defines ----------------------------------------------------- */
-#define SYS_INPUT_UPDATE_RATE_MS     (1)
+#define SYS_INPUT_UPDATE_RATE_MS     (10)
 #define SYS_INPUT_ENV_UPDATE_RATE_MS (5000)
 
 /* Public enumerate/structure ----------------------------------------- */

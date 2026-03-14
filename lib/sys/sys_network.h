@@ -23,6 +23,8 @@
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
+extern bool is_data_network_ready;
+
 /* Public function prototypes ----------------------------------------- */
 void sys_network_init(void);
 void sys_network_process(void);

@@ -18,6 +18,7 @@
 #include "log_service.h"
 #include "os_lib.h"
 #include "sys_input.h"
+#include "sys_network.h"
 #include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
@@ -53,7 +54,7 @@ void setup()
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
   OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
-  // OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
+  OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
 }
 
 void loop()
@@ -83,12 +84,7 @@ void sys_input_thread_func(void *param)
       // Get current data
       if (sys_input_get_data(&g_input_data) == STATUS_OK)
       {
-        LOG_INF("Velocity: %.2f", g_input_data.velocity_ms);
-        LOG_INF("Distance: %.2f", g_input_data.distance_m);
-        LOG_INF("Dust: %.2f", g_input_data.dust_concentration);
-        LOG_INF("Heading: %.2f %s", g_input_data.heading_deg, g_input_data.direction_str);
-        LOG_INF("Temp: %.2f C, Humidity: %.2f %%", g_input_data.temp_hum.temperature, g_input_data.temp_hum.humidity);
-        LOG_INF("GPS: Lat (%.6f, %.6f)", g_input_data.gps_position.latitude, g_input_data.gps_position.longitude);
+        is_data_network_ready = true;
       }
     }
 
@@ -98,31 +94,12 @@ void sys_input_thread_func(void *param)
 
 void sys_network_thread_func(void *param)
 {
-  LOG_INF("System network thread started");
-  bsp_sim_init();
-  if (bsp_sim_mqtt_deinit() != STATUS_OK)
+  sys_network_init();
+
+  while (true)
   {
-    // Do nothing
-  }
-  if (bsp_sim_mqtt_init() != STATUS_OK)
-  {
-    LOG_ERR("Failed to initialize MQTT");
-    while (1)
-    {
-      OS_DELAY_MS(1000);
-    }
-  }
-  else
-  {
-    bsp_sim_mqtt_sub("haq-trk-001/command", [](const char *topic, const uint8_t *data, size_t len)
-                     { LOG_INF("Received MQTT message on topic %s: %.*s", topic, (int) len, data); });
-  }
-  LOG_INF("MQTT initialized");
-  OS_DELAY_MS(2000);  // Wait for MQTT to stabilize
-  while (1)
-  {
-    bsp_sim_mqtt_pub(&g_mqtt_msg);
-    OS_DELAY_MS(1000);
+    sys_network_process();
+    OS_DELAY_MS(100);
   }
 }
 

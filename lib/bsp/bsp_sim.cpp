@@ -26,6 +26,13 @@ LOG_MODULE_REGISTER(bsp_sim, LOG_LEVEL_INFO)
 #define SIM_SEND_CMD_RETRY (3)
 #define DEBUG_SIM
 
+#if (CONFIG_MQTT_SERVER == true)
+#define MQTT_MAX_TOPIC_LEN   (128u)
+#define MQTT_MAX_PAYLOAD_LEN (1024u)
+#define MQTT_CLIENT_ID_LEN   (32u)
+
+#endif  // CONFIG_MQTT_SERVER
+
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 #define SIM_SEND(data) (bsp_uart_write(SIM_UART_HANDLER, (data), strlen((data))))
@@ -138,8 +145,28 @@ status_function_t bsp_sim_init(void)
   return STATUS_OK;
 }
 
-bool bsp_sim_is_lte_ready(void)
+bool bsp_sim_is_ready(void)
 {
+  if (!bsp_sim_send_and_wait_response("AT+CPIN?\r\n", "+CPIN: READY", 2000))
+  {
+    LOG_ERR("SIM card not ready: %s", sim_rx_buffer);
+    return false;
+  }
+  else if (!bsp_sim_send_and_wait_response("AT+CREG?\r\n", "+CREG: 0,1", 3000))
+  {
+    LOG_ERR("No network register: %s", sim_rx_buffer);
+    is_sim_ready = false;
+  }
+  else if (!bsp_sim_send_and_wait_response("AT+CGATT?\r\n", "+CGATT: 1", 3000))
+  {
+    LOG_ERR("Not attached to network: %s", sim_rx_buffer);
+    is_sim_ready = false;
+  }
+  else
+  {
+    is_sim_ready = true;
+  }
+
   return is_sim_ready;
 }
 
@@ -389,184 +416,6 @@ static void bsp_sim_rsp_callback(uart_port_t uart_num, uint8_t *data, size_t len
 }
 
 #if (CONFIG_MQTT_SERVER == true)
-// status_function_t bsp_sim_mqtt_init(void)
-// {
-//   char cmd[128];
-
-//   // 1. Start MQTT Service
-//   if (bsp_sim_send_and_wait_response("AT+CMQTTSTART\r\n", "+CMQTTSTART: 0", 5000) == false)
-//   {
-//     LOG_ERR("Failed to start MQTT service: %s", sim_rx_buffer);
-//     return STATUS_ERROR;
-//   }
-
-//   // 2. Acquire MQTT Client
-//   snprintf(cmd, sizeof(cmd), "AT+CMQTTACCQ=0,\"haq-trk-001\"\r\n");
-//   if (bsp_sim_send_and_wait_response(cmd, "OK", 3000) == false)
-//   {
-//     LOG_ERR("Failed to acquire MQTT client: %s", sim_rx_buffer);
-//     return STATUS_ERROR;
-//   }
-
-//   // 3. Connect to Broker
-//   snprintf(cmd, sizeof(cmd), "AT+CMQTTCONNECT=0,\"tcp://%s:%d\",60,1\r\n", MQTT_BROKER_HOST, MQTT_BROKER_PORT);
-//   if (bsp_sim_send_and_wait_response(cmd, "+CMQTTCONNECT: 0,0", 15000) == false)
-//   {
-//     LOG_ERR("Failed to connect MQTT broker: %s", sim_rx_buffer);
-//     return STATUS_ERROR;
-//   }
-
-//   return STATUS_OK;
-// }
-
-// status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
-// {
-//   if (msg == NULL || msg->topic == NULL || msg->payload == NULL)
-//   {
-//     return STATUS_ERROR;
-//   }
-
-//   char   cmd[256];
-//   size_t topic_len   = strlen(msg->topic);
-//   size_t payload_len = strlen(msg->payload);
-
-//   // Step 1: Set Topic
-//   snprintf(cmd, sizeof(cmd), "AT+CMQTTTOPIC=0,%d\r\n", topic_len);
-//   if (bsp_sim_send_and_wait_response(cmd, ">", 2000) == false)
-//   {
-//     LOG_ERR("Failed to set MQTT topic: %s", sim_rx_buffer);
-//     return STATUS_ERROR;
-//   }
-//   if (bsp_sim_send_and_wait_response(msg->topic, "OK", 2000) == false)
-//   {
-//     LOG_ERR("Failed to send MQTT topic: %s", sim_rx_buffer);
-//     return STATUS_ERROR;
-//   }
-
-//   // Step 2: Set Payload
-//   snprintf(cmd, sizeof(cmd), "AT+CMQTTPAYLOAD=0,%d\r\n", payload_len);
-//   if (bsp_sim_send_and_wait_response(cmd, ">", 2000) == false)
-//   {
-//     LOG_ERR("Failed to set MQTT payload: %s", sim_rx_buffer);
-//     return STATUS_ERROR;
-//   }
-//   if (bsp_sim_send_and_wait_response(msg->payload, "OK", 2000) == false)
-//   {
-//     LOG_ERR("Failed to send MQTT payload: %s", sim_rx_buffer);
-//     return STATUS_ERROR;
-//   }
-
-//   // Step 3: Publish
-//   snprintf(cmd, sizeof(cmd), "AT+CMQTTPUB=0,1,60\r\n");
-//   if (bsp_sim_send_and_wait_response(cmd, "+CMQTTPUB: 0,0", 10000) == false)
-//   {
-//     LOG_ERR("Failed to publish MQTT message: %s", sim_rx_buffer);
-//     return STATUS_ERROR;
-//   }
-
-//   return STATUS_OK;
-// }
-
-// status_function_t bsp_sim_mqtt_sub(const char *topic, bsp_sim_mqtt_callback_t cb)
-// {
-//   if (topic == NULL)
-//     return STATUS_ERROR;
-
-//   // store callback
-//   sim_mqtt_cb = cb;
-
-//   char   cmd[192];
-//   size_t topic_len = strlen(topic);
-
-//   // Step 1: Set Topic
-//   snprintf(cmd, sizeof(cmd), "AT+CMQTTTOPIC=0,%d\r\n", topic_len);
-//   if (bsp_sim_send_and_wait_response(cmd, ">", 2000) == false)
-//   {
-//     return STATUS_ERROR;
-//   }
-//   if (bsp_sim_send_and_wait_response(topic, "OK", 2000) == false)
-//   {
-//     return STATUS_ERROR;
-//   }
-
-//   // Step 2: Subscribe
-//   snprintf(cmd, sizeof(cmd), "AT+CMQTTSUB=0,%d,1\r\n", topic_len);
-//   if (bsp_sim_send_and_wait_response(cmd, "+CMQTTSUB: 0,0", 5000) == false)
-//   {
-//     return STATUS_ERROR;
-//   }
-
-//   return STATUS_OK;
-// }
-
-// status_function_t bsp_sim_mqtt_get(uint8_t *out_buf, uint16_t *out_size)
-// {
-//   if (out_buf == NULL || out_size == NULL)
-//     return STATUS_ERROR;
-
-//   if (sim_mqtt_buf_len == 0)
-//   {
-//     *out_size = 0;
-//     return STATUS_OK;
-//   }
-
-//   memcpy(out_buf, sim_mqtt_buf, sim_mqtt_buf_len);
-//   *out_size = sim_mqtt_buf_len;
-//   // clear after read
-//   sim_mqtt_buf_len = 0;
-
-//   return STATUS_OK;
-// }
-
-// status_function_t bsp_sim_mqtt_deinit(void)
-// {
-//   // Disconnect from broker
-//   if (bsp_sim_send_and_wait_response(MQTT_CMD_DISCONNECT, "OK", 10000) == false)
-//   {
-//     LOG_ERR("Failed to disconnect MQTT client: %s", sim_rx_buffer);
-//     // Continue anyway
-//   }
-
-//   // Release client
-//   if (bsp_sim_send_and_wait_response(MQTT_CMD_RELEASE_CLIENT, "OK", 3000) == false)
-//   {
-//     LOG_ERR("Failed to release MQTT client: %s", sim_rx_buffer);
-//     // Continue anyway
-//   }
-
-//   // Stop MQTT service
-//   if (bsp_sim_send_and_wait_response(MQTT_CMD_STOP_SERVICE, "OK", 5000) == false)
-//   {
-//     LOG_ERR("Failed to stop MQTT service: %s", sim_rx_buffer);
-//     return STATUS_ERROR;
-//   }
-
-//   return STATUS_OK;
-// }
-/**
- * @file    bsp_sim_mqtt_fixed.c
- * @brief   MQTT over SIM module — fixed version
- *
- * Các thay đổi so với bản gốc:
- *  1. [BUG]  bsp_sim_mqtt_sub  — sửa cú pháp AT+CMQTTSUB (bỏ tham số topic_len thừa)
- *  2. [BUG]  bsp_sim_mqtt_get  — thêm kiểm tra giới hạn buffer đầu ra trước memcpy
- *  3. [BUG]  bsp_sim_mqtt_init — client ID động (dùng device_id từ BSP)
- *  4. [WARN] bsp_sim_mqtt_pub  — thêm kiểm tra kích thước payload/topic
- *  5. [WARN] bsp_sim_mqtt_sub  — bảo vệ ghi callback bằng critical section
- *  6. [WARN] bsp_sim_mqtt_deinit — xử lý trạng thái nhất quán hơn sau lỗi
- *  7. [IMPROVE] thêm MAX constants để dễ tuỳ chỉnh
- */
-
-#include <stdio.h>
-#include <string.h>
-
-/* -------------------------------------------------------------------------- */
-/*  Constants                                                                  */
-/* -------------------------------------------------------------------------- */
-
-#define MQTT_MAX_TOPIC_LEN   128u
-#define MQTT_MAX_PAYLOAD_LEN 1024u
-#define MQTT_CLIENT_ID_LEN   32u
 
 /* -------------------------------------------------------------------------- */
 /*  Internal helpers                                                            */
@@ -588,10 +437,6 @@ static void build_client_id(char *buf, size_t buf_size)
     snprintf(buf, buf_size, "haq-trk-%.16s", dev_id);
   }
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Public API                                                                  */
-/* -------------------------------------------------------------------------- */
 
 status_function_t bsp_sim_mqtt_init(void)
 {
@@ -688,11 +533,12 @@ status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
 }
 
 /* -------------------------------------------------------------------------- */
-
 status_function_t bsp_sim_mqtt_sub(const char *topic, bsp_sim_mqtt_callback_t cb)
 {
   if (topic == NULL)
+  {
     return STATUS_ERROR;
+  }
 
   char   cmd[192];
   size_t topic_len = strlen(topic);
@@ -703,34 +549,55 @@ status_function_t bsp_sim_mqtt_sub(const char *topic, bsp_sim_mqtt_callback_t cb
     return STATUS_ERROR;
   }
 
-  /* Step 1: Set Topic */
+  // Step 1: Set topic length
   snprintf(cmd, sizeof(cmd), "AT+CMQTTTOPIC=0,%d\r\n", (int) topic_len);
   if (bsp_sim_send_and_wait_response(cmd, ">", 2000) == false)
   {
+    LOG_ERR("Failed to set MQTT topic for subscription: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
+
+  // Step 2: Send topic string
   if (bsp_sim_send_and_wait_response(topic, "OK", 2000) == false)
   {
+    LOG_ERR("Failed to send MQTT topic for subscription: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
-  /* Step 2: Subscribe
-   * FIX [BUG]: AT+CMQTTSUB không nhận tham số topic_len ở đây.
-   * Cú pháp đúng: AT+CMQTTSUB=<client_index>,<qos>
-   * Topic đã được set qua AT+CMQTTTOPIC ở bước trên.
-   */
+  // Step 3: Subscribe — wait for "+CMQTTSUB: 0," regardless of error code,
+  //         then parse the code manually
   snprintf(cmd, sizeof(cmd), "AT+CMQTTSUB=0,1\r\n");
-  if (bsp_sim_send_and_wait_response(cmd, "+CMQTTSUB: 0,0", 5000) == false)
+  if (bsp_sim_send_and_wait_response(cmd, "+CMQTTSUB: 0,", 5000) == false)
   {
+    LOG_ERR("No response to CMQTTSUB: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
-  /* FIX [WARN]: lưu callback sau khi subscribe thành công,
-   * dùng critical section để tránh race condition trong RTOS.
-   */
-  // BSP_ENTER_CRITICAL();
+  // Parse error code from "+CMQTTSUB: 0,<code>"
+  int err_code = -1;
+  if (sscanf((char *) sim_rx_buffer, "+CMQTTSUB: 0,%d", &err_code) != 1)
+  {
+    LOG_ERR("Failed to parse CMQTTSUB response: %s", sim_rx_buffer);
+    return STATUS_ERROR;
+  }
+
+  // 0  = subscribed successfully
+  // 18 = already subscribed from a previous session — acceptable
+  if (err_code == 0)
+  {
+    LOG_DBG("MQTT subscribed to topic: %s", topic);
+  }
+  else if (err_code == 18)
+  {
+    LOG_WRN("Topic already subscribed (code 18) — reusing existing subscription: %s", topic);
+  }
+  else
+  {
+    LOG_ERR("MQTT subscribe failed with code %d: %s", err_code, sim_rx_buffer);
+    return STATUS_ERROR;
+  }
+
   sim_mqtt_cb = cb;
-  // BSP_EXIT_CRITICAL();
 
   return STATUS_OK;
 }
@@ -791,7 +658,6 @@ status_function_t bsp_sim_mqtt_deinit(void)
     all_ok = false;
   }
 
-  /* Stop MQTT service — bắt buộc phải thành công để module trở về trạng thái sạch */
   if (bsp_sim_send_and_wait_response(MQTT_CMD_STOP_SERVICE, "OK", 5000) == false)
   {
     LOG_ERR("Failed to stop MQTT service: %s", sim_rx_buffer);
