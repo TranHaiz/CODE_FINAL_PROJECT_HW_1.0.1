@@ -47,19 +47,14 @@
 void bsp_display_init(void);
 
 /**
- * @brief Set backlight brightness percentage (0-100)
+ * @brief Set backlight brightness percent (0-100)
  */
 void bsp_display_set_brightness_percent(int percent);
 
 /**
- * @brief Get current brightness percentage
+ * @brief Get current brightness percent (0-100)
  */
 uint8_t bsp_display_get_brightness_percent(void);
-
-/**
- * @brief Show splash/download screen before LVGL is ready
- */
-void bsp_display_show_splash(void);
 
 /**
  * @brief Get TFT driver pointer for LVGL library

@@ -10,8 +10,8 @@
 #include <Arduino.h>
 #include <esp_heap_caps.h>
 
-/* Display buffer for LVGL - allocated from PSRAM */
 #define DISP_BUF_SIZE (LV_HOR_RES_MAX * 40)
+
 static lv_color_t *disp_buf1 = nullptr;
 static lv_color_t *disp_buf2 = nullptr;
 
@@ -66,7 +66,7 @@ void lvgl_input_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 /**
  * Initialize LVGL driver with full rendering support
  */
-void bsp_lvgl_init(lvgl_driver_t *ctx, TFT_eSPI *tft)
+void lvgl_driver_init(lvgl_driver_t *ctx, TFT_eSPI *tft)
 {
   if (ctx == nullptr || tft == nullptr)
   {
@@ -124,7 +124,7 @@ void bsp_lvgl_init(lvgl_driver_t *ctx, TFT_eSPI *tft)
 /**
  * Handle LVGL timer tasks (call in main loop)
  */
-void bsp_lvgl_task(lvgl_driver_t *ctx)
+void lvgl_driver_task(lvgl_driver_t *ctx)
 {
   if (ctx == nullptr)
   {
@@ -144,7 +144,7 @@ void bsp_lvgl_task(lvgl_driver_t *ctx)
 /**
  * Set custom touch callback
  */
-void bsp_lvgl_set_touch_callback(lvgl_driver_t *ctx, void (*read_cb)(lv_indev_t *, lv_indev_data_t *))
+void lvgl_driver_set_touch_callback(lvgl_driver_t *ctx, void (*read_cb)(lv_indev_t *, lv_indev_data_t *))
 {
   if (ctx != nullptr)
   {
@@ -155,7 +155,7 @@ void bsp_lvgl_set_touch_callback(lvgl_driver_t *ctx, void (*read_cb)(lv_indev_t 
 /**
  * Get the active display from driver
  */
-lv_display_t *bsp_lvgl_get_display(lvgl_driver_t *ctx)
+lv_display_t *lvgl_driver_get_display(lvgl_driver_t *ctx)
 {
   if (ctx != nullptr)
   {

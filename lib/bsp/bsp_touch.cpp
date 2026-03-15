@@ -81,9 +81,9 @@ bool bsp_touch_read(bsp_touch_point_t *point)
   point->y       = 0;
   return false;
 #else
-  uint16_t rawX = 0;
-  uint16_t rawY = 0;
-  bool     hit  = s_touch_ctx.tft->getTouch(&rawX, &rawY);
+  uint16_t raw_x = 0;
+  uint16_t raw_y = 0;
+  bool     hit  = s_touch_ctx.tft->getTouch(&raw_x, &raw_y);
 
   point->touched = hit;
   if (!hit)
@@ -96,11 +96,11 @@ bool bsp_touch_read(bsp_touch_point_t *point)
   uint16_t width  = s_touch_ctx.tft->width();
   uint16_t height = s_touch_ctx.tft->height();
 
-  uint16_t invX = (width > 0) ? static_cast<uint16_t>((width - 1) - rawX) : rawX;
-  uint16_t invY = (height > 0) ? static_cast<uint16_t>((height - 1) - rawY) : rawY;
+  uint16_t inv_x = (width > 0) ? static_cast<uint16_t>((width - 1) - raw_x) : raw_x;
+  uint16_t inv_y = (height > 0) ? static_cast<uint16_t>((height - 1) - raw_y) : raw_y;
 
-  point->x = s_touch_ctx.invert_x ? invX : rawX;
-  point->y = s_touch_ctx.invert_y ? invY : rawY;
+  point->x = s_touch_ctx.invert_x ? inv_x : raw_x;
+  point->y = s_touch_ctx.invert_y ? inv_y : raw_y;
 
   return true;
 #endif

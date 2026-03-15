@@ -78,8 +78,8 @@ void sys_ui_simple_init(void)
 
   // Initialize LVGL driver
   ui_ctx.lvgl.user_data = &ui_ctx;
-  bsp_lvgl_init(&ui_ctx.lvgl, bsp_display_get_driver());
-  bsp_lvgl_set_touch_callback(&ui_ctx.lvgl, sys_ui_lvgl_touch_read_cb);
+  lvgl_driver_init(&ui_ctx.lvgl, bsp_display_get_driver());
+  lvgl_driver_set_touch_callback(&ui_ctx.lvgl, sys_ui_lvgl_touch_read_cb);
 
   /* Set brightness */
   bsp_display_set_brightness_percent(SCREEN_BRIGHTLESS);
@@ -96,7 +96,7 @@ void sys_ui_simple_init(void)
 }
 void sys_ui_simple_process(void)
 {
-  bsp_lvgl_task(&ui_ctx.lvgl);
+  lvgl_driver_task(&ui_ctx.lvgl);
   if (is_ui_data_ready)
   {
     is_ui_data_ready = false;

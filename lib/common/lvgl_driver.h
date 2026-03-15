@@ -18,15 +18,15 @@ typedef struct
 } lvgl_driver_t;
 
 /* Initialize LVGL with TFT_eSPI driver */
-void bsp_lvgl_init(lvgl_driver_t *ctx, TFT_eSPI *tft);
+void lvgl_driver_init(lvgl_driver_t *ctx, TFT_eSPI *tft);
 
 /* Handle timer-based refresh */
-void bsp_lvgl_task(lvgl_driver_t *ctx);
+void lvgl_driver_task(lvgl_driver_t *ctx);
 
 /* Set touch input callback */
-void bsp_lvgl_set_touch_callback(lvgl_driver_t *ctx, void (*read_cb)(lv_indev_t *, lv_indev_data_t *));
+void lvgl_driver_set_touch_callback(lvgl_driver_t *ctx, void (*read_cb)(lv_indev_t *, lv_indev_data_t *));
 
 /* Get the active display */
-lv_display_t *bsp_lvgl_get_display(lvgl_driver_t *ctx);
+lv_display_t *lvgl_driver_get_display(lvgl_driver_t *ctx);
 
 #endif /* _LVGL_DRIVER_H_ */

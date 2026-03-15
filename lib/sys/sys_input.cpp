@@ -248,7 +248,7 @@ status_function_t sys_input_process(void)
   // sys_input_fuse_velocity_gps_ins();
 
   // Update distance — only when INS is calibrated and velocity is meaningful
-  if (input_ctx.is_offset_mag_ready && input_ctx.data.velocity_ms > 0.01f && dt > 0.0f)
+  if (input_ctx.is_offset_mag_ready && dt > 0.0f)
   {
     input_ctx.data.distance_m += input_ctx.data.velocity_ms * dt;
   }
