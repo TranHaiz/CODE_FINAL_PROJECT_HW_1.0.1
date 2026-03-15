@@ -133,6 +133,15 @@ status_function_t bsp_sdcard_delete(const char *path);
 status_function_t bsp_sdcard_rename(const char *old_path, const char *new_path);
 
 /**
+ * @brief Create a directory
+ *
+ * @param[in] path Directory path
+ *
+ * @return status_function_t Status of operation
+ */
+status_function_t bsp_sdcard_mkdir(const char *path);
+
+/**
  * @brief Deinitialize SD card
  *
  * @return status_function_t Status of operation

@@ -37,7 +37,6 @@ status_function_t bsp_rtc_init(void)
 {
   Wire.begin(RTC_I2C_SDA_PIN, RTC_I2C_SCL_PIN);
 
-  // 2. Kiểm tra kết nối RTC
   if (!rtc_handler.rtc.begin())
   {
     LOG_ERR("Failed to initialize RTC");

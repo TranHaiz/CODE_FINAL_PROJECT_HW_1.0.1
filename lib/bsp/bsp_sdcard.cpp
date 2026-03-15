@@ -18,7 +18,7 @@
 
 #include <Arduino.h>
 
-LOG_MODULE_REGISTER(bsp_sdcard, LOG_LEVEL_INFO);
+LOG_MODULE_REGISTER(bsp_sdcard, LOG_LEVEL_DBG);
 
 /* Private defines ---------------------------------------------------- */
 #define SDCARD_MOUNT_RETRIES (3)
@@ -212,6 +212,22 @@ status_function_t bsp_sdcard_rename(const char *old_path, const char *new_path)
   }
 
   Serial.printf("[SDCARD] ERROR: Failed to rename: %s -> %s\n", old_path, new_path);
+  return STATUS_ERROR;
+}
+
+status_function_t bsp_sdcard_mkdir(const char *path)
+{
+  if (path == nullptr || !is_sdcard_mounted)
+  {
+    return STATUS_ERROR;
+  }
+
+  if (SD.mkdir(path))
+  {
+    return STATUS_OK;
+  }
+
+  Serial.printf("[SDCARD] ERROR: Failed to create directory: %s\n", path);
   return STATUS_ERROR;
 }
 

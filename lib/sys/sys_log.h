@@ -42,6 +42,8 @@ void sys_log_init(void);
  */
 void sys_log_process(void);
 
+void sys_log_deinit(void);
+
 #endif /*End file _SYS_LOG_H_*/
 #endif /* LOG_SDCARD_ENABLE */
 

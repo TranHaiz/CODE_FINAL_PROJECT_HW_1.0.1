@@ -22,7 +22,7 @@
 /* Public defines ----------------------------------------------------- */
 #define LOG_ENABLE        (1)
 #define LOG_USB_ENABLE    (1)
-#define LOG_SDCARD_ENABLE (0)
+#define LOG_SDCARD_ENABLE (1)
 
 /**
  * @brief Serial baudrate

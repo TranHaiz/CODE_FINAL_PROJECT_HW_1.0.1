@@ -53,7 +53,7 @@ void cb_init(cbuffer_t *cb, void *buf, uint32_t size)
     return;
   }
 
-  cb->data     = buf;  // Assign pointer buf to be uint32_t type
+  cb->data     = (uint8_t *) buf;
   cb->size     = size;
   cb->writer   = 0;
   cb->reader   = 0;

@@ -20,8 +20,17 @@
 #include <string.h>
 
 /* Private defines ---------------------------------------------------- */
+#define SYS_LOG_MKDIR_RETRIES (3)
+#define SYS_LOG_DEBUG_MODE    (0)
+
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
+#if SYS_LOG_DEBUG_MODE
+#define DEBUG_LOG(msg)        Serial.println(msg)
+#else
+#define DEBUG_LOG(msg)
+#endif
+
 /* Public variables --------------------------------------------------- */
 /* Private variables -------------------------------------------------- */
 #if LOG_SDCARD_ENABLE
@@ -43,6 +52,23 @@ void sys_log_init(void)
   cb_clear(&cbuff_ram_log);
   last_flush_tick = OS_GET_TICK();
 
+  if (bsp_sdcard_is_mounted() == STATUS_OK)
+  {
+    for (int i = 0; i < SYS_LOG_MKDIR_RETRIES; i++)
+    {
+      if (bsp_sdcard_mkdir("/logs") == STATUS_OK)
+      {
+        DEBUG_LOG("SD card log directory initialized");
+        break;
+      }
+      else
+      {
+        DEBUG_LOG("Failed to create log directory on SD card, retrying...");
+        OS_DELAY_MS(100);
+      }
+    }
+  }
+
   // Register handler with log_service
   log_service_register_handler(sys_log_buffer_write);
 }
@@ -51,6 +77,7 @@ void sys_log_process(void)
 {
   if (bsp_sdcard_is_mounted() != STATUS_OK)
   {
+    DEBUG_LOG("SD card not mounted, skipping log flush");
     return;
   }
 
@@ -70,6 +97,7 @@ void sys_log_process(void)
 
   if (should_flush)
   {
+    DEBUG_LOG("Flushing logs to SD card...");
     sys_log_flush();
   }
 }
@@ -79,6 +107,15 @@ uint8_t sys_log_get_buffer_usage(void)
   return (uint8_t) ((cb_data_count(&cbuff_ram_log) * 100) / SYS_LOG_BUFFER_SIZE);
 }
 
+void sys_log_deinit(void)
+{
+  // Flush remaining logs
+  sys_log_flush();
+
+  // Unregister handler
+  log_service_register_handler(nullptr);
+}
+
 /* Private definitions ----------------------------------------------- */
 
 static status_function_t sys_log_flush(void)
@@ -86,6 +123,7 @@ static status_function_t sys_log_flush(void)
   size_t data_len = cb_data_count(&cbuff_ram_log);
   if (data_len == 0 || bsp_sdcard_is_mounted() != STATUS_OK)
   {
+    DEBUG_LOG("No data to flush or SD card not mounted");
     return STATUS_ERROR;
   }
 
@@ -93,6 +131,7 @@ static status_function_t sys_log_flush(void)
   char *flush_buf = (char *) malloc(data_len + 1);
   if (flush_buf == nullptr)
   {
+    DEBUG_LOG("Failed to allocate flush buffer");
     return STATUS_ERROR;
   }
 
@@ -105,6 +144,7 @@ static status_function_t sys_log_flush(void)
   status_function_t ret = bsp_sdcard_open(SYS_LOG_FILE_PATH, BSP_SDCARD_MODE_APPEND, &log_file);
   if (ret == STATUS_OK)
   {
+    DEBUG_LOG("Flushing logs to SD card...");
     bsp_sdcard_write(&log_file, (const uint8_t *) flush_buf, read_len, nullptr);
     bsp_sdcard_close(&log_file);
   }

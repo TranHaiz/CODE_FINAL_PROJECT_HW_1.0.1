@@ -17,7 +17,9 @@
 #include "device_info.h"
 #include "log_service.h"
 #include "os_lib.h"
+#include "bsp_sdcard.h"
 #include "sys_input.h"
+#include "sys_log.h"
 #include "sys_network.h"
 #include "sys_ui_simple.h"
 
@@ -34,11 +36,13 @@ sys_input_data_t  g_input_data;
 OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 2, 4096);
 OS_THREAD_DECLARE(sys_network_thread, tskIDLE_PRIORITY + 3, 8192);
 OS_THREAD_DECLARE(sys_ui_thread, tskIDLE_PRIORITY + 2, 16384);
+OS_THREAD_DECLARE(sys_log_thread, tskIDLE_PRIORITY + 4, 4096);
 
 /* Private function prototypes ---------------------------------------- */
 void sys_input_thread_func(void *param);
 void sys_network_thread_func(void *param);
 void sys_ui_thread_func(void *param);
+void sys_log_thread_func(void *param);
 
 /* Function definitions ----------------------------------------------- */
 
@@ -48,14 +52,16 @@ void setup()
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
+  bsp_sdcard_init();
   OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
   OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
   OS_THREAD_CREATE(sys_ui_thread, sys_ui_thread_func);
+  OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
 }
 
 void loop()
 {
-  // Main loop can be used for other tasks or left empty
+  LOG_INF("Main loop running...");
   OS_DELAY_MS(1000);
 }
 
@@ -108,6 +114,17 @@ void sys_ui_thread_func(void *param)
   {
     sys_ui_simple_process();
     OS_DELAY_MS(10);
+  }
+}
+
+void sys_log_thread_func(void *param)
+{
+  sys_log_init();
+
+  while (true)
+  {
+    sys_log_process();
+    OS_DELAY_MS(200);
   }
 }
 
