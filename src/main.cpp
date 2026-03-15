@@ -29,8 +29,6 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
 /* Public variables --------------------------------------------------- */
 /* Private variables -------------------------------------------------- */
 status_function_t g_ret = STATUS_ERROR;
-char              g_buffer[256];
-uint16_t          g_data_len = 0;
 sys_input_data_t  g_input_data;
 
 OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 2, 4096);
@@ -109,7 +107,7 @@ void sys_ui_thread_func(void *param)
   while (true)
   {
     sys_ui_simple_process();
-    OS_DELAY_MS(30);
+    OS_DELAY_MS(10);
   }
 }
 
