@@ -77,7 +77,6 @@ static bsp_acc_ctx_t acc_handler = {
 static float bsp_acc_calculate_magnitude(float x, float y, float z);
 
 /* Function definitions ----------------------------------------------- */
-
 status_function_t bsp_acc_init(void)
 {
   if (acc_handler.is_initialized)
@@ -85,11 +84,9 @@ status_function_t bsp_acc_init(void)
     return STATUS_OK;
   }
 
-  // Initialize I2C
   Wire.begin(ACC_I2C_SDA_PIN, ACC_I2C_SCL_PIN);
   OS_DELAY_MS(100);
 
-  // Create LSM6DS3 sensor object with primary address
   acc_handler.sensor = new LSM6DS3(I2C_MODE, ACC_I2C_ADDR);
   if (acc_handler.sensor == nullptr)
   {
@@ -97,18 +94,29 @@ status_function_t bsp_acc_init(void)
     return STATUS_ERROR;
   }
 
-  // Try to start sensor
+  acc_handler.sensor->settings.accelRange      = 2;
+  acc_handler.sensor->settings.accelSampleRate = 104;
+  acc_handler.sensor->settings.accelBandWidth  = 50;
+
   uint8_t result = acc_handler.sensor->begin();
 
-  // If failed, try alternate I2C address
   if (result != 0)
   {
     LOG_DBG("Failed with 0x%02X, trying 0x%02X...", ACC_I2C_ADDR, ACC_I2C_ADDR_ALT);
-
     delete acc_handler.sensor;
-    acc_handler.sensor = new LSM6DS3(I2C_MODE, ACC_I2C_ADDR_ALT);
 
-    if (acc_handler.sensor == nullptr || acc_handler.sensor->begin() != 0)
+    acc_handler.sensor = new LSM6DS3(I2C_MODE, ACC_I2C_ADDR_ALT);
+    if (acc_handler.sensor == nullptr)
+    {
+      LOG_ERR("Failed to create sensor object (alt addr)");
+      return STATUS_ERROR;
+    }
+
+    acc_handler.sensor->settings.accelRange      = 2;
+    acc_handler.sensor->settings.accelSampleRate = 104;
+    acc_handler.sensor->settings.accelBandWidth  = 50;
+
+    if (acc_handler.sensor->begin() != 0)
     {
       LOG_ERR("Failed to start sensor on both addresses");
       return STATUS_ERROR;
@@ -118,15 +126,12 @@ status_function_t bsp_acc_init(void)
   }
 
   memset(&acc_handler.raw_data, 0, sizeof(bsp_acc_raw_data_t));
-
   acc_handler.last_update_ms = OS_GET_TICK();
   acc_handler.is_initialized = true;
 
-  LOG_DBG("[ACC] Sensor initialized successfully");
-
+  LOG_INF("[ACC] Initialized: ±2g, 104Hz ODR, 50Hz BW");
   return STATUS_OK;
 }
-
 status_function_t bsp_acc_get_raw_data(bsp_acc_raw_data_t *data)
 {
   if (data == nullptr || !acc_handler.is_initialized || acc_handler.sensor == nullptr)

@@ -23,7 +23,7 @@
 LOG_MODULE_REGISTER(bsp_dust_sensor, LOG_LEVEL_ERROR);
 #define BSP_DUST_SENSOR_SAMPLES   (30)
 #define BSP_DUST_SENSOR_AVG_COUNT (90)
-#define BSP_DUST_SENSOR_BASELINE  (0.7f)
+#define BSP_DUST_SENSOR_BASELINE  (0.4f)
 #define BSP_DUST_SENSOR_CALIB     (1.0f)
 
 /* Private enumerate/structure ---------------------------------------- */

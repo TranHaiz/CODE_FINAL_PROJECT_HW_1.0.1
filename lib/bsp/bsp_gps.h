@@ -67,14 +67,14 @@ typedef enum
  */
 typedef enum
 {
-  BSP_GPS_DYN_PORTABLE = 0,  // Portable - general purpose
-  BSP_GPS_DYN_STATIONARY,    // Stationary - no movement expected
-  BSP_GPS_DYN_PEDESTRIAN,    // Pedestrian - walking dynamics
-  BSP_GPS_DYN_AUTOMOTIVE,    // Automotive - car dynamics
-  BSP_GPS_DYN_SEA,           // Sea - sea level, low dynamics
-  BSP_GPS_DYN_AIRBORNE_1G,   // Airborne <1g acceleration
-  BSP_GPS_DYN_AIRBORNE_2G,   // Airborne <2g acceleration
-  BSP_GPS_DYN_AIRBORNE_4G    // Airborne <4g acceleration
+  BSP_GPS_DYN_PORTABLE = 0,
+  BSP_GPS_DYN_STATIONARY,
+  BSP_GPS_DYN_PEDESTRIAN,
+  BSP_GPS_DYN_AUTOMOTIVE,
+  BSP_GPS_DYN_SEA,
+  BSP_GPS_DYN_AIRBORNE_1G,
+  BSP_GPS_DYN_AIRBORNE_2G,
+  BSP_GPS_DYN_AIRBORNE_4G
 } bsp_gps_dynamic_model_t;
 
 /**
@@ -82,13 +82,13 @@ typedef enum
  */
 typedef enum
 {
-  BSP_GPS_NMEA_GGA = 0x01,  // GGA - Fix data
-  BSP_GPS_NMEA_GLL = 0x02,  // GLL - Lat/Lon
-  BSP_GPS_NMEA_GSA = 0x04,  // GSA - DOP and active satellites
-  BSP_GPS_NMEA_GSV = 0x08,  // GSV - Satellites in view
-  BSP_GPS_NMEA_RMC = 0x10,  // RMC - Recommended minimum data
-  BSP_GPS_NMEA_VTG = 0x20,  // VTG - Track and ground speed
-  BSP_GPS_NMEA_ALL = 0x3F   /**< All NMEA messages */
+  BSP_GPS_NMEA_GGA = 0x01,
+  BSP_GPS_NMEA_GLL = 0x02,
+  BSP_GPS_NMEA_GSA = 0x04,
+  BSP_GPS_NMEA_GSV = 0x08,
+  BSP_GPS_NMEA_RMC = 0x10,
+  BSP_GPS_NMEA_VTG = 0x20,
+  BSP_GPS_NMEA_ALL = 0x3F
 } bsp_gps_nmea_msg_t;
 
 /* Public macros ------------------------------------------------------ */
@@ -113,110 +113,110 @@ status_function_t bsp_gps_deinit(void);
 
 /**
  * @brief Get latest GPS data
- * 
+ *
  * @param[in] data Pointer to GPS data structure to fill
- * 
+ *
  * @return STATUS_OK if valid data available, STATUS_ERROR otherwise
  */
 status_function_t bsp_gps_get_data(bsp_gps_data_t *data);
 
 /**
  * @brief Check if GPS has valid fix
- * 
+ *
  * @return true if GPS has valid location fix
  */
 bool bsp_gps_is_fixed(void);
 
 /**
  * @brief Get number of satellites in view
- * 
+ *
  * @return Number of satellites
  */
 size_t bsp_gps_get_satellites(void);
 
 /**
  * @brief Set GPS update rate
- * 
+ *
  * @param[in] rate New sample rate
- * 
+ *
  * @return Status function
  */
 status_function_t bsp_gps_set_new_sample_rate(bsp_gps_sample_rate_t rate);
 
 /**
  * @brief Set GPS power mode
- * 
+ *
  * @param[in] mode New power mode
- * 
- * @return Status function 
+ *
+ * @return Status function
  */
 status_function_t bsp_gps_set_power_mode(bsp_gps_power_mode_t mode);
 
 /**
  * @brief Set GPS dynamic model (platform type)
- * 
+ *
  * @param[in] model Dynamic model enum value
- * 
+ *
  * @return Status function
  */
 status_function_t bsp_gps_set_dynamic_model(bsp_gps_dynamic_model_t model);
 
 /**
  * @brief Configure NMEA message output
- * 
+ *
  * @param[in] msg_mask Bitmask of NMEA messages to enable (see bsp_gps_nmea_msg_t)
- * 
+ *
  * @return Status function
  */
 status_function_t bsp_gps_configure_nmea(uint8_t msg_mask);
 
 /**
  * @brief Set GPS baudrate
- * 
+ *
  * @param[in] baudrate New baudrate (9600, 19200, 38400, 57600, 115200)
- * 
+ *
  * @return Status function
  */
 status_function_t bsp_gps_set_baudrate(size_t baudrate);
 
 /**
  * @brief Reset GPS module to factory defaults
- * 
+ *
  * @return Status function
  */
 status_function_t bsp_gps_reset_default(void);
 
 /**
  * @brief Perform cold start (clear all data)
- * 
+ *
  * @return Status function
  */
 status_function_t bsp_gps_cold_start(void);
 
 /**
  * @brief Perform warm start (keep ephemeris)
- * 
+ *
  * @return Status function
  */
 status_function_t bsp_gps_warm_start(void);
 
 /**
  * @brief Perform hot start (keep all data)
- * 
+ *
  * @return Status function
  */
 status_function_t bsp_gps_hot_start(void);
 
 /**
  * @brief Save current configuration to GPS flash memory
- * 
+ *
  * @return Status function
  */
 status_function_t bsp_gps_save_config(void);
 
 /**
  * @brief Get TinyGPSPlus instance for advanced usage
- * 
+ *
  * @return Pointer to TinyGPSPlus instance
  */
 TinyGPSPlus *bsp_gps_get_instance(void);
