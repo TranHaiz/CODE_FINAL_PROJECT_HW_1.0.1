@@ -16,6 +16,8 @@
 #include "log_service.h"
 #include "os_lib.h"
 #include "sys_input.h"
+#include "sys_ui_simple.h"
+
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_INFO)
@@ -343,7 +345,18 @@ static void net_on_mqtt_message(const char *topic, const uint8_t *data, size_t l
 {
   LOG_INF("MQTT rx [%s]: %.*s", topic, (int) len, (const char *) data);
 
-  // TODO: parse command payload and push sys_cmd_t to g_q_cmd
+  if (strcmp((const char *) data, "LOCK") == 0)
+  {
+    sys_ui_simple_change_ui(SYS_UI_SIMPLE_VIEW_LOGIN);
+  }
+  else if (strcmp((const char *) data, "UNLOCK") == 0)
+  {
+    sys_ui_simple_change_ui(SYS_UI_SIMPLE_VIEW_MAIN);
+  }
+  else
+  {
+    // Do nothing
+  }
 }
 
 static void net_build_payload(const sys_input_data_t *data, char *buf, size_t buf_len)

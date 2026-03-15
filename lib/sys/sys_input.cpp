@@ -25,7 +25,7 @@
 #include <math.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_WARN)
+LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_INFO)
 // Acc parameters
 #define ACC_FILTER_ALPHA            (0.15f)
 #define ACC_THRESHOLD               (0.30f)
@@ -47,6 +47,8 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_WARN)
 #define KMH_TO_MS                   (1.0f / 3.6f)
 #define MS_TO_KMH                   (3.6f)
 #define US_TO_S                     (1000000.0f)
+
+#define SYS_INPUT_DUST_EMA_ALPHA    (0.2f)
 
 /* Private enumerate/structure ---------------------------------------- */
 
@@ -258,7 +260,6 @@ status_function_t sys_input_process(void)
   if ((current_time_ms - input_ctx.last_env_update_ms) >= SYS_INPUT_ENV_UPDATE_RATE_MS)
   {
     input_ctx.last_env_update_ms = current_time_ms;  // FIX: update timestamp to enforce rate limiting
-
     sys_input_read_dust_sensor();
     if (input_ctx.temp_hum_ready)
     {
@@ -498,9 +499,6 @@ static void sys_input_fuse_velocity_gps_ins(void)
   input_ctx.data.velocity_kmh = fused_velocity * MS_TO_KMH;
 }
 
-/**
- * @brief Read dust sensor data
- */
 static void sys_input_read_dust_sensor(void)
 {
   if (!input_ctx.dust_ready)
@@ -510,15 +508,19 @@ static void sys_input_read_dust_sensor(void)
   }
 
   bsp_dust_sensor_data_t dust_data;
-  if (bsp_dust_sensor_read(&dust_data) == STATUS_OK)
+  if (bsp_dust_sensor_read(&dust_data) != STATUS_OK)
   {
-    input_ctx.data.dust_value = (float) dust_data.dust_density;
+    return;
   }
+
+  float new_value = (float) dust_data.running_average;
+
+  // EMA: output = alpha * input + (1 - alpha) * previous
+  input_ctx.data.dust_value =
+    SYS_INPUT_DUST_EMA_ALPHA * new_value + (1.0f - SYS_INPUT_DUST_EMA_ALPHA) * input_ctx.data.dust_value;
+  LOG_INF("Dust: %f", input_ctx.data.dust_value);
 }
 
-/**
- * @brief Direction strings for compass
- */
 static const char *s_direction_strings[] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
 
 /**
@@ -616,8 +618,6 @@ static void sys_input_gps_callback(bsp_gps_data_t *data)
     return;
   }
 
-  // FIX: use the data pointer passed by BSP directly instead of calling
-  //      bsp_gps_get_data() again, which is redundant and risks a race condition.
   input_ctx.gps_data_buffer           = *data;
   input_ctx.is_new_gps_data_available = true;
   input_ctx.last_gps_ms               = millis();

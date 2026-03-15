@@ -22,7 +22,7 @@
 
 /* Public defines ----------------------------------------------------- */
 #define SYS_INPUT_UPDATE_RATE_MS     (10)
-#define SYS_INPUT_ENV_UPDATE_RATE_MS (5000)
+#define SYS_INPUT_ENV_UPDATE_RATE_MS (1000)
 
 /* Public enumerate/structure ----------------------------------------- */
 

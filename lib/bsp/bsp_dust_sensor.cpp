@@ -21,10 +21,10 @@
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(bsp_dust_sensor, LOG_LEVEL_ERROR);
-#define BSP_DUST_SENSOR_DEFAULT_SAMPLES   (20)
-#define BSP_DUST_SENSOR_DEFAULT_AVG_COUNT (60)
-#define BSP_DUST_SENSOR_DEFAULT_BASELINE  (0.4f)
-#define BSP_DUST_SENSOR_DEFAULT_CALIB     (1.0f)
+#define BSP_DUST_SENSOR_SAMPLES   (30)
+#define BSP_DUST_SENSOR_AVG_COUNT (90)
+#define BSP_DUST_SENSOR_BASELINE  (0.7f)
+#define BSP_DUST_SENSOR_CALIB     (1.0f)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
@@ -55,7 +55,7 @@ status_function_t bsp_dust_sensor_init(void)
   }
 
   dust_handler.sensor = new GP2YDustSensor(GP2YDustSensorType::GP2Y1010AU0F, DUST_SENSOR_LED_PIN, DUST_SENSOR_VO_PIN,
-                                           BSP_DUST_SENSOR_DEFAULT_AVG_COUNT);
+                                           BSP_DUST_SENSOR_AVG_COUNT);
 
   if (dust_handler.sensor == nullptr)
   {
@@ -63,14 +63,14 @@ status_function_t bsp_dust_sensor_init(void)
     return STATUS_ERROR;
   }
 
-  dust_handler.sensor->setBaseline(BSP_DUST_SENSOR_DEFAULT_BASELINE);
-  dust_handler.sensor->setCalibrationFactor(BSP_DUST_SENSOR_DEFAULT_CALIB);
+  dust_handler.sensor->setBaseline(BSP_DUST_SENSOR_BASELINE);
+  dust_handler.sensor->setCalibrationFactor(BSP_DUST_SENSOR_CALIB);
   dust_handler.sensor->begin();
 
   // Initialize data structure
   dust_handler.data.dust_density     = 0;
   dust_handler.data.running_average  = 0;
-  dust_handler.data.baseline_voltage = BSP_DUST_SENSOR_DEFAULT_BASELINE;
+  dust_handler.data.baseline_voltage = BSP_DUST_SENSOR_BASELINE;
   dust_handler.data.timestamp_ms     = 0;
 
   dust_handler.last_update_ms = OS_GET_TICK();
@@ -87,7 +87,7 @@ status_function_t bsp_dust_sensor_read(bsp_dust_sensor_data_t *data)
   }
 
   // Read dust density
-  uint16_t density  = dust_handler.sensor->getDustDensity(BSP_DUST_SENSOR_DEFAULT_SAMPLES);
+  uint16_t density  = dust_handler.sensor->getDustDensity(BSP_DUST_SENSOR_SAMPLES);
   uint16_t average  = dust_handler.sensor->getRunningAverage();
   float    baseline = dust_handler.sensor->getBaseline();
 

@@ -25,6 +25,12 @@
 
 /* Public defines ----------------------------------------------------- */
 /* Public enumerate/structure ----------------------------------------- */
+typedef enum
+{
+  SYS_UI_SIMPLE_VIEW_MAIN = 0,
+  SYS_UI_SIMPLE_VIEW_LOGIN,
+} sys_ui_simple_view_t;
+
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
 extern bool is_ui_data_ready;
@@ -32,6 +38,8 @@ extern bool is_ui_data_ready;
 /* Public function prototypes ----------------------------------------- */
 void sys_ui_simple_init(void);
 void sys_ui_simple_process(void);
+void sys_ui_simple_change_ui(sys_ui_simple_view_t view);
+sys_ui_simple_view_t sys_ui_simple_get_current_view(void);
 
 #endif /*End file _SYS_UI_SIMPLE_H_*/
 
