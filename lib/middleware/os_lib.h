@@ -55,11 +55,11 @@
 
 #define OS_SEM_DEFINE_GLOBAL(name)            \
   SemaphoreHandle_t name##_sem_handle = NULL; \
-  StaticSemaphore_t name##_sem_buffer
+  StaticSemaphore_t name##_sem_buffer;
 
 #define OS_SEM_DECLARE(name)                  \
   extern SemaphoreHandle_t name##_sem_handle; \
-  extern StaticSemaphore_t name##_sem_buffer
+  extern StaticSemaphore_t name##_sem_buffer;
 
 #define OS_SEM_CREATE(name)                                                 \
   do                                                                        \

@@ -35,19 +35,23 @@ static rtc_handler_t rtc_handler;
 /* Function definitions ------------------------------------------------------*/
 status_function_t bsp_rtc_init(void)
 {
-  Wire.begin(RTC_I2C_SDA_PIN, RTC_I2C_SCL_PIN);
+  Wire1.begin(RTC_I2C_SDA_PIN, RTC_I2C_SCL_PIN);
 
-  if (!rtc_handler.rtc.begin())
+  if (!rtc_handler.rtc.begin(&Wire1))
   {
     LOG_ERR("Failed to initialize RTC");
     return STATUS_ERROR;
   }
+
+  LOG_INF("RTC initialized");
+  return STATUS_OK;
 }
 
 status_function_t bsp_rtc_set(timeline_t *time)
 {
   DateTime dt(time->year, time->month, time->date, time->hour, time->minute, time->second);
   rtc_handler.rtc.adjust(dt);
+  return STATUS_OK;
 }
 
 status_function_t bsp_rtc_get(timeline_t *time)
@@ -60,6 +64,7 @@ status_function_t bsp_rtc_get(timeline_t *time)
   time->date   = now.day();
   time->month  = now.month();
   time->year   = now.year();
+  return STATUS_OK;
 }
 
 /* Private definitions ------------------------------------------------------ */

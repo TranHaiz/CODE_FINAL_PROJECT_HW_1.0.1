@@ -18,6 +18,7 @@
 #include "log_service.h"
 #include "os_lib.h"
 #include "bsp_sdcard.h"
+#include "bsp_rtc.h"
 #include "sys_input.h"
 #include "sys_log.h"
 #include "sys_network.h"
@@ -52,6 +53,7 @@ void setup()
   delay(1000);  // Wait for Serial to initialize
   Serial.println("START");
   delay(1000);  // Wait for Serial to initialize
+  bsp_rtc_init();
   bsp_sdcard_init();
   OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
   OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);

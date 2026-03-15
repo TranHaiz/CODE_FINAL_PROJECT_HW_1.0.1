@@ -13,11 +13,11 @@
 /* Includes ----------------------------------------------------------- */
 #include "log_service.h"
 
+#include "bsp_rtc.h"
 #include "bsp_sdcard.h"
 
 #include <stdio.h>
 #include <string.h>
-
 
 /* Private defines ---------------------------------------------------- */
 #define LOG_LINE_MAX_LEN (256)
@@ -92,12 +92,11 @@ void log_service_register_handler(log_handler_t handler)
 
 static void log_format_timestamp(char *buf, size_t len)
 {
-  // Impliment RTC timestamp after
-  size_t ms = millis();
-  size_t s  = (ms / 1000) % 60;
-  size_t m  = (ms / 60000) % 60;
-  size_t h  = (ms / 3600000) % 24;
-  snprintf(buf, len, "%02lu:%02lu:%02lu", h, m, s);
+  // Implement RTC timestamp
+  timeline_t current_time;
+  bsp_rtc_get(&current_time);
+  snprintf(buf, len, "%d/%d/%d][%02u:%02u:%02u]", current_time.date, current_time.month, current_time.year,
+           current_time.hour, current_time.minute, current_time.second);
 }
 
 /* End of file -------------------------------------------------------- */

@@ -61,8 +61,8 @@
 #define TEMP_HUM_I2C_CLOCK          (100000)
 
 // DS1307 RTC I2C configuration
-#define RTC_I2C_SDA_PIN             (4)
-#define RTC_I2C_SCL_PIN             (5)
+#define RTC_I2C_SDA_PIN             (40)
+#define RTC_I2C_SCL_PIN             (39)
 #define RTC_I2C_ADDR                (0x68)
 
 // SD Card SPI configuration
