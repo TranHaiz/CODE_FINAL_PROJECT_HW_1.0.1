@@ -45,6 +45,7 @@
 // LSM6DS3 Accelerometer I2C configuration
 #define ACC_I2C_SDA_PIN             (4)
 #define ACC_I2C_SCL_PIN             (5)
+#define ACC_INT_PIN                 (6)
 #define ACC_I2C_ADDR                (0x6B)
 #define ACC_I2C_ADDR_ALT            (0x6A)
 

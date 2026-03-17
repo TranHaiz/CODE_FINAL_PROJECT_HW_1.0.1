@@ -181,7 +181,7 @@ status_function_t bsp_acc_get_data(bsp_acc_data_t *data)
 status_function_t bsp_acc_config_interrupt(bsp_acc_int_pin_t pin, bsp_acc_int_source_t source)
 {
   const uint8_t int_ctrl_reg = (pin == BSP_ACC_INT_PIN_1) ? LSM6DS3_REG_INT1_CTRL : LSM6DS3_REG_INT2_CTRL;
-  const uint8_t md_cfg_reg   = (pin == BSP_ACC_INT_PIN_2) ? LSM6DS3_REG_MD1_CFG : LSM6DS3_REG_MD2_CFG;
+  const uint8_t md_cfg_reg   = (pin == BSP_ACC_INT_PIN_1) ? LSM6DS3_REG_MD1_CFG : LSM6DS3_REG_MD2_CFG;
   uint8_t       reg          = 0;
 
   if (!acc_handler.is_initialized || acc_handler.sensor == nullptr)
