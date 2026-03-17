@@ -20,7 +20,7 @@
 
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_INFO)
+LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_NONE)
 #define MQTT_CLIENT_ID           "haq-trk-001"
 #define MQTT_PUB_TOPIC           "haq-trk-001/data"
 #define MQTT_TOPIC_COMMAND       "haq-trk-001/cmd"

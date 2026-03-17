@@ -57,6 +57,8 @@ void sys_input_init(void);
  */
 status_function_t sys_input_process(void);
 
+status_function_t sys_input_enter_sleep_mode(void);
+
 /**
  * @brief Get current sensor input data
  *

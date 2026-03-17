@@ -30,6 +30,7 @@
 #include "bsp_compass.h"
 #include "bsp_dust_sensor.h"
 #include "bsp_gps.h"
+#include "bsp_io.h"
 #include "bsp_temp_hum.h"
 #include "log_service.h"
 
@@ -40,7 +41,7 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_INFO)
 
 // Select ONE mode only
 // #define DEMO_VEHICLE (1)
-#define DEMO_WALKING    (1)
+#define DEMO_WALKING                (1)
 
 // Acc parameters
 #define ACC_FILTER_ALPHA            (0.3f)
@@ -48,33 +49,33 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_INFO)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
 
 #if defined(DEMO_VEHICLE)
-  #define ZUPT_ACC_THRESHOLD     (0.03f)
-  #define ZUPT_TIME_THRESHOLD_MS (1000)
-  #define INS_DECAY_NORMAL       (0.9998f)  // Very slow decay while riding
-  #define INS_DECAY_STOPPING     (0.94f)    // Fast decay when stopped
-  #define INS_DECAY_GPS_LOST     (0.97f)    // Medium decay during GPS fade-out
-  #define GPS_SPEED_MIN_MS       (0.6f)     // 2.2 km/h
-  #define GPS_ANCHOR_RATE        (0.7f)     // Strong GPS anchor outdoors
+#define ZUPT_ACC_THRESHOLD     (0.03f)
+#define ZUPT_TIME_THRESHOLD_MS (1000)
+#define INS_DECAY_NORMAL       (0.9998f)  // Very slow decay while riding
+#define INS_DECAY_STOPPING     (0.94f)    // Fast decay when stopped
+#define INS_DECAY_GPS_LOST     (0.97f)    // Medium decay during GPS fade-out
+#define GPS_SPEED_MIN_MS       (0.6f)     // 2.2 km/h
+#define GPS_ANCHOR_RATE        (0.7f)     // Strong GPS anchor outdoors
 
 #elif defined(DEMO_WALKING)
-  #define ZUPT_ACC_THRESHOLD     (0.015f)
-  #define ZUPT_TIME_THRESHOLD_MS (1500)
-  #define INS_DECAY_NORMAL       (0.9995f)  // Slow decay while walking
-  #define INS_DECAY_STOPPING     (0.92f)    // Fast decay ~0.5s to zero
-  #define INS_DECAY_GPS_LOST     (0.96f)    // Medium decay when GPS fading out
-  #define GPS_SPEED_MIN_MS       (0.4f)     // 1.4 km/h
-  #define GPS_ANCHOR_RATE        (0.7f)     // Stronger anchor = more responsive
+#define ZUPT_ACC_THRESHOLD     (0.015f)
+#define ZUPT_TIME_THRESHOLD_MS (1500)
+#define INS_DECAY_NORMAL       (0.9995f)  // Slow decay while walking
+#define INS_DECAY_STOPPING     (0.92f)    // Fast decay ~0.5s to zero
+#define INS_DECAY_GPS_LOST     (0.96f)    // Medium decay when GPS fading out
+#define GPS_SPEED_MIN_MS       (0.4f)     // 1.4 km/h
+#define GPS_ANCHOR_RATE        (0.7f)     // Stronger anchor = more responsive
 
 #else
-  #error "Must define either DEMO_VEHICLE or DEMO_WALKING"
+#error "Must define either DEMO_VEHICLE or DEMO_WALKING"
 #endif
 
 #define GPS_HDOP_MAX             (3.0f)
 #define GPS_SATELLITES_MIN       (4)
-#define GPS_EMA_ALPHA            (0.6f)     // Higher = faster GPS response to speed changes
+#define GPS_EMA_ALPHA            (0.6f)  // Higher = faster GPS response to speed changes
 #define GPS_MAX_STEP_M           (50.0f)
-#define GPS_VALID_TIMEOUT_MS     (2000)     // Reduced: less stale GPS before fade-out
-#define GPS_FADE_TIMEOUT_MS      (1000)     // How long to fade INS after GPS lost
+#define GPS_VALID_TIMEOUT_MS     (2000)  // Reduced: less stale GPS before fade-out
+#define GPS_FADE_TIMEOUT_MS      (1000)  // How long to fade INS after GPS lost
 
 #define COMPASS_EMA_ALPHA        (0.15f)
 #define COMPASS_UPDATE_MS        (100)
@@ -109,7 +110,7 @@ typedef struct
   float          last_valid_lon;
   bool           has_last_gps_position;
   gps_state_t    gps_state;
-  size_t         gps_lost_ms;           // Timestamp when GPS became invalid
+  size_t         gps_lost_ms;  // Timestamp when GPS became invalid
 
   // INS
   size_t last_update_us;
@@ -161,12 +162,14 @@ static void              sys_input_read_compass(size_t current_ms);
 static const char       *sys_input_deg_to_direction_str(float deg);
 static void              sys_input_gps_callback(bsp_gps_data_t *data);
 static float             sys_input_haversine_m(float lat1, float lon1, float lat2, float lon2);
+static void              sys_input_trigger_io_event(void);
 
 /* Function definitions ----------------------------------------------- */
 
 void sys_input_init(void)
 {
-  if (input_ctx.initialized) return;
+  if (input_ctx.initialized)
+    return;
 
   LOG_DBG("Initializing system input...");
 
@@ -222,6 +225,9 @@ void sys_input_init(void)
     LOG_DBG("ACC OK");
   }
 
+  bsp_acc_config_interrupt(BSP_ACC_INT_PIN_1, BSP_ACC_INT_MOTION_DETECT);
+  bsp_io_int_init(ACC_INT_PIN, BSP_IO_EVENT_RISING, sys_input_trigger_io_event);
+
   LOG_DBG("Init GPS");
   if (bsp_gps_init(sys_input_gps_callback) == STATUS_OK)
   {
@@ -259,14 +265,14 @@ void sys_input_init(void)
 
 status_function_t sys_input_process(void)
 {
-  if (!input_ctx.initialized) return STATUS_ERROR;
+  if (!input_ctx.initialized)
+    return STATUS_ERROR;
 
   size_t current_time_us = micros();
   size_t current_time_ms = millis();
-  float  dt              = (input_ctx.last_update_us == 0)
-                             ? 0.02f
-                             : (current_time_us - input_ctx.last_update_us) / US_TO_S;
-  if (dt > 0.1f) dt = 0.1f;
+  float  dt = (input_ctx.last_update_us == 0) ? 0.02f : (current_time_us - input_ctx.last_update_us) / US_TO_S;
+  if (dt > 0.1f)
+    dt = 0.1f;
 
   // 1. GPS: update velocity + anchor INS + Haversine distance
   sys_input_update_gps_data();
@@ -286,13 +292,11 @@ status_function_t sys_input_process(void)
   // 5. Output
   sys_input_compute_output_velocity();
 
-  LOG_INF("V=%.3f GPS=%.3f INS=%.3f D=%.1f gps_state=%d stat=%d",
-          input_ctx.data.velocity_ms, input_ctx.velocity_gps, input_ctx.velocity_ins,
-          input_ctx.data.distance_m, input_ctx.gps_state, input_ctx.is_stationary);
+  LOG_INF("V=%.3f GPS=%.3f INS=%.3f D=%.1f gps_state=%d stat=%d", input_ctx.data.velocity_ms, input_ctx.velocity_gps,
+          input_ctx.velocity_ins, input_ctx.data.distance_m, input_ctx.gps_state, input_ctx.is_stationary);
 
   // 6. INS-only distance fallback when GPS unavailable
-  if (input_ctx.gps_state == GPS_STATE_INVALID
-      && input_ctx.is_offset_mag_ready && dt > 0.0f
+  if (input_ctx.gps_state == GPS_STATE_INVALID && input_ctx.is_offset_mag_ready && dt > 0.0f
       && input_ctx.data.velocity_ms > GPS_SPEED_MIN_MS)
   {
     input_ctx.data.distance_m += input_ctx.data.velocity_ms * dt;
@@ -325,16 +329,26 @@ status_function_t sys_input_process(void)
 
 status_function_t sys_input_get_data(sys_input_data_t *data)
 {
-  if (data == NULL || !input_ctx.initialized) return STATUS_ERROR;
+  if (data == NULL || !input_ctx.initialized)
+    return STATUS_ERROR;
   *data = input_ctx.data;
   return STATUS_OK;
+}
+
+status_function_t sys_input_enter_sleep_mode(void)
+{
+  status_function_t status = STATUS_OK;
+
+  status = bsp_acc_enable_interrupt(BSP_ACC_INT_PIN_1);
+  return status;
 }
 
 /* Private definitions ----------------------------------------------- */
 
 static status_function_t sys_input_calculate_offset_mag(void)
 {
-  if (!input_ctx.initialized) return STATUS_ERROR;
+  if (!input_ctx.initialized)
+    return STATUS_ERROR;
 
   float sum = 0.0f;
   for (uint16_t i = 0; i < ACC_OFFSET_MAGNITUDE_SAMPLE; i++)
@@ -373,17 +387,16 @@ static float sys_input_calculate_magnitude(float x, float y, float z)
 static void sys_input_update_ins_velocity(float dt)
 {
   bsp_acc_raw_data_t accel_data = { 0 };
-  if (bsp_acc_get_raw_data(&accel_data) != STATUS_OK) return;
+  if (bsp_acc_get_raw_data(&accel_data) != STATUS_OK)
+    return;
 
-  float mag       = sys_input_calculate_magnitude((float) accel_data.acc_x,
-                                                  (float) accel_data.acc_y,
-                                                  (float) accel_data.acc_z);
+  float mag =
+    sys_input_calculate_magnitude((float) accel_data.acc_x, (float) accel_data.acc_y, (float) accel_data.acc_z);
   float acc_clear = mag - input_ctx.offset_magnitude;
 
   input_ctx.acc_raw = acc_clear;  // Save raw for ZUPT
 
-  input_ctx.acc_filtered = ACC_FILTER_ALPHA * acc_clear
-                           + (1.0f - ACC_FILTER_ALPHA) * input_ctx.acc_filtered;
+  input_ctx.acc_filtered = ACC_FILTER_ALPHA * acc_clear + (1.0f - ACC_FILTER_ALPHA) * input_ctx.acc_filtered;
 
   float accel_ms2 = input_ctx.acc_filtered * GRAVITY_MS2;
 
@@ -397,21 +410,22 @@ static void sys_input_update_ins_velocity(float dt)
     float decay;
     if (input_ctx.is_stationary)
     {
-      decay = INS_DECAY_STOPPING;   // Fast: ~0.5s to near-zero
+      decay = INS_DECAY_STOPPING;  // Fast: ~0.5s to near-zero
     }
     else if (input_ctx.gps_state == GPS_STATE_FADING)
     {
-      decay = INS_DECAY_GPS_LOST;   // Medium: smooth drop during GPS fade-out
+      decay = INS_DECAY_GPS_LOST;  // Medium: smooth drop during GPS fade-out
     }
     else
     {
-      decay = INS_DECAY_NORMAL;     // Slow: preserve velocity while moving
+      decay = INS_DECAY_NORMAL;  // Slow: preserve velocity while moving
     }
 
     input_ctx.velocity_ins *= powf(decay, dt / 0.02f);
   }
 
-  if (input_ctx.velocity_ins < 0.0f) input_ctx.velocity_ins = 0.0f;
+  if (input_ctx.velocity_ins < 0.0f)
+    input_ctx.velocity_ins = 0.0f;
 }
 
 /**
@@ -446,9 +460,9 @@ static void sys_input_update_gps_data(void)
     return;
   }
 
-  float raw_speed  = input_ctx.gps_data_buffer.speed_kmph * KMH_TO_MS;
-  bool  quality_ok = (input_ctx.gps_data_buffer.hdop < GPS_HDOP_MAX)
-                     && (input_ctx.gps_data_buffer.satellites >= GPS_SATELLITES_MIN);
+  float raw_speed = input_ctx.gps_data_buffer.speed_kmph * KMH_TO_MS;
+  bool  quality_ok =
+    (input_ctx.gps_data_buffer.hdop < GPS_HDOP_MAX) && (input_ctx.gps_data_buffer.satellites >= GPS_SATELLITES_MIN);
 
   if (!quality_ok || raw_speed < GPS_SPEED_MIN_MS)
   {
@@ -459,13 +473,12 @@ static void sys_input_update_gps_data(void)
   else
   {
     // Moving with good GPS — EMA smooth + re-anchor INS
-    input_ctx.velocity_gps = GPS_EMA_ALPHA * raw_speed
-                             + (1.0f - GPS_EMA_ALPHA) * input_ctx.velocity_gps;
+    input_ctx.velocity_gps = GPS_EMA_ALPHA * raw_speed + (1.0f - GPS_EMA_ALPHA) * input_ctx.velocity_gps;
 
     // Re-anchor INS: GPS_ANCHOR_RATE=0.7 means INS is pulled 70% toward GPS each update
     // Higher value = more responsive to GPS changes, less INS drift accumulation
-    input_ctx.velocity_ins = (1.0f - GPS_ANCHOR_RATE) * input_ctx.velocity_ins
-                             + GPS_ANCHOR_RATE * input_ctx.velocity_gps;
+    input_ctx.velocity_ins =
+      (1.0f - GPS_ANCHOR_RATE) * input_ctx.velocity_ins + GPS_ANCHOR_RATE * input_ctx.velocity_gps;
   }
 
   input_ctx.last_gps_ms = millis();
@@ -510,48 +523,46 @@ static void sys_input_update_gps_data(void)
  */
 static void sys_input_update_gps_state(size_t current_ms)
 {
-  bool gps_recently_updated = (input_ctx.last_gps_ms > 0)
-                              && ((current_ms - input_ctx.last_gps_ms) < GPS_VALID_TIMEOUT_MS);
+  bool gps_recently_updated =
+    (input_ctx.last_gps_ms > 0) && ((current_ms - input_ctx.last_gps_ms) < GPS_VALID_TIMEOUT_MS);
 
   switch (input_ctx.gps_state)
   {
-    case GPS_STATE_INVALID:
-      if (gps_recently_updated && input_ctx.velocity_gps > 0.0f)
-      {
-        input_ctx.gps_state = GPS_STATE_ACTIVE;
-        LOG_DBG("GPS: INVALID → ACTIVE");
-      }
-      break;
+  case GPS_STATE_INVALID:
+    if (gps_recently_updated && input_ctx.velocity_gps > 0.0f)
+    {
+      input_ctx.gps_state = GPS_STATE_ACTIVE;
+      LOG_DBG("GPS: INVALID → ACTIVE");
+    }
+    break;
 
-    case GPS_STATE_ACTIVE:
-      if (!gps_recently_updated)
-      {
-        // GPS just lost — start fade-out instead of immediate drop
-        input_ctx.gps_state  = GPS_STATE_FADING;
-        input_ctx.gps_lost_ms = current_ms;
-        LOG_DBG("GPS: ACTIVE → FADING");
-      }
-      break;
+  case GPS_STATE_ACTIVE:
+    if (!gps_recently_updated)
+    {
+      // GPS just lost — start fade-out instead of immediate drop
+      input_ctx.gps_state   = GPS_STATE_FADING;
+      input_ctx.gps_lost_ms = current_ms;
+      LOG_DBG("GPS: ACTIVE → FADING");
+    }
+    break;
 
-    case GPS_STATE_FADING:
-      if (gps_recently_updated && input_ctx.velocity_gps > 0.0f)
-      {
-        // GPS recovered — go back to active
-        input_ctx.gps_state = GPS_STATE_ACTIVE;
-        LOG_DBG("GPS: FADING → ACTIVE");
-      }
-      else if ((current_ms - input_ctx.gps_lost_ms) >= GPS_FADE_TIMEOUT_MS)
-      {
-        // Fade complete — fully invalidate
-        input_ctx.gps_state    = GPS_STATE_INVALID;
-        input_ctx.velocity_gps = 0.0f;
-        LOG_DBG("GPS: FADING → INVALID");
-      }
-      break;
+  case GPS_STATE_FADING:
+    if (gps_recently_updated && input_ctx.velocity_gps > 0.0f)
+    {
+      // GPS recovered — go back to active
+      input_ctx.gps_state = GPS_STATE_ACTIVE;
+      LOG_DBG("GPS: FADING → ACTIVE");
+    }
+    else if ((current_ms - input_ctx.gps_lost_ms) >= GPS_FADE_TIMEOUT_MS)
+    {
+      // Fade complete — fully invalidate
+      input_ctx.gps_state    = GPS_STATE_INVALID;
+      input_ctx.velocity_gps = 0.0f;
+      LOG_DBG("GPS: FADING → INVALID");
+    }
+    break;
 
-    default:
-      input_ctx.gps_state = GPS_STATE_INVALID;
-      break;
+  default: input_ctx.gps_state = GPS_STATE_INVALID; break;
   }
 }
 
@@ -599,7 +610,8 @@ static void sys_input_detect_zupt(float accel_ms2, float dt)
 static void sys_input_compute_output_velocity(void)
 {
   float output = input_ctx.velocity_ins;
-  if (output < 0.0f) output = 0.0f;
+  if (output < 0.0f)
+    output = 0.0f;
 
   input_ctx.data.velocity_ms  = output;
   input_ctx.data.velocity_kmh = output * MS_TO_KMH;
@@ -614,11 +626,12 @@ static void sys_input_read_dust_sensor(void)
   }
 
   bsp_dust_sensor_data_t dust_data;
-  if (bsp_dust_sensor_read(&dust_data) != STATUS_OK) return;
+  if (bsp_dust_sensor_read(&dust_data) != STATUS_OK)
+    return;
 
-  float new_value           = (float) dust_data.running_average;
-  input_ctx.data.dust_value = SYS_INPUT_DUST_EMA_ALPHA * new_value
-                              + (1.0f - SYS_INPUT_DUST_EMA_ALPHA) * input_ctx.data.dust_value;
+  float new_value = (float) dust_data.running_average;
+  input_ctx.data.dust_value =
+    SYS_INPUT_DUST_EMA_ALPHA * new_value + (1.0f - SYS_INPUT_DUST_EMA_ALPHA) * input_ctx.data.dust_value;
   LOG_INF("Dust: %.2f", input_ctx.data.dust_value);
 }
 
@@ -627,21 +640,31 @@ static const char *s_direction_strings[] = { "N", "NE", "E", "SE", "S", "SW", "W
 static const char *sys_input_deg_to_direction_str(float deg)
 {
   uint8_t index;
-  if (deg < 22.5f || deg >= 337.5f)  index = 0;
-  else if (deg < 67.5f)               index = 1;
-  else if (deg < 112.5f)              index = 2;
-  else if (deg < 157.5f)              index = 3;
-  else if (deg < 202.5f)              index = 4;
-  else if (deg < 247.5f)              index = 5;
-  else if (deg < 292.5f)              index = 6;
-  else                                index = 7;
+  if (deg < 22.5f || deg >= 337.5f)
+    index = 0;
+  else if (deg < 67.5f)
+    index = 1;
+  else if (deg < 112.5f)
+    index = 2;
+  else if (deg < 157.5f)
+    index = 3;
+  else if (deg < 202.5f)
+    index = 4;
+  else if (deg < 247.5f)
+    index = 5;
+  else if (deg < 292.5f)
+    index = 6;
+  else
+    index = 7;
   return s_direction_strings[index];
 }
 
 static void sys_input_read_compass(size_t current_ms)
 {
-  if (!input_ctx.compass_ready) return;
-  if ((current_ms - input_ctx.compass_last_ms) < COMPASS_UPDATE_MS) return;
+  if (!input_ctx.compass_ready)
+    return;
+  if ((current_ms - input_ctx.compass_last_ms) < COMPASS_UPDATE_MS)
+    return;
   input_ctx.compass_last_ms = current_ms;
 
   bsp_compass_raw_data_t raw_data;
@@ -668,7 +691,8 @@ static void sys_input_read_compass(size_t current_ms)
 
   float heading_rad = atan2f(input_ctx.compass_ema_y, input_ctx.compass_ema_x);
   float heading_deg = heading_rad * 180.0f / (float) M_PI;
-  if (heading_deg < 0.0f) heading_deg += 360.0f;
+  if (heading_deg < 0.0f)
+    heading_deg += 360.0f;
 
   input_ctx.data.heading_deg   = heading_deg;
   input_ctx.data.direction_str = sys_input_deg_to_direction_str(heading_deg);
@@ -676,7 +700,8 @@ static void sys_input_read_compass(size_t current_ms)
 
 static void sys_input_gps_callback(bsp_gps_data_t *data)
 {
-  if (data == NULL) return;
+  if (data == NULL)
+    return;
   input_ctx.gps_data_buffer           = *data;
   input_ctx.is_new_gps_data_available = true;
   input_ctx.last_gps_ms               = millis();
@@ -687,11 +712,15 @@ static float sys_input_haversine_m(float lat1, float lon1, float lat2, float lon
   const float R    = 6371000.0f;
   float       dlat = (lat2 - lat1) * (float) M_PI / 180.0f;
   float       dlon = (lon2 - lon1) * (float) M_PI / 180.0f;
-  float       a    = sinf(dlat / 2.0f) * sinf(dlat / 2.0f)
-            + cosf(lat1 * (float) M_PI / 180.0f)
-            * cosf(lat2 * (float) M_PI / 180.0f)
-            * sinf(dlon / 2.0f) * sinf(dlon / 2.0f);
+  float       a =
+    sinf(dlat / 2.0f) * sinf(dlat / 2.0f)
+    + cosf(lat1 * (float) M_PI / 180.0f) * cosf(lat2 * (float) M_PI / 180.0f) * sinf(dlon / 2.0f) * sinf(dlon / 2.0f);
   return R * 2.0f * atan2f(sqrtf(a), sqrtf(1.0f - a));
+}
+
+static void sys_input_trigger_io_event(void)
+{
+  Serial.println("Triggering IO event");
 }
 
 /* End of file -------------------------------------------------------- */
