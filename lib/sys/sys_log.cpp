@@ -26,7 +26,7 @@
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 #if SYS_LOG_DEBUG_MODE
-#define DEBUG_LOG(msg)        Serial.println(msg)
+#define DEBUG_LOG(msg) Serial.println(msg)
 #else
 #define DEBUG_LOG(msg)
 #endif
@@ -170,6 +170,17 @@ static void sys_log_buffer_write(const char *data, size_t len)
 
   // Write to cbuffer (cbuffer handles overflow internally)
   cb_write(&cbuff_ram_log, (void *) data, len);
+}
+
+#else
+void sys_log_init(void)
+{
+  // No-op
+}
+
+void sys_log_process(void)
+{
+  // No-op
 }
 
 #endif

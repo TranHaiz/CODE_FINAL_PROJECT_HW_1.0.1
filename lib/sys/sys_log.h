@@ -18,7 +18,6 @@
 #include "common_type.h"
 #include "log_service.h"
 
-#if LOG_SDCARD_ENABLE
 /* Public defines ----------------------------------------------------- */
 #define SYS_LOG_BUFFER_SIZE       (4096)
 #define SYS_LOG_BUFFER_THRESHOLD  (80)  // Percent
@@ -45,6 +44,5 @@ void sys_log_process(void);
 void sys_log_deinit(void);
 
 #endif /*End file _SYS_LOG_H_*/
-#endif /* LOG_SDCARD_ENABLE */
 
 /* End of file -------------------------------------------------------- */

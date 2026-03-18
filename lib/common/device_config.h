@@ -17,20 +17,20 @@
 /* Public defines ----------------------------------------------------- */
 
 // IL9341 screen configuration
-#define SCREEN_MISO                 (12)
-#define SCREEN_MOSI                 (9)
-#define SCREEN_SCLK                 (10)
-#define SCREEN_CS                   (8)
-#define SCREEN_DC                   (46)
-#define SCREEN_RST                  (3)
-#define SCREEN_BL                   (11)
-#define SCREEN_TOUCH_CS             (13)
-#define SCREEN_TOUCH_IRQ            (14)
+#define SCREEN_MISO                 (3)
+#define SCREEN_MOSI                 (10)
+#define SCREEN_SCLK                 (9)
+#define SCREEN_CS                   (13)
+#define SCREEN_DC                   (11)
+#define SCREEN_RST                  (12)
+#define SCREEN_BL                   (46)
+#define SCREEN_TOUCH_CS             (8)
+#define SCREEN_TOUCH_IRQ            (18)
 
 // UART configuration
 #define SIM_UART_HANDLER            UART_NUM_2
-#define SIM_UART_TX                 (42)  // Connect to SIM RX
-#define SIM_UART_RX                 (41)  // Connect to SIM TX
+#define SIM_UART_TX                 (2)  // Connect to SIM RX
+#define SIM_UART_RX                 (42)  // Connect to SIM TX
 #define SIM_UART_BAUDRATE           (115200)
 
 #define GPS_UART_HANDLER            UART_NUM_1
@@ -39,8 +39,8 @@
 #define GPS_UART_BAUDRATE           (9600)
 
 // GP2Y1010AU0F Dust Sensor configuration
-#define DUST_SENSOR_LED_PIN         (2)
-#define DUST_SENSOR_VO_PIN          (1)
+#define DUST_SENSOR_LED_PIN         (7)
+#define DUST_SENSOR_AOOUT_PIN       (6)
 
 // LSM6DS3 Accelerometer I2C configuration
 #define ACC_I2C_SDA_PIN             (4)

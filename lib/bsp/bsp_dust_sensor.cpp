@@ -54,7 +54,7 @@ status_function_t bsp_dust_sensor_init(void)
     return STATUS_OK;
   }
 
-  dust_handler.sensor = new GP2YDustSensor(GP2YDustSensorType::GP2Y1010AU0F, DUST_SENSOR_LED_PIN, DUST_SENSOR_VO_PIN,
+  dust_handler.sensor = new GP2YDustSensor(GP2YDustSensorType::GP2Y1010AU0F, DUST_SENSOR_LED_PIN, DUST_SENSOR_AOOUT_PIN,
                                            BSP_DUST_SENSOR_AVG_COUNT);
 
   if (dust_handler.sensor == nullptr)

@@ -37,7 +37,7 @@
 #include <math.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_INFO)
+LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 
 // Select ONE mode only
 // #define DEMO_VEHICLE (1)
@@ -225,8 +225,8 @@ void sys_input_init(void)
     LOG_DBG("ACC OK");
   }
 
-  bsp_acc_config_interrupt(BSP_ACC_INT_PIN_1, BSP_ACC_INT_MOTION_DETECT);
-  bsp_io_int_init(ACC_INT_PIN, BSP_IO_EVENT_RISING, sys_input_trigger_io_event);
+  // bsp_acc_config_interrupt(BSP_ACC_INT_PIN_1, BSP_ACC_INT_MOTION_DETECT);
+  // bsp_io_int_init(ACC_INT_PIN, BSP_IO_EVENT_RISING, sys_input_trigger_io_event);
 
   LOG_DBG("Init GPS");
   if (bsp_gps_init(sys_input_gps_callback) == STATUS_OK)
@@ -292,8 +292,8 @@ status_function_t sys_input_process(void)
   // 5. Output
   sys_input_compute_output_velocity();
 
-  LOG_INF("V=%.3f GPS=%.3f INS=%.3f D=%.1f gps_state=%d stat=%d", input_ctx.data.velocity_ms, input_ctx.velocity_gps,
-          input_ctx.velocity_ins, input_ctx.data.distance_m, input_ctx.gps_state, input_ctx.is_stationary);
+  // LOG_INF("V=%.3f GPS=%.3f INS=%.3f D=%.1f gps_state=%d stat=%d", input_ctx.data.velocity_ms, input_ctx.velocity_gps,
+  //         input_ctx.velocity_ins, input_ctx.data.distance_m, input_ctx.gps_state, input_ctx.is_stationary);
 
   // 6. INS-only distance fallback when GPS unavailable
   if (input_ctx.gps_state == GPS_STATE_INVALID && input_ctx.is_offset_mag_ready && dt > 0.0f
@@ -632,7 +632,7 @@ static void sys_input_read_dust_sensor(void)
   float new_value = (float) dust_data.running_average;
   input_ctx.data.dust_value =
     SYS_INPUT_DUST_EMA_ALPHA * new_value + (1.0f - SYS_INPUT_DUST_EMA_ALPHA) * input_ctx.data.dust_value;
-  LOG_INF("Dust: %.2f", input_ctx.data.dust_value);
+  // LOG_INF("Dust: %.2f", input_ctx.data.dust_value);
 }
 
 static const char *s_direction_strings[] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
