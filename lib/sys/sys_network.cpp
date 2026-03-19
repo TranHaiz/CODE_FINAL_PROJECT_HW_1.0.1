@@ -13,11 +13,11 @@
 /* Includes ----------------------------------------------------------- */
 #include "sys_network.h"
 
+#include "bsp_rtc.h"
 #include "log_service.h"
 #include "os_lib.h"
 #include "sys_input.h"
 #include "sys_ui_simple.h"
-
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_NONE)
@@ -387,9 +387,14 @@ static bool sys_network_build_payload(sys_input_data_t *data)
     return false;
   }
 
+  timeline_t now;
+  memset(&now, 0, sizeof(now));
+   bsp_rtc_get(&now);
+
   int written =
     snprintf(mqtt_payload_buffer, MQTT_MESSAGE_MAX_LEN,
              "{"
+             "\"timestamp\":[%d/%d/%d-%d:%d:%d],"
              "\"velocity_ms\":%.2f,"
              "\"velocity_kmh\":%.2f,"
              "\"distance_m\":%.1f,"
@@ -399,9 +404,10 @@ static bool sys_network_build_payload(sys_input_data_t *data)
              "\"temp\":%.1f,"
              "\"hum\":%.1f"
              "}",
-             data->velocity_ms, data->velocity_kmh, data->distance_m, data->heading_deg,
-             (data->direction_str != NULL) ? data->direction_str : "?", data->gps_position.latitude,
-             data->gps_position.longitude, data->dust_value, data->temp_hum.temperature, data->temp_hum.humidity);
+             now.year, now.month, now.date, now.hour, now.minute, now.second, data->velocity_ms, data->velocity_kmh,
+             data->distance_m, data->heading_deg, (data->direction_str != NULL) ? data->direction_str : "?",
+             data->gps_position.latitude, data->gps_position.longitude, data->dust_value, data->temp_hum.temperature,
+             data->temp_hum.humidity);
 
   if (written < 0 || written >= (int) MQTT_MESSAGE_MAX_LEN)
   {

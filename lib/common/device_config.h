@@ -29,8 +29,8 @@
 
 // UART configuration
 #define SIM_UART_HANDLER            UART_NUM_2
-#define SIM_UART_TX                 (2)  // Connect to SIM RX
-#define SIM_UART_RX                 (42)  // Connect to SIM TX
+#define SIM_UART_TX                 (42)  // Connect to SIM RX
+#define SIM_UART_RX                 (2)  // Connect to SIM TX
 #define SIM_UART_BAUDRATE           (115200)
 
 #define GPS_UART_HANDLER            UART_NUM_1
