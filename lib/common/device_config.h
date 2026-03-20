@@ -17,20 +17,20 @@
 /* Public defines ----------------------------------------------------- */
 
 // IL9341 screen configuration
-#define SCREEN_MISO                 (3)
-#define SCREEN_MOSI                 (10)
-#define SCREEN_SCLK                 (9)
-#define SCREEN_CS                   (13)
-#define SCREEN_DC                   (11)
-#define SCREEN_RST                  (12)
+#define SCREEN_TOUCH_CS             (3)
+#define SCREEN_TOUCH_IRQ            (8)
+#define SCREEN_MISO                 (13)
 #define SCREEN_BL                   (46)
-#define SCREEN_TOUCH_CS             (8)
-#define SCREEN_TOUCH_IRQ            (18)
+#define SCREEN_SCLK                 (12)
+#define SCREEN_MOSI                 (11)
+#define SCREEN_DC                   (9)
+#define SCREEN_RST                  (10)
+#define SCREEN_CS                   (14)
 
 // UART configuration
 #define SIM_UART_HANDLER            UART_NUM_2
 #define SIM_UART_TX                 (42)  // Connect to SIM RX
-#define SIM_UART_RX                 (2)  // Connect to SIM TX
+#define SIM_UART_RX                 (2)   // Connect to SIM TX
 #define SIM_UART_BAUDRATE           (115200)
 
 #define GPS_UART_HANDLER            UART_NUM_1
@@ -65,6 +65,11 @@
 #define RTC_I2C_SDA_PIN             (40)
 #define RTC_I2C_SCL_PIN             (39)
 #define RTC_I2C_ADDR                (0x68)
+
+// Battery monitor (INA226) I2C configuration
+#define BATT_I2C_SDA_PIN            (40)
+#define BATT_I2C_SCL_PIN            (39)
+#define BATT_I2C_ADDR               (0x40)
 
 // SD Card SPI configuration
 #define BSP_SDCARD_DEFAULT_CS_PIN   (21)

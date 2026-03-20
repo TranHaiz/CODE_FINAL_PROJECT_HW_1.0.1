@@ -1,11 +1,13 @@
-bodmer/TFT_eSPI@^2.5.43
-adafruit/Adafruit BusIO@^1.16.1
 knolleary/PubSubClient @ ^2.8
+adafruit/Adafruit BusIO@^1.16.1
 mikalhart/TinyGPSPlus@^1.1.0
-adafruit/RTClib @ ^2.1.3
-luciansabo/Sharp GP2Y Dust Sensor@^1.1.0
 sparkfun/SparkFun LSM6DS3 Breakout@^1.0.3
-lvgl/lvgl@^9.1.0
-adafruit/Adafruit SHT31 Library @ ^2.2.2
+robtillaart/INA226@^0.6.6
+bodmer/TFT_eSPI@^2.5.43
+adafruit/RTClib @ ^2.1.3
 vshymanskyy/TinyGSM @ ^0.11.7
+adafruit/Adafruit INA219@^1.2.3
+adafruit/Adafruit SHT31 Library @ ^2.2.2
+luciansabo/Sharp GP2Y Dust Sensor@^1.1.0
 Wire
+lvgl/lvgl@^9.1.0
