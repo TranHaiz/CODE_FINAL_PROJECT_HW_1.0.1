@@ -20,7 +20,9 @@
 #include <string.h>
 
 /* Private defines ---------------------------------------------------- */
-#define LOG_LINE_MAX_LEN (256)
+#define LOG_LINE_MAX_LEN      (256)
+#define LOG_LEVEL_STR_MAX_LEN (8)
+#define LOG_TIMESTAMP_MAX_LEN (32)
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -54,8 +56,9 @@ void log_service_print(log_level_t level, const char *tag, const char *fmt, ...)
   }
 
   char line[LOG_LINE_MAX_LEN];
-  char msg[LOG_LINE_MAX_LEN - 40];  // 40 chars reserved for timestamp, level, tag
-  char timestamp[16];
+  char msg[LOG_LINE_MAX_LEN - LOG_TIMESTAMP_MAX_LEN - LOG_LEVEL_STR_MAX_LEN
+           - 4];  // 4 chars reserved for brackets and null terminator
+  char timestamp[LOG_TIMESTAMP_MAX_LEN];
 
   // Format timestamp
   log_format_timestamp(timestamp, sizeof(timestamp));
@@ -92,11 +95,16 @@ void log_service_register_handler(log_handler_t handler)
 
 static void log_format_timestamp(char *buf, size_t len)
 {
+#if LOG_TIMESTAMP_ENABLE
   // Implement RTC timestamp
   timeline_t current_time;
   bsp_rtc_get(&current_time);
-  snprintf(buf, len, "%d/%d/%d][%02u:%02u:%02u]", current_time.date, current_time.month, current_time.year,
-           current_time.hour, current_time.minute, current_time.second);
+  snprintf(buf, len, "%d/%d/%d][%d:%d:%d]", current_time.date, current_time.month, current_time.year, current_time.hour,
+           current_time.minute, current_time.second);
+#else
+  // Use millis() as timestamp
+  snprintf(buf, len, "%lu ms", millis());
+#endif
 }
 
 /* End of file -------------------------------------------------------- */

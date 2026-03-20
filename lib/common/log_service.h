@@ -20,14 +20,15 @@
 #include <stdarg.h>
 
 /* Public defines ----------------------------------------------------- */
-#define LOG_ENABLE        (1)
-#define LOG_USB_ENABLE    (1)
-#define LOG_SDCARD_ENABLE (1)
+#define LOG_ENABLE           (1)
+#define LOG_USB_ENABLE       (1)
+#define LOG_SDCARD_ENABLE    (1)
+#define LOG_TIMESTAMP_ENABLE (1)
 
 /**
  * @brief Serial baudrate
  */
-#define LOG_SERIAL_BAUD   (115200)
+#define LOG_SERIAL_BAUD      (115200)
 
 /* Public enumerate/structure ----------------------------------------- */
 /**
