@@ -27,10 +27,16 @@
 #endif
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_batt, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(bsp_batt, LOG_LEVEL_WARN);
+
+#ifdef BATT_MONITOR_INA226
 #define INA226_I2C_ADDR      (0x40)
 #define INA226_SHUNT_OHM     (0.100f)
 #define INA226_MAX_CURRENT_A (8.192f)
+#elif defined(BATT_MONITOR_INA219)
+// Nothing
+
+#endif
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -45,41 +51,17 @@ static Adafruit_INA219 ina219(BATT_I2C_ADDR);
 static bool is_initialized = false;
 
 /* Private function prototypes ---------------------------------------- */
-void bsp_i2c_scan(TwoWire *wire, const char *wire_name)
-{
-  LOG_INF("Scanning %s...", wire_name);
-  int found = 0;
-
-  for (uint8_t addr = 0x08; addr < 0x78; addr++)
-  {
-    wire->beginTransmission(addr);
-    uint8_t err = wire->endTransmission();
-
-    if (err == 0)
-    {
-      LOG_INF("Found device at 0x%02X", addr);
-      found++;
-    }
-  }
-
-  if (found == 0)
-    LOG_WRN("No I2C devices found on %s", wire_name);
-  else
-    LOG_INF("Scan done. %d device(s) found", found);
-}
-
 /* Function definitions ----------------------------------------------- */
-void bsp_batt_init(void)
+status_function_t bsp_batt_init(void)
 {
   Wire1.begin(BATT_I2C_SDA_PIN, BATT_I2C_SCL_PIN);
-  bsp_i2c_scan(&Wire1, "Wire1");
 
 #ifdef BATT_MONITOR_INA226
   if (!ina226.begin())
   {
     LOG_ERR("INA226 not found at 0x%02X on Wire1", BATT_I2C_ADDR);
     is_initialized = false;
-    return;
+    return STATUS_ERROR;
   }
 
   ina226.setMaxCurrentShunt(BATT_I2C_ADDR, BATT_I2C_ADDR);
@@ -88,13 +70,14 @@ void bsp_batt_init(void)
   {
     LOG_ERR("INA219 not found at 0x40 on Wire1");
     is_initialized = false;
-    return;
+    return STATUS_ERROR;
   }
   ina219.setCalibration_32V_2A();
   LOG_DBG("INA219 initialized");
 
 #endif
   is_initialized = true;
+  return STATUS_OK;
 }
 
 float bsp_batt_read_voltage_mv(void)

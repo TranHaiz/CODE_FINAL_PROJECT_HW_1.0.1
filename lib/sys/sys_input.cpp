@@ -27,12 +27,14 @@
 #include "sys_input.h"
 
 #include "bsp_acc.h"
+#include "bsp_batt.h"
 #include "bsp_compass.h"
 #include "bsp_dust_sensor.h"
 #include "bsp_gps.h"
 #include "bsp_io.h"
 #include "bsp_temp_hum.h"
 #include "log_service.h"
+#include "os_lib.h"
 
 #include <math.h>
 
@@ -70,22 +72,25 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 #error "Must define either DEMO_VEHICLE or DEMO_WALKING"
 #endif
 
-#define GPS_HDOP_MAX             (3.0f)
-#define GPS_SATELLITES_MIN       (4)
-#define GPS_EMA_ALPHA            (0.6f)  // Higher = faster GPS response to speed changes
-#define GPS_MAX_STEP_M           (50.0f)
-#define GPS_VALID_TIMEOUT_MS     (2000)  // Reduced: less stale GPS before fade-out
-#define GPS_FADE_TIMEOUT_MS      (1000)  // How long to fade INS after GPS lost
+#define GPS_HDOP_MAX                   (3.0f)
+#define GPS_SATELLITES_MIN             (4)
+#define GPS_EMA_ALPHA                  (0.6f)  // Higher = faster GPS response to speed changes
+#define GPS_MAX_STEP_M                 (50.0f)
+#define GPS_VALID_TIMEOUT_MS           (2000)  // Reduced: less stale GPS before fade-out
+#define GPS_FADE_TIMEOUT_MS            (1000)  // How long to fade INS after GPS lost
 
-#define COMPASS_EMA_ALPHA        (0.15f)
-#define COMPASS_UPDATE_MS        (100)
+#define COMPASS_EMA_ALPHA              (0.15f)
+#define COMPASS_UPDATE_MS              (100)
 
-#define GRAVITY_MS2              (9.806f)
-#define KMH_TO_MS                (1.0f / 3.6f)
-#define MS_TO_KMH                (3.6f)
-#define US_TO_S                  (1000000.0f)
+#define GRAVITY_MS2                    (9.806f)
+#define KMH_TO_MS                      (1.0f / 3.6f)
+#define MS_TO_KMH                      (3.6f)
+#define US_TO_S                        (1000000.0f)
 
-#define SYS_INPUT_DUST_EMA_ALPHA (0.2f)
+#define SYS_INPUT_DUST_EMA_ALPHA       (0.2f)
+
+#define SYS_INPUT_BATT_INITIAL_SAMPLES (200)
+#define SYS_INPUT_BATT_EMA_ALPHA       (0.1f)
 
 /* Private enumerate/structure ---------------------------------------- */
 
@@ -143,6 +148,9 @@ typedef struct
 
   uint32_t last_env_update_ms;
 
+  int32_t  batt_remaining_mah;
+  uint32_t batt_last_update_ms;
+
   sys_input_data_t data;
 } sys_input_context_t;
 
@@ -163,6 +171,8 @@ static const char       *sys_input_deg_to_direction_str(float deg);
 static void              sys_input_gps_callback(bsp_gps_data_t *data);
 static float             sys_input_haversine_m(float lat1, float lon1, float lat2, float lon2);
 static void              sys_input_trigger_io_event(void);
+static void              sys_input_initial_battery_level(void);
+static void              sys_input_read_battery_level(float *battery_level);
 
 /* Function definitions ----------------------------------------------- */
 
@@ -195,6 +205,7 @@ void sys_input_init(void)
   input_ctx.has_last_gps_position = false;
   input_ctx.last_valid_lat        = 0.0f;
   input_ctx.last_valid_lon        = 0.0f;
+  input_ctx.data.battery_level    = 100.0f;
 
   input_ctx.is_stationary      = false;
   input_ctx.stationary_time_ms = 0;
@@ -217,6 +228,13 @@ void sys_input_init(void)
 
   input_ctx.is_offset_mag_ready = false;
   input_ctx.initialized         = true;
+
+  LOG_DBG("Init Battery");
+  if (bsp_batt_init() != STATUS_OK)
+  {
+    LOG_ERR("Failed to initialize battery monitoring");
+  }
+  sys_input_initial_battery_level();
 
   LOG_DBG("Init ACC");
   if (bsp_acc_init() == STATUS_OK)
@@ -316,7 +334,14 @@ status_function_t sys_input_process(void)
     }
   }
 
-  // 9. Finalize
+  // 9. Battery level
+  if ((current_time_ms - input_ctx.batt_last_update_ms) >= SYS_INPUT_BATT_UPDATE_RATE_MS)
+  {
+    input_ctx.batt_last_update_ms = current_time_ms;
+    sys_input_read_battery_level(&input_ctx.data.battery_level);
+  }
+
+  // 10. Finalize
   input_ctx.data.timestamp_ms           = current_time_ms;
   input_ctx.last_update_us              = current_time_us;
   input_ctx.last_update_ms              = current_time_ms;
@@ -721,6 +746,73 @@ static float sys_input_haversine_m(float lat1, float lon1, float lat2, float lon
 static void sys_input_trigger_io_event(void)
 {
   Serial.println("Triggering IO event");
+}
+
+static void sys_input_read_battery_level(float *battery_level)
+{
+  uint32_t now   = OS_GET_TICK();
+  size_t   dt_ms = now - input_ctx.batt_last_update_ms;
+
+  float raw_ma   = bsp_batt_read_current_ma();
+  *battery_level = (SYS_INPUT_BATT_EMA_ALPHA * raw_ma) + ((1.0f - SYS_INPUT_BATT_EMA_ALPHA) * (*battery_level));
+
+  float delta_mah = (*battery_level) * (dt_ms / 3600000.0f);
+  input_ctx.batt_remaining_mah -= delta_mah;
+  input_ctx.batt_remaining_mah = input_ctx.batt_remaining_mah < 0.0f ? 0.0f
+                                 : input_ctx.batt_remaining_mah > BSP_BATTERY_CAPACITY_MAH
+                                   ? BSP_BATTERY_CAPACITY_MAH
+                                   : input_ctx.batt_remaining_mah;
+
+  float voltage_mv = bsp_batt_read_voltage_mv();
+  if (voltage_mv >= BSP_BATT_VOLTAGE_FULL_MV)
+  {
+    input_ctx.batt_remaining_mah = BSP_BATTERY_CAPACITY_MAH;
+    *battery_level               = 100.0f;
+    return;
+  }
+  if (voltage_mv <= BSP_BATT_VOLTAGE_EMPTY_MV)
+  {
+    input_ctx.batt_remaining_mah = 0.0f;
+    *battery_level               = 0.0f;
+    return;
+  }
+
+  float soc_coulomb = (input_ctx.batt_remaining_mah / BSP_BATTERY_CAPACITY_MAH) * 100.0f;
+  float soc_voltage =
+    ((float) (voltage_mv - BSP_BATT_VOLTAGE_EMPTY_MV) / (float) (BSP_BATT_VOLTAGE_FULL_MV - BSP_BATT_VOLTAGE_EMPTY_MV))
+    * 100.0f;
+
+  float soc = (0.9f * soc_coulomb) + (0.1f * soc_voltage);
+  soc       = soc < 0.0f ? 0.0f : soc > 100.0f ? 100.0f : soc;
+
+  *battery_level = soc;
+}
+
+static void sys_input_initial_battery_level(void)
+{
+  float sum = 0.0f;
+
+  for (int i = 0; i < SYS_INPUT_BATT_INITIAL_SAMPLES; i++)
+  {
+    int32_t v = bsp_batt_read_voltage_mv();
+
+    if (v >= BSP_BATT_VOLTAGE_FULL_MV)
+      sum += 100.0f;
+    else if (v <= BSP_BATT_VOLTAGE_EMPTY_MV)
+      sum += 0.0f;
+    else
+      sum += ((float) (v - BSP_BATT_VOLTAGE_EMPTY_MV) / (float) (BSP_BATT_VOLTAGE_FULL_MV - BSP_BATT_VOLTAGE_EMPTY_MV))
+             * 100.0f;
+
+    OS_YIELD();
+  }
+
+  float initial_soc = sum / SYS_INPUT_BATT_INITIAL_SAMPLES;
+
+  input_ctx.batt_remaining_mah = (initial_soc / 100.0f) * BSP_BATTERY_CAPACITY_MAH;
+  input_ctx.data.battery_level = initial_soc;
+
+  LOG_INF("Initial battery level: %.2f%%", initial_soc);
 }
 
 /* End of file -------------------------------------------------------- */

@@ -21,8 +21,9 @@
 #include "common_type.h"
 
 /* Public defines ----------------------------------------------------- */
-#define SYS_INPUT_UPDATE_RATE_MS     (10)
-#define SYS_INPUT_ENV_UPDATE_RATE_MS (1000)
+#define SYS_INPUT_UPDATE_RATE_MS      (10)
+#define SYS_INPUT_ENV_UPDATE_RATE_MS  (1000)
+#define SYS_INPUT_BATT_UPDATE_RATE_MS (10000)
 
 /* Public enumerate/structure ----------------------------------------- */
 
@@ -40,6 +41,7 @@ typedef struct
   temp_hum_data_t     temp_hum;       // Temperature and humidity data
   size_t              timestamp_ms;   // Timestamp of last update
   gps_position_type_t gps_position;   // GPS position data
+  float               battery_level;  // Battery level percentage
 } sys_input_data_t;
 
 /* Public macros ------------------------------------------------------ */

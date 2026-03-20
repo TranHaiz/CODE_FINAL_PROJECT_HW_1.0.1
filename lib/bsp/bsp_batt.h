@@ -20,10 +20,9 @@
 // #define BATT_MONITOR_INA226
 #define BATT_MONITOR_INA219
 
-#define BATT_ADC_PIN         (14)
-#define ADC_RESOLUTION       (12)
-#define BATT_VOLTAGE_DIVIDER (2.0f)
-#define BATT_EMA_ALPHA       (0.1f)
+#define BSP_BATTERY_CAPACITY_MAH  (2000.0f)
+#define BSP_BATT_VOLTAGE_FULL_MV  (4200)
+#define BSP_BATT_VOLTAGE_EMPTY_MV (3200)
 
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
@@ -34,7 +33,7 @@
  *
  * @return None
  */
-void bsp_batt_init(void);
+status_function_t bsp_batt_init(void);
 
 /**
  * @brief Read the battery voltage.
