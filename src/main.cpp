@@ -24,7 +24,6 @@
 #include "sys_network.h"
 #include "sys_ui_simple.h"
 
-
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
 
