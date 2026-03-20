@@ -29,7 +29,7 @@
 
 /* Mapping CMSIS-like names to Native FreeRTOS */
 #define OS_DELAY_MS(ms) vTaskDelay(pdMS_TO_TICKS(ms))
-#define OS_GET_TICK()   xTaskGetTickCount()  // Rtos frequency = 1k Hz => 1 tick = 1 ms
+#define OS_GET_TICK()   millis()  // Use millis() for simplicity
 #define OS_YIELD()      taskYIELD()
 #define OS_MAX_DELAY    portMAX_DELAY
 
