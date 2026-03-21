@@ -91,6 +91,9 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 
 #define SYS_INPUT_BATT_INITIAL_SAMPLES (200)
 #define SYS_INPUT_BATT_EMA_ALPHA       (0.1f)
+#define SYS_INPUT_BATT_READ_VOLT_TIMES (10)
+#define SYS_INPUT_BATT_DEBOUNCE        (10)
+#define SYS_INPUT_BATT_MAX_ERROR       (5)
 
 /* Private enumerate/structure ---------------------------------------- */
 
@@ -750,8 +753,9 @@ static void sys_input_trigger_io_event(void)
 
 static void sys_input_read_battery_level(float *battery_level)
 {
-  uint32_t now   = OS_GET_TICK();
-  size_t   dt_ms = now - input_ctx.batt_last_update_ms;
+  static uint8_t err_cnt = 0;
+  uint32_t       now     = OS_GET_TICK();
+  size_t         dt_ms   = now - input_ctx.batt_last_update_ms;
 
   float raw_ma   = bsp_batt_read_current_ma();
   *battery_level = (SYS_INPUT_BATT_EMA_ALPHA * raw_ma) + ((1.0f - SYS_INPUT_BATT_EMA_ALPHA) * (*battery_level));
@@ -763,7 +767,32 @@ static void sys_input_read_battery_level(float *battery_level)
                                    ? BSP_BATTERY_CAPACITY_MAH
                                    : input_ctx.batt_remaining_mah;
 
-  float voltage_mv = bsp_batt_read_voltage_mv();
+  float   voltage_mv      = 0.0f;
+  float   sum_voltage_mv  = 0.0f;
+  uint8_t check_err_count = 0;
+  for (int i = 0; i < SYS_INPUT_BATT_READ_VOLT_TIMES; i++)
+  {
+    voltage_mv = bsp_batt_read_voltage_mv();
+    sum_voltage_mv += voltage_mv;
+    if (voltage_mv <= 0.0f)
+    {
+      check_err_count++;
+    }
+    if (check_err_count > SYS_INPUT_BATT_DEBOUNCE)
+    {
+      // Not update battery level if too many read errors
+      err_cnt++;
+      if (err_cnt > SYS_INPUT_BATT_MAX_ERROR)
+      {
+        err_cnt = 0;
+        // Handle error battery level if too many consecutive errors
+      }
+      return;
+    }
+    OS_YIELD();
+  }
+  voltage_mv = sum_voltage_mv / ((float) SYS_INPUT_BATT_READ_VOLT_TIMES);
+
   if (voltage_mv >= BSP_BATT_VOLTAGE_FULL_MV)
   {
     input_ctx.batt_remaining_mah = BSP_BATTERY_CAPACITY_MAH;
@@ -794,15 +823,16 @@ static void sys_input_initial_battery_level(void)
 
   for (int i = 0; i < SYS_INPUT_BATT_INITIAL_SAMPLES; i++)
   {
-    int32_t v = bsp_batt_read_voltage_mv();
+    int32_t m_volt = bsp_batt_read_voltage_mv();
 
-    if (v >= BSP_BATT_VOLTAGE_FULL_MV)
+    if (m_volt >= BSP_BATT_VOLTAGE_FULL_MV)
       sum += 100.0f;
-    else if (v <= BSP_BATT_VOLTAGE_EMPTY_MV)
+    else if (m_volt <= BSP_BATT_VOLTAGE_EMPTY_MV)
       sum += 0.0f;
     else
-      sum += ((float) (v - BSP_BATT_VOLTAGE_EMPTY_MV) / (float) (BSP_BATT_VOLTAGE_FULL_MV - BSP_BATT_VOLTAGE_EMPTY_MV))
-             * 100.0f;
+      sum +=
+        ((float) (m_volt - BSP_BATT_VOLTAGE_EMPTY_MV) / (float) (BSP_BATT_VOLTAGE_FULL_MV - BSP_BATT_VOLTAGE_EMPTY_MV))
+        * 100.0f;
 
     OS_YIELD();
   }
