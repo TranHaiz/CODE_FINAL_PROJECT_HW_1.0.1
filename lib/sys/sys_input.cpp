@@ -91,7 +91,7 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 
 #define SYS_INPUT_BATT_INITIAL_SAMPLES (200)
 #define SYS_INPUT_BATT_EMA_ALPHA       (0.1f)
-#define SYS_INPUT_BATT_READ_VOLT_TIMES (10)
+#define SYS_INPUT_BATT_READ_VOLT_TIMES (20)
 #define SYS_INPUT_BATT_DEBOUNCE        (10)
 #define SYS_INPUT_BATT_MAX_ERROR       (5)
 
@@ -773,11 +773,17 @@ static void sys_input_read_battery_level(float *battery_level)
   for (int i = 0; i < SYS_INPUT_BATT_READ_VOLT_TIMES; i++)
   {
     voltage_mv = bsp_batt_read_voltage_mv();
-    sum_voltage_mv += voltage_mv;
+
     if (voltage_mv <= 0.0f)
     {
+      LOG_ERR("Battery voltage read 0 volt");
       check_err_count++;
     }
+    else
+    {
+      sum_voltage_mv += voltage_mv;
+    }
+
     if (check_err_count > SYS_INPUT_BATT_DEBOUNCE)
     {
       // Not update battery level if too many read errors
@@ -785,6 +791,7 @@ static void sys_input_read_battery_level(float *battery_level)
       if (err_cnt > SYS_INPUT_BATT_MAX_ERROR)
       {
         err_cnt = 0;
+        LOG_ERR("Too many consecutive battery read errors, resetting remaining capacity to 0");
         // Handle error battery level if too many consecutive errors
       }
       return;
