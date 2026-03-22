@@ -24,6 +24,8 @@
 #include <lvgl.h>
 
 /* Public defines ----------------------------------------------------- */
+#define SYS_UI_TASK_SLEEP_MS (10)
+
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
 {
@@ -36,9 +38,9 @@ typedef enum
 extern bool is_ui_data_ready;
 
 /* Public function prototypes ----------------------------------------- */
-void sys_ui_simple_init(void);
-void sys_ui_simple_process(void);
-void sys_ui_simple_change_ui(sys_ui_simple_view_t view);
+void                 sys_ui_simple_init(void);
+void                 sys_ui_simple_process(void);
+void                 sys_ui_simple_change_ui(sys_ui_simple_view_t view);
 sys_ui_simple_view_t sys_ui_simple_get_current_view(void);
 
 #endif /*End file _SYS_UI_SIMPLE_H_*/

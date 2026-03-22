@@ -14,6 +14,7 @@
 #include "sys_ui_simple.h"
 
 #include "bsp_display.h"
+#include "bsp_led.h"
 #include "bsp_touch.h"
 #include "log_service.h"
 #include "lvgl_driver.h"
@@ -73,6 +74,9 @@ static void sys_ui_simple_update_values(void);
 /* Function definitions ----------------------------------------------- */
 void sys_ui_simple_init(void)
 {
+  // Led initialization
+  bsp_led_init(SYS_UI_TASK_SLEEP_MS);
+
   // Int first display
   bsp_display_init();
 
@@ -103,6 +107,7 @@ void sys_ui_simple_process(void)
     sys_input_get_data(&input_data);
     sys_ui_simple_update_values();
   }
+  bsp_led_task();
 }
 
 void sys_ui_simple_change_ui(sys_ui_simple_view_t view)

@@ -80,6 +80,10 @@
 #define SDCARD_NORMAL_SPI_FREQ      (4000000)   // 4MHz normal
 #define SDCARD_MAX_SPI_FREQ         (24000000)  // 24MHz max
 
+// Other pin definitions
+#define LED_PIN                     (38)
+#define BUZZER_PIN                  (37)
+
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */

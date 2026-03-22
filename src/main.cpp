@@ -11,6 +11,7 @@
  */
 
 /* Includes ----------------------------------------------------------- */
+#include "bsp_led.h"
 #include "bsp_rtc.h"
 #include "bsp_sdcard.h"
 #include "bsp_sim.h"
@@ -56,10 +57,10 @@ void setup()
   delay(1000);
   Serial.println("START");
   delay(1000);
-  OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
-  OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
+  // OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
+  // OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
   OS_THREAD_CREATE(sys_ui_thread, sys_ui_thread_func);
-  OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
+  // OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
 }
 
 void loop()
@@ -111,6 +112,7 @@ void sys_network_thread_func(void *param)
 void sys_ui_thread_func(void *param)
 {
   sys_ui_simple_init();
+  bsp_led_set(LED_COLOR_PURPLE, LED_MODE_PULSE, 50);
 
   while (true)
   {
