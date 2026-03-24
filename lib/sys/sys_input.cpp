@@ -10,17 +10,6 @@
  *
  * @details    Manages input from sensors and calculates velocity and distance
  *
- * @changelog
- *   - Fix low sensitivity outdoors: GPS_ANCHOR_RATE increased, GPS_EMA_ALPHA increased
- *   - Fix GPS→indoor transition jerk:
- *       (1) GPS_VALID_TIMEOUT_MS reduced to 2000ms (less stale GPS lingers)
- *       (2) Smooth GPS fade-out: when GPS goes stale, INS_DECAY_STOPPING kicks in
- *           immediately instead of hard-zeroing velocity_gps after timeout
- *       (3) GPS transition state: is_gps_fading tracks the fade-out period
- *   - Fix jerky velocity: INS interpolates between GPS updates at 50Hz
- *   - Fix slow stop: GPS zeroed immediately + INS_DECAY_STOPPING on stationary
- *   - Fix ZUPT bypass: velocity_ins NOT overwritten by fused result
- *   - Fix distance drift: Haversine only when velocity_gps > threshold
  */
 
 /* Includes ----------------------------------------------------------- */
@@ -41,7 +30,6 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 
-// Select ONE mode only
 // #define DEMO_VEHICLE (1)
 #define DEMO_WALKING                (1)
 
@@ -96,15 +84,11 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 #define SYS_INPUT_BATT_MAX_ERROR       (5)
 
 /* Private enumerate/structure ---------------------------------------- */
-
-/**
- * @brief GPS state machine for smooth transition handling
- */
 typedef enum
 {
-  GPS_STATE_INVALID = 0,  // No GPS or poor quality
-  GPS_STATE_ACTIVE,       // GPS valid and recent
-  GPS_STATE_FADING,       // GPS just lost — smooth fade-out period
+  GPS_STATE_INVALID = 0,
+  GPS_STATE_ACTIVE,
+  GPS_STATE_FADING,
 } gps_state_t;
 
 typedef struct
@@ -118,7 +102,7 @@ typedef struct
   float          last_valid_lon;
   bool           has_last_gps_position;
   gps_state_t    gps_state;
-  size_t         gps_lost_ms;  // Timestamp when GPS became invalid
+  size_t         gps_lost_ms;
 
   // INS
   size_t last_update_us;
@@ -295,7 +279,7 @@ status_function_t sys_input_process(void)
   if (dt > 0.1f)
     dt = 0.1f;
 
-  // 1. GPS: update velocity + anchor INS + Haversine distance
+  // 1. GPS: update velocity + anchor INS + distance
   sys_input_update_gps_data();
 
   // 2. GPS state machine: ACTIVE → FADING → INVALID
@@ -400,18 +384,6 @@ static float sys_input_calculate_magnitude(float x, float y, float z)
   return sqrtf(x * x + y * y + z * z);
 }
 
-/**
- * @brief Update INS velocity at 50Hz.
- *
- * Three-rate decay based on current state:
- *
- *   GPS_STATE_ACTIVE  + moving   → INS_DECAY_NORMAL   (slow, GPS keeps it accurate)
- *   GPS_STATE_FADING  + any      → INS_DECAY_GPS_LOST  (medium, smooth transition indoors)
- *   GPS_STATE_INVALID + moving   → INS_DECAY_NORMAL   (slow, pure INS mode)
- *   any state         + stationary → INS_DECAY_STOPPING (fast, ~0.5s to zero)
- *
- * Stationary always wins — stops immediately regardless of GPS state.
- */
 static void sys_input_update_ins_velocity(float dt)
 {
   bsp_acc_raw_data_t accel_data = { 0 };
@@ -456,19 +428,6 @@ static void sys_input_update_ins_velocity(float dt)
     input_ctx.velocity_ins = 0.0f;
 }
 
-/**
- * @brief Update GPS velocity and Haversine distance.
- *
- * When GPS is valid and moving:
- *   - EMA smooth the GPS speed
- *   - Re-anchor INS to GPS (GPS_ANCHOR_RATE=0.7 for higher sensitivity)
- *
- * When GPS reports stopped (raw_speed < threshold):
- *   - Zero GPS immediately (no EMA lag)
- *   - Pull INS toward zero via anchor
- *
- * GPS state transitions are handled in sys_input_update_gps_state().
- */
 static void sys_input_update_gps_data(void)
 {
   if (!input_ctx.gps_ready)
@@ -532,23 +491,6 @@ static void sys_input_update_gps_data(void)
   }
 }
 
-/**
- * @brief GPS state machine — handles smooth outdoor→indoor transition.
- *
- * State transitions:
- *
- *   INVALID ──(GPS valid)──→ ACTIVE
- *   ACTIVE  ──(GPS lost)──→ FADING   ← new state, prevents hard jerk
- *   FADING  ──(fade done)──→ INVALID
- *   FADING  ──(GPS back)──→ ACTIVE
- *
- * During FADING (GPS_FADE_TIMEOUT_MS = 1000ms):
- *   - INS uses INS_DECAY_GPS_LOST instead of NORMAL
- *   - velocity_gps is already 0 (set in update_gps_data)
- *   - INS smoothly ramps down instead of holding then dropping hard
- *
- * This eliminates the jerk when walking from outdoor into a building.
- */
 static void sys_input_update_gps_state(size_t current_ms)
 {
   bool gps_recently_updated =
@@ -594,12 +536,6 @@ static void sys_input_update_gps_state(size_t current_ms)
   }
 }
 
-/**
- * @brief ZUPT detection using pre-EMA acc_raw.
- *
- * is_stationary=true triggers INS_DECAY_STOPPING immediately in update_ins_velocity.
- * Hard-zero fires after ZUPT_TIME_THRESHOLD_MS confirmation.
- */
 static void sys_input_detect_zupt(float accel_ms2, float dt)
 {
   if (fabsf(accel_ms2) < ZUPT_ACC_THRESHOLD)
@@ -629,12 +565,6 @@ static void sys_input_detect_zupt(float accel_ms2, float dt)
   }
 }
 
-/**
- * @brief Compute final output velocity from INS.
- *
- * Output = velocity_ins (50Hz smooth, GPS-anchored when available).
- * No complementary filter needed — INS already tracks GPS via GPS_ANCHOR_RATE.
- */
 static void sys_input_compute_output_velocity(void)
 {
   float output = input_ctx.velocity_ins;

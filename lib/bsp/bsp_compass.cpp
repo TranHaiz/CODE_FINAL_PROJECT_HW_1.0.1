@@ -27,10 +27,6 @@ LOG_MODULE_REGISTER(bsp_compass, LOG_LEVEL_ERROR);
 #define BSP_COMPASS_REG_DATA_X_MSB (0x03)
 
 /* Private enumerate/structure ---------------------------------------- */
-
-/**
- * @brief Internal compass context (singleton)
- */
 typedef struct
 {
   bsp_compass_config_t config;
