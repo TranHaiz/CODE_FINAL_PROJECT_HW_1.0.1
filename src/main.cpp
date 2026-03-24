@@ -28,6 +28,11 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
 
+#define SYS_INPUT_UPDATE_RATE_MS   (20)
+#define SYS_NETWORK_UPDATE_RATE_MS (100)
+#define SYS_UI_UPDATE_RATE_MS      (100)
+#define SYS_LOG_UPDATE_RATE_MS     (500)
+
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -35,10 +40,10 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
 status_function_t g_ret = STATUS_ERROR;
 sys_input_data_t  g_input_data;
 
-OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 2, 4096);
-OS_THREAD_DECLARE(sys_network_thread, tskIDLE_PRIORITY + 3, 8192);
-OS_THREAD_DECLARE(sys_ui_thread, tskIDLE_PRIORITY + 2, 16384);
-OS_THREAD_DECLARE(sys_log_thread, tskIDLE_PRIORITY + 4, 4096);
+OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 3, 4096);
+OS_THREAD_DECLARE(sys_network_thread, tskIDLE_PRIORITY + 2, 8192);
+OS_THREAD_DECLARE(sys_ui_thread, tskIDLE_PRIORITY + 4, 16384);
+OS_THREAD_DECLARE(sys_log_thread, tskIDLE_PRIORITY + 1, 4096);
 
 /* Private function prototypes ---------------------------------------- */
 void sys_input_thread_func(void *param);
@@ -57,10 +62,10 @@ void setup()
   delay(1000);
   Serial.println("START");
   delay(1000);
-  // OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
-  // OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
+  OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
+  OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
   OS_THREAD_CREATE(sys_ui_thread, sys_ui_thread_func);
-  // OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
+  OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
 }
 
 void loop()
@@ -105,7 +110,7 @@ void sys_network_thread_func(void *param)
   while (true)
   {
     sys_network_process();
-    OS_DELAY_MS(100);
+    OS_DELAY_MS(SYS_NETWORK_UPDATE_RATE_MS);
   }
 }
 
@@ -117,7 +122,7 @@ void sys_ui_thread_func(void *param)
   while (true)
   {
     sys_ui_simple_process();
-    OS_DELAY_MS(10);
+    OS_DELAY_MS(SYS_UI_UPDATE_RATE_MS);
   }
 }
 
@@ -128,7 +133,7 @@ void sys_log_thread_func(void *param)
   while (true)
   {
     sys_log_process();
-    OS_DELAY_MS(200);
+    OS_DELAY_MS(SYS_LOG_UPDATE_RATE_MS);
   }
 }
 
