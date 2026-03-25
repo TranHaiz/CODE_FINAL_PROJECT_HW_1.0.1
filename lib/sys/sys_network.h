@@ -26,7 +26,18 @@
 extern bool is_data_network_ready;
 
 /* Public function prototypes ----------------------------------------- */
+/**
+ * @brief Initialize the network layer, including SIM and MQTT setup.
+ *
+ * @return none
+ */
 void sys_network_init(void);
+
+/**
+ * @brief Process the network state machine. Should be called periodically.
+ *
+ * @return none
+ */
 void sys_network_process(void);
 
 #endif /*End file _SYS_NETWORK_H_*/

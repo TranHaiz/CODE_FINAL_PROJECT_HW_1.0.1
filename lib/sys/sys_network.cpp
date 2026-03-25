@@ -16,6 +16,7 @@
 #include "bsp_rtc.h"
 #include "log_service.h"
 #include "os_lib.h"
+#include "sys_cmd.h"
 #include "sys_input.h"
 #include "sys_ui_simple.h"
 
@@ -337,26 +338,18 @@ static void net_run_sim_hard_reset(void)
   net_transition(NETWORK_STATE_SIM_INIT);
 }
 
-/* -------------------------------------------------------------------- */
-/* MQTT helpers                                                           */
-/* -------------------------------------------------------------------- */
-
 static void net_on_mqtt_message(const char *topic, const uint8_t *data, size_t len)
 {
-  LOG_INF("MQTT rx [%s]: %.*s", topic, (int) len, (const char *) data);
+  LOG_DBG("MQTT rx [%s]: %.*s", topic, (int) len, (const char *) data);
+  memset(sys_cmd_input_buffer, 0, CMD_INPUT_MAX_LEN);
+  if ((data == NULL) || (len >= CMD_INPUT_MAX_LEN))
+  {
+    LOG_WRN("Invalid command payload: %d bytes", (int) len);
+    return;
+  }
 
-  if (strcmp((const char *) data, "LOCK") == 0)
-  {
-    sys_ui_simple_change_ui(SYS_UI_SIMPLE_VIEW_LOGIN);
-  }
-  else if (strcmp((const char *) data, "UNLOCK") == 0)
-  {
-    sys_ui_simple_change_ui(SYS_UI_SIMPLE_VIEW_MAIN);
-  }
-  else
-  {
-    // Do nothing
-  }
+  strncpy(sys_cmd_input_buffer, (const char *) data, len);
+  OS_SEM_GIVE(sys_cmd_req_sem);
 }
 
 static void net_build_payload(const sys_input_data_t *data, char *buf, size_t buf_len)

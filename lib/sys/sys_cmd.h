@@ -19,11 +19,12 @@
 #include "os_lib.h"
 
 /* Public defines ----------------------------------------------------- */
+#define CMD_INPUT_MAX_LEN (128)
+
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
 {
-  CMD_NONE = 0,
-  CMD_LOCK_DEVICE,
+  CMD_LOCK_DEVICE = 0,
   CMD_UNLOCK_DEVICE,
   CMD_SET_TIME,
   CMD_MAX
@@ -32,6 +33,7 @@ typedef enum
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
 OS_SEM_DECLARE(sys_cmd_req_sem)
+extern char sys_cmd_input_buffer[CMD_INPUT_MAX_LEN];
 
 /* Public function prototypes ----------------------------------------- */
 
