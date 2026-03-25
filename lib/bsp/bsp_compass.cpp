@@ -169,7 +169,7 @@ static status_function_t bsp_compass_read_registers(uint8_t reg, uint8_t *buffer
   // Set register pointer
   Wire.beginTransmission(COMPASS_I2C_ADDR);
   Wire.write(reg);
-  if (Wire.endTransmission() != 0)
+  if (Wire.endTransmission(false) != 0)
   {
     return STATUS_ERROR;
   }
