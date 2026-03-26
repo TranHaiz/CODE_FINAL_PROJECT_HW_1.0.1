@@ -35,7 +35,7 @@ typedef enum
 
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
-extern bool is_ui_data_ready;
+extern bool is_ui_simple_data_ready;
 
 /* Public function prototypes ----------------------------------------- */
 void                 sys_ui_simple_init(void);

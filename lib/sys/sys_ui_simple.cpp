@@ -57,7 +57,7 @@ typedef struct
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
-bool is_ui_data_ready = false;
+bool is_ui_simple_data_ready = false;
 
 /* Private variables -------------------------------------------------- */
 static sys_ui_simple_t  ui_ctx;
@@ -101,9 +101,9 @@ void sys_ui_simple_init(void)
 void sys_ui_simple_process(void)
 {
   lvgl_driver_task(&ui_ctx.lvgl);
-  if (is_ui_data_ready)
+  if (is_ui_simple_data_ready)
   {
-    is_ui_data_ready = false;
+    is_ui_simple_data_ready = false;
     sys_input_get_data(&input_data);
     sys_ui_simple_update_values();
   }

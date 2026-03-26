@@ -23,7 +23,7 @@
 #include "bsp_temp_hum.h"
 #include "log_service.h"
 #include "os_lib.h"
-#include "sys_fusion.h"
+#include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
@@ -125,12 +125,13 @@ status_function_t sys_input_process(void)
   fusion_data.direction_str     = "N";
   sys_fusion_process(&fusion_data);
 
-  input_ctx.data.velocity_ms   = fusion_data.velocity_ms;
-  input_ctx.data.velocity_kmh  = fusion_data.velocity_kmh;
-  input_ctx.data.distance_m    = fusion_data.distance_m;
-  input_ctx.data.heading_deg   = fusion_data.heading_deg;
-  input_ctx.data.direction_str = fusion_data.direction_str;
-  input_ctx.data.gps_position  = fusion_data.gps_position;
+  input_ctx.data.velocity_ms                       = fusion_data.velocity_ms;
+  input_ctx.data.velocity_kmh                      = fusion_data.velocity_kmh;
+  input_ctx.data.distance_m                        = fusion_data.distance_m;
+  input_ctx.data.heading_deg                       = fusion_data.heading_deg;
+  input_ctx.data.direction_str                     = fusion_data.direction_str;
+  input_ctx.data.gps_position                      = fusion_data.gps_position;
+  g_sys_ui_data_status.is_fusion_data_ready_for_ui = true;
 
   // 2. Environmental sensors
   if ((current_time_ms - input_ctx.last_env_update_ms) >= SYS_INPUT_ENV_UPDATE_RATE_MS)
@@ -141,6 +142,7 @@ status_function_t sys_input_process(void)
     {
       (void) bsp_temp_hum_read(&input_ctx.data.temp_hum);
     }
+    g_sys_ui_data_status.is_env_data_ready_for_ui = true;
   }
 
   // 3. Battery level
@@ -148,6 +150,7 @@ status_function_t sys_input_process(void)
   {
     input_ctx.batt_last_update_ms = current_time_ms;
     sys_input_read_battery_level(&input_ctx.data.battery_level);
+    g_sys_ui_data_status.is_battery_data_ready_for_ui = true;
   }
 
   // 4. Finalize
@@ -161,6 +164,33 @@ status_function_t sys_input_get_data(sys_input_data_t *data)
   if (data == NULL || !input_ctx.initialized)
     return STATUS_ERROR;
   *data = input_ctx.data;
+  return STATUS_OK;
+}
+
+status_function_t sys_input_get_fusion_data(sys_fusion_data_t *data)
+{
+  if (data == NULL || !input_ctx.initialized)
+    return STATUS_ERROR;
+
+  data->velocity_ms   = input_ctx.data.velocity_ms;
+  data->velocity_kmh  = input_ctx.data.velocity_kmh;
+  data->distance_m    = input_ctx.data.distance_m;
+  data->heading_deg   = input_ctx.data.heading_deg;
+  data->direction_str = input_ctx.data.direction_str;
+  data->gps_position  = input_ctx.data.gps_position;
+
+  return STATUS_OK;
+}
+
+status_function_t sys_input_get_env_data(sys_input_data_t *data)
+{
+  if (data == NULL || !input_ctx.initialized)
+    return STATUS_ERROR;
+
+  data->dust_value           = input_ctx.data.dust_value;
+  data->temp_hum.temperature = input_ctx.data.temp_hum.temperature;
+  data->temp_hum.humidity    = input_ctx.data.temp_hum.humidity;
+
   return STATUS_OK;
 }
 

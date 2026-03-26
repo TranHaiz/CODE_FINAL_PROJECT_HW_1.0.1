@@ -23,14 +23,16 @@
 #include "sys_input.h"
 #include "sys_log.h"
 #include "sys_network.h"
+#include "sys_ui.h"
 #include "sys_ui_simple.h"
+
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
 
 #define SYS_INPUT_UPDATE_RATE_MS   (20)
 #define SYS_NETWORK_UPDATE_RATE_MS (100)
-#define SYS_UI_UPDATE_RATE_MS      (100)
+#define SYS_UI_UPDATE_RATE_MS      (10)
 #define SYS_LOG_UPDATE_RATE_MS     (500)
 
 /* Private enumerate/structure ---------------------------------------- */
@@ -94,8 +96,8 @@ void sys_input_thread_func(void *param)
       // Get current data
       if (sys_input_get_data(&g_input_data) == STATUS_OK)
       {
-        is_data_network_ready = true;
-        is_ui_data_ready      = true;
+        is_data_network_ready   = true;
+        is_ui_simple_data_ready = true;
       }
     }
 
@@ -116,12 +118,12 @@ void sys_network_thread_func(void *param)
 
 void sys_ui_thread_func(void *param)
 {
-  sys_ui_simple_init();
+  sys_ui_init();
   bsp_led_set(LED_COLOR_PURPLE, LED_MODE_PULSE, 50);
 
   while (true)
   {
-    sys_ui_simple_process();
+    sys_ui_process();
     OS_DELAY_MS(SYS_UI_UPDATE_RATE_MS);
   }
 }

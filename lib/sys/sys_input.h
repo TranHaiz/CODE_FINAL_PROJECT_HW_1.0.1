@@ -19,16 +19,19 @@
 
 /* Includes ----------------------------------------------------------- */
 #include "common_type.h"
+#include "sys_fusion.h"
 
 /* Public defines ----------------------------------------------------- */
 #define SYS_INPUT_ENV_UPDATE_RATE_MS  (1000)
 #define SYS_INPUT_BATT_UPDATE_RATE_MS (10000)
 
 /* Public enumerate/structure ----------------------------------------- */
+typedef struct
+{
+  float           dust_value;
+  temp_hum_data_t temp_hum;
+} sys_input_env_data_t;
 
-/**
- * @brief Sensor input data structure
- */
 typedef struct
 {
   float               velocity_ms;    // Velocity in m/s
@@ -58,6 +61,11 @@ void sys_input_init(void);
  */
 status_function_t sys_input_process(void);
 
+/**
+ * @brief Get current sensor input data
+ *
+ * @return status_function_t Status of operation
+ */
 status_function_t sys_input_enter_sleep_mode(void);
 
 /**
@@ -68,6 +76,24 @@ status_function_t sys_input_enter_sleep_mode(void);
  * @return status_function_t Status of operation
  */
 status_function_t sys_input_get_data(sys_input_data_t *data);
+
+/**
+ * @brief Get current sensor input data
+ *
+ * @param[out] data Pointer to fusion data structure
+ *
+ * @return status_function_t Status of operation
+ */
+status_function_t sys_input_get_fusion_data(sys_fusion_data_t *data);
+
+/**
+ * @brief Get current sensor input data
+ *
+ * @param[out] data Pointer to data structure
+ *
+ * @return status_function_t Status of operation
+ */
+status_function_t sys_input_get_env_data(sys_input_data_t *data);
 
 #endif /*End file _SYS_INPUT_H_*/
 
