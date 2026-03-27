@@ -283,9 +283,6 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
 /* Private definitions ----------------------------------------------- */
 static void sys_fusion_calculate_offset_mag(void)
 {
-  if (!fusion_ctx.initialized)
-    return;
-
   float sum = 0.0f;
   for (uint16_t i = 0; i < ACC_OFFSET_MAGNITUDE_SAMPLE; i++)
   {
