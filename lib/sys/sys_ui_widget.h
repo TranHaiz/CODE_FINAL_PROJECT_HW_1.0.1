@@ -20,18 +20,16 @@
 #include <lvgl.h>
 
 /* Public defines ----------------------------------------------------- */
-// Widget colors
-#define SYS_UI_WIDGET_COLOR_BG       BSP_DISPLAY_RGB_TO_HEX(0, 0, 0)        // Black
-#define SYS_UI_WIDGET_COLOR_BG_CARD  BSP_DISPLAY_RGB_TO_HEX(0, 255, 0)      // Green
-#define SYS_UI_WIDGET_COLOR_PRIMARY  BSP_DISPLAY_RGB_TO_HEX(0, 255, 255)    // Cyan
-#define SYS_UI_WIDGET_COLOR_ACCENT   BSP_DISPLAY_RGB_TO_HEX(255, 255, 0)    // Yellow
-#define SYS_UI_WIDGET_COLOR_SUCCESS  BSP_DISPLAY_RGB_TO_HEX(0, 255, 0)      // Green
-#define SYS_UI_WIDGET_COLOR_WARNING  BSP_DISPLAY_RGB_TO_HEX(255, 165, 0)    // Orange
-#define SYS_UI_WIDGET_COLOR_DANGER   BSP_DISPLAY_RGB_TO_HEX(255, 0, 0)      // Red
+#define SYS_UI_WIDGET_COLOR_BG       BSP_DISPLAY_RGB_TO_HEX(13,  27,  42)   // Dark navy
+#define SYS_UI_WIDGET_COLOR_BG_CARD  BSP_DISPLAY_RGB_TO_HEX(22,  40,  60)   // Card surface
+#define SYS_UI_WIDGET_COLOR_PRIMARY  BSP_DISPLAY_RGB_TO_HEX(0,   180, 216)  // Vivid cyan
+#define SYS_UI_WIDGET_COLOR_ACCENT   BSP_DISPLAY_RGB_TO_HEX(255, 183, 3)    // Amber gold
+#define SYS_UI_WIDGET_COLOR_SUCCESS  BSP_DISPLAY_RGB_TO_HEX(6,   214, 160)  // Mint green
+#define SYS_UI_WIDGET_COLOR_WARNING  BSP_DISPLAY_RGB_TO_HEX(249, 160, 63)   // Warm orange
+#define SYS_UI_WIDGET_COLOR_DANGER   BSP_DISPLAY_RGB_TO_HEX(239, 71,  111)  // Coral red
 #define SYS_UI_WIDGET_COLOR_TEXT     BSP_DISPLAY_RGB_TO_HEX(255, 255, 255)  // White
-#define SYS_UI_WIDGET_COLOR_TEXT_DIM BSP_DISPLAY_RGB_TO_HEX(128, 128, 128)  // Gray
+#define SYS_UI_WIDGET_COLOR_TEXT_DIM BSP_DISPLAY_RGB_TO_HEX(141, 153, 174)  // Steel gray
 
-/* Default widget styles */
 #define SYS_UI_WIDGET_CARD_RADIUS    (4)   // Card corner radius
 #define SYS_UI_WIDGET_CARD_BORDER    (1)   // Card border width
 #define SYS_UI_WIDGET_CARD_PAD       (4)   // Card padding

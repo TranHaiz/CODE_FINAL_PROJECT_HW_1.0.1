@@ -24,16 +24,6 @@
 /* Public defines ----------------------------------------------------- */
 #define SYS_UI_SPEED_REFRESH_MS (50)
 
-#define SYS_UI_COLOR_BG         SYS_UI_WIDGET_COLOR_BG
-#define SYS_UI_COLOR_BG_CARD    SYS_UI_WIDGET_COLOR_BG_CARD
-#define SYS_UI_COLOR_PRIMARY    SYS_UI_WIDGET_COLOR_PRIMARY
-#define SYS_UI_COLOR_ACCENT     SYS_UI_WIDGET_COLOR_ACCENT
-#define SYS_UI_COLOR_SUCCESS    SYS_UI_WIDGET_COLOR_SUCCESS
-#define SYS_UI_COLOR_WARNING    SYS_UI_WIDGET_COLOR_WARNING
-#define SYS_UI_COLOR_DANGER     SYS_UI_WIDGET_COLOR_DANGER
-#define SYS_UI_COLOR_TEXT       SYS_UI_WIDGET_COLOR_TEXT
-#define SYS_UI_COLOR_TEXT_DIM   SYS_UI_WIDGET_COLOR_TEXT_DIM
-
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
 {

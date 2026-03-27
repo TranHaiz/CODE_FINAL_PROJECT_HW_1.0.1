@@ -27,6 +27,17 @@
 LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_CLAMP(val, minv, maxv) ((val) < (minv) ? (minv) : ((val) > (maxv) ? (maxv) : (val)))
 
+// UI initial colors (can be overridden by settings)
+#define SYS_UI_COLOR_BG               SYS_UI_WIDGET_COLOR_BG
+#define SYS_UI_COLOR_BG_CARD          SYS_UI_WIDGET_COLOR_BG_CARD
+#define SYS_UI_COLOR_PRIMARY          SYS_UI_WIDGET_COLOR_PRIMARY
+#define SYS_UI_COLOR_ACCENT           SYS_UI_WIDGET_COLOR_ACCENT
+#define SYS_UI_COLOR_SUCCESS          SYS_UI_WIDGET_COLOR_SUCCESS
+#define SYS_UI_COLOR_WARNING          SYS_UI_WIDGET_COLOR_WARNING
+#define SYS_UI_COLOR_DANGER           SYS_UI_WIDGET_COLOR_DANGER
+#define SYS_UI_COLOR_TEXT             SYS_UI_WIDGET_COLOR_TEXT
+#define SYS_UI_COLOR_TEXT_DIM         SYS_UI_WIDGET_COLOR_TEXT_DIM
+
 // Timing and data constants
 #define SYS_UI_COUNTDOWN_MS           (1000)
 #define SYS_UI_ENVIRONMENT_MS         (3000)
@@ -34,43 +45,60 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_MAX_DISTANCE_LOG       (16)
 #define SYS_UI_MAX_TEMP_SAMPLES       (120)
 
-/* UI Layout Constants */
-#define SYS_UI_TIME_CARD_X            (195)
-#define SYS_UI_TIME_CARD_Y            (32)
-#define SYS_UI_TIME_CARD_W            (95)
-#define SYS_UI_TIME_CARD_H            (55)
+// Top control buttons
+#define SYS_UI_CTRL_BTN_Y             (5)
+#define SYS_UI_CTRL_BTN_H             (25)
+#define SYS_UI_SETTINGS_BTN_X         (10)
+#define SYS_UI_SETTINGS_BTN_W         (90)
+#define SYS_UI_OUT_BTN_X              (220)
+#define SYS_UI_OUT_BTN_W              (90)
 
-#define SYS_UI_DIST_CARD_X            (195)
-#define SYS_UI_DIST_CARD_Y            (92)
-#define SYS_UI_DIST_CARD_W            (95)
-#define SYS_UI_DIST_CARD_H            (42)
+// Speedometer arc
+#define SYS_UI_SPEEDO_CX              (107)
+#define SYS_UI_SPEEDO_CY              (106)
+#define SYS_UI_SPEEDO_OUTER_R         (74)
+#define SYS_UI_SPEEDO_INNER_R         (54)
 
-#define SYS_UI_ENV_CARD_X             (195)
-#define SYS_UI_ENV_CARD_Y             (139)
-#define SYS_UI_ENV_CARD_W             (95)
-#define SYS_UI_ENV_CARD_H             (78)
+// Map and compass panel
+#define SYS_UI_MAP_PANEL_X            (2)
+#define SYS_UI_MAP_PANEL_Y            (183)
+#define SYS_UI_MAP_PANEL_W            (50)
+#define SYS_UI_MAP_PANEL_H            (52)
+#define SYS_UI_COMPASS_CX             (22)
+#define SYS_UI_COMPASS_CY             (210)
+#define SYS_UI_COMPASS_R              (15)
+#define SYS_UI_HEADING_TEXT_X         (SYS_UI_COMPASS_CX - 12)
+#define SYS_UI_HEADING_TEXT_Y         (SYS_UI_COMPASS_CY - 12)
+#define SYS_UI_COMPASS_DEG_X          (SYS_UI_COMPASS_CX - 12)
+#define SYS_UI_COMPASS_DEG_Y          (SYS_UI_COMPASS_CY + 5)
+#define SYS_UI_COMPASS_PANEL_BG_COLOR (0x0A1520)
 
-#define SYS_UI_CTRL_BTN_Y             (32)
-#define SYS_UI_CTRL_BTN_H             (24)
-#define SYS_UI_SETTINGS_BTN_X         (20)
-#define SYS_UI_SETTINGS_BTN_W         (80)
-#define SYS_UI_OUT_BTN_X              (105)
-#define SYS_UI_OUT_BTN_W              (80)
+/* Right panel info cards */
+#define SYS_UI_CARD_X                 (218)
+#define SYS_UI_CARD_W                 (100)
+#define SYS_UI_TIME_CARD_Y            (34)
+#define SYS_UI_TIME_CARD_H            (52)
+#define SYS_UI_DIST_CARD_Y            (91)
+#define SYS_UI_DIST_CARD_H            (40)
+#define SYS_UI_ENV_CARD_Y             (136)
+#define SYS_UI_ENV_CARD_H             (100)
 
+/* Sub-screen shared */
 #define SYS_UI_BACK_BTN_X             (10)
 #define SYS_UI_BACK_BTN_Y             (10)
 #define SYS_UI_BACK_BTN_W             (60)
 #define SYS_UI_BACK_BTN_H             (25)
 
+/* Settings screen */
+#define SYS_UI_SWATCH_ROW_Y           (130)
+#define SYS_UI_SWATCH_SIZE            (36)
+#define SYS_UI_SWATCH_SPAN            (50)
+
+/* Distance / Temperature sub-screens */
 #define SYS_UI_EXTEND_BTN_X           (180)
 #define SYS_UI_EXTEND_BTN_Y           (180)
 #define SYS_UI_EXTEND_BTN_W           (120)
 #define SYS_UI_EXTEND_BTN_H           (30)
-
-#define SYS_UI_COLOR_ROW_Y            (150)
-#define SYS_UI_COLOR_SIZE             (36)
-#define SYS_UI_COLOR_SPAN             (70)
-
 #define SYS_UI_TEMP_GRAPH_X           (20)
 #define SYS_UI_TEMP_GRAPH_Y           (50)
 #define SYS_UI_TEMP_GRAPH_W           (280)
@@ -80,23 +108,20 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_TEMP_BTN_H             (24)
 #define SYS_UI_TEMP_BTN_GAP           (10)
 
-/* Compass layout */
-#define SYS_UI_COMPASS_CX             (70)
-#define SYS_UI_COMPASS_CY             (45)
-#define SYS_UI_COMPASS_R              (26)
-
-/* Speedometer layout */
-#define SYS_UI_SPEEDO_CX              (90)
-#define SYS_UI_SPEEDO_CY              (150)
-#define SYS_UI_SPEEDO_OUTER_R         (70)
-#define SYS_UI_SPEEDO_INNER_R         (50)
+/* Background color palette for settings screen
+ * INFO(index, R, G, B, label)            */
+#define SYS_UI_BG_COLOR_TABLE(INFO) \
+  INFO(0, 13, 27, 42, "Navy")       \
+  INFO(1, 3, 4, 94, "Ocean")        \
+  INFO(2, 10, 10, 10, "Black")
+#define SYS_UI_BG_COLOR_COUNT (3)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
 {
   lv_obj_t *active_screen;
 
-  /* Main screen widgets */
+  // Main screen widgets
   lv_obj_t *main_screen;
   lv_obj_t *speedometer_arc;
   lv_obj_t *speed_label;
@@ -118,20 +143,20 @@ typedef struct
   lv_obj_t *settings_btn;
   lv_obj_t *out_btn;
 
-  /* Settings screen widgets */
+  // Settings screen widgets
   lv_obj_t *settings_screen;
   lv_obj_t *settings_title;
   lv_obj_t *settings_back_btn;
   lv_obj_t *brightness_slider;
   lv_obj_t *brightness_label;
-  lv_obj_t *color_btns[3];
+  lv_obj_t *color_btns[SYS_UI_BG_COLOR_COUNT];
 
-  /* Out screen widgets */
+  // Out screen widgets
   lv_obj_t *out_screen;
   lv_obj_t *out_title;
   lv_obj_t *out_back_btn;
 
-  /* Time history screen widgets */
+  // Time history screen widgets
   lv_obj_t *time_history_screen;
   lv_obj_t *time_history_title;
   lv_obj_t *time_back_btn;
@@ -139,7 +164,7 @@ typedef struct
   lv_obj_t *history_labels[4];
   lv_obj_t *extend_btn;
 
-  /* Distance screen widgets */
+  // Distance screen widgets
   lv_obj_t          *distance_screen;
   lv_obj_t          *distance_title;
   lv_obj_t          *distance_back_btn;
@@ -148,7 +173,7 @@ typedef struct
   lv_obj_t          *distance_chart;
   lv_chart_series_t *distance_series;
 
-  /* Temperature screen widgets */
+  // Temperature screen widgets
   lv_obj_t          *temp_screen;
   lv_obj_t          *temp_title;
   lv_obj_t          *temp_back_btn;
@@ -162,18 +187,13 @@ typedef struct
 } sys_ui_widgets_t;
 typedef struct
 {
-  /* Hardware interfaces */
-  lvgl_driver_t lvgl;
-
-  /* UI widgets */
+  lvgl_driver_t    lvgl;
   sys_ui_widgets_t widgets;
 
-  /* Timing */
   size_t last_speed_update;
   size_t last_second_tick;
   size_t last_time_update_screen;
 
-  /* Speed and distance tracking */
   size_t            frame_counter;
   float             current_speed;
   float             target_speed;
@@ -181,11 +201,9 @@ typedef struct
   int               prev_speed_int;
   sys_fusion_data_t fusion;
 
-  /* Countdown timer */
   int remaining_minutes;
   int remaining_seconds;
 
-  /* Environment telemetry */
   float temperature_C;
   float humidity;
   int   air_quality;
@@ -193,23 +211,20 @@ typedef struct
   int   brightness_percent;
   float compass_heading_deg;
 
-  /* Setting/theme */
   size_t background_color;
 
-  /* State tracking */
   size_t        session_start_ms;
   sys_ui_view_t view;
   uint16_t      last_touch_x;
   uint16_t      last_touch_y;
   bool          pending_main_redraw;
 
-  /* History data */
-  char   rentalHistory[SYS_UI_MAX_RENTAL_HISTORY][32];
+  char   rental_history[SYS_UI_MAX_RENTAL_HISTORY][32];
   int    rental_history_count;
-  float  distanceHistory[SYS_UI_MAX_DISTANCE_LOG];
+  float  distance_history[SYS_UI_MAX_DISTANCE_LOG];
   int    distance_history_count;
-  float  temperatureHistory[SYS_UI_MAX_TEMP_SAMPLES];
-  size_t temperatureTimestamps[SYS_UI_MAX_TEMP_SAMPLES];
+  float  temp_history[SYS_UI_MAX_TEMP_SAMPLES];
+  size_t temp_timestamps[SYS_UI_MAX_TEMP_SAMPLES];
   int    temperature_sample_count;
   int    temperature_zoom;
   int    temperature_pan;
@@ -238,34 +253,39 @@ static void sys_ui_distance_card_cb(lv_event_t *e);
 static void sys_ui_env_card_cb(lv_event_t *e);
 
 static void sys_ui_init_data(void);
+static void sys_ui_init_full_widget(void);
 static void sys_ui_reset_full_widget(sys_ui_widgets_t *w);
+static void sys_ui_register_lvgl_callbacks(void);
+
 static void sys_ui_update_speed_n_distance(void);
 static void sys_ui_update_countdown(void);
 static void sys_ui_update_env_data(void);
-static void sys_ui_change_screen(sys_ui_view_t view);
-static void sys_ui_return_main_screen(void);
-static void sys_ui_log_distance_sample(float value);
-static void sys_ui_logTemperatureSample(float value, size_t timestamp);
-static void sys_ui_refreshTemperatureOverlay(void);
-static void sys_ui_register_lvgl_callbacks(void);
-static void sys_ui_show_screen(lv_obj_t *screen);
-static void sys_ui_main_screen(void);
-static void sys_ui_createSettingsScreen(void);
-static void sys_ui_createOutScreen(void);
-static void sys_ui_createTimeHistoryScreen(void);
-static void sys_ui_createDistanceScreen(void);
-static void sys_ui_createTemperatureScreen(void);
-static void sys_ui_init_full_widget(void);
 static void sys_ui_update_speed(int speedKph);
 static void sys_ui_update_time(int minutes, int seconds);
 static void sys_ui_update_distance(float distance_km);
 static void sys_ui_update_env(float temperature_C, float humidity, int air_quality);
 static void sys_ui_update_compass(void);
-static void sys_ui_drawSettingsOverlay(void);
-static void sys_ui_drawOutOverlay(void);
-static void sys_ui_drawTimeHistoryOverlay(void);
-static void sys_ui_drawDistanceOverlay(void);
-static void sys_ui_drawTemperatureOverlay(void);
+
+static void sys_ui_change_screen(sys_ui_view_t view);
+static void sys_ui_return_main_screen(void);
+
+static void sys_ui_log_distance_sample(float value);
+static void sys_ui_log_temp_sample(float value, size_t timestamp);
+static void sys_ui_refresh_temp_overlay(void);
+
+static void sys_ui_show_screen(lv_obj_t *screen);
+static void sys_ui_create_main_screen(void);
+static void sys_ui_create_setting_screen(void);
+static void sys_ui_create_out_screen(void);
+static void sys_ui_create_time_history_screen(void);
+static void sys_ui_create_distance_screen(void);
+static void sys_ui_create_temp_screen(void);
+
+static void sys_ui_draw_setting_overlay(void);
+static void sys_ui_draw_out_overlay(void);
+static void sys_ui_draw_time_overlay(void);
+static void sys_ui_draw_distance_overlay(void);
+static void sys_ui_draw_temp_overlay(void);
 static void sys_ui_init_history_mock(void);
 
 static float  s_distance_history_mock[100];
@@ -288,26 +308,17 @@ void sys_ui_init(void)
   ui_ctx.pending_main_redraw = false;
   ui_ctx.temperature_zoom    = 1;
 
-  // Initialize bsp_display and reset all widget pointers to null
   sys_ui_reset_full_widget(&ui_ctx.widgets);
   bsp_display_init();
 
-  // Initialize LVGL driver and set touch callback
   ui_ctx.lvgl.user_data = &ui_ctx;
   lvgl_driver_init(&ui_ctx.lvgl, bsp_display_get_driver());
   lvgl_driver_set_touch_callback(&ui_ctx.lvgl, sys_ui_lvgl_touch_read_cb);
 
-  // Init UI data
   sys_ui_init_data();
   sys_ui_init_history_mock();
-
-  // Apply initial brightness
   bsp_display_set_brightness_percent(ui_ctx.brightness_percent);
-
-  // Create main screen and widgets
   sys_ui_init_full_widget();
-
-  // Register LVGL event callbacks for interactive widgets
   sys_ui_register_lvgl_callbacks();
 
   size_t now                     = OS_GET_TICK();
@@ -316,7 +327,6 @@ void sys_ui_init(void)
   ui_ctx.last_second_tick        = now;
   ui_ctx.last_time_update_screen = now;
 
-  /* Initialize touch */
   bsp_touch_init();
 
   LOG_DBG("[SYS_UI] Init complete\n");
@@ -371,18 +381,18 @@ void sys_ui_process(void)
     {
       ui_ctx.last_second_tick = now;
       sys_ui_update_countdown();
-      sys_ui_drawTimeHistoryOverlay();
+      sys_ui_draw_time_overlay();
     }
     break;
   }
   case SYS_UI_VIEW_DISTANCE:
   {
-    sys_ui_drawDistanceOverlay();
+    sys_ui_draw_distance_overlay();
     break;
   }
   case SYS_UI_VIEW_TEMPERATURE:
   {
-    sys_ui_drawTemperatureOverlay();
+    sys_ui_draw_temp_overlay();
     break;
   }
   case SYS_UI_VIEW_SETTINGS:
@@ -397,15 +407,18 @@ void sys_ui_process(void)
   default: break;
   }
 
-  /* Handle pending main screen redraw */
   if (ui_ctx.view == SYS_UI_VIEW_MAIN && ui_ctx.pending_main_redraw)
   {
+    if (ui_ctx.widgets.main_screen != nullptr)
+    {
+      lv_obj_del(ui_ctx.widgets.main_screen);
+    }
+    sys_ui_reset_full_widget(&ui_ctx.widgets);
     sys_ui_init_full_widget();
     sys_ui_register_lvgl_callbacks();
     ui_ctx.pending_main_redraw = false;
   }
 
-  /* Handle LVGL tasks */
   lvgl_driver_task(&ui_ctx.lvgl);
 }
 
@@ -463,7 +476,7 @@ static void sys_ui_reset_full_widget(sys_ui_widgets_t *w)
   w->zoom_plus_btn        = nullptr;
   w->pan_left_btn         = nullptr;
   w->pan_right_btn        = nullptr;
-  for (int i = 0; i < 3; ++i) w->color_btns[i] = nullptr;
+  for (int i = 0; i < SYS_UI_BG_COLOR_COUNT; ++i) w->color_btns[i] = nullptr;
   for (int i = 0; i < 4; ++i) w->history_labels[i] = nullptr;
 }
 
@@ -485,8 +498,8 @@ static void sys_ui_init_data(void)
   ui_ctx.rental_history_count                        = SYS_UI_MAX_RENTAL_HISTORY;
   for (int i = 0; i < SYS_UI_MAX_RENTAL_HISTORY; ++i)
   {
-    strncpy(ui_ctx.rentalHistory[i], seedHistory[i], sizeof(ui_ctx.rentalHistory[i]) - 1);
-    ui_ctx.rentalHistory[i][sizeof(ui_ctx.rentalHistory[i]) - 1] = '\0';
+    strncpy(ui_ctx.rental_history[i], seedHistory[i], sizeof(ui_ctx.rental_history[i]) - 1);
+    ui_ctx.rental_history[i][sizeof(ui_ctx.rental_history[i]) - 1] = '\0';
   }
 }
 
@@ -499,228 +512,223 @@ static void sys_ui_show_screen(lv_obj_t *screen)
   lv_screen_load(screen);
 }
 
-static void sys_ui_main_screen(void)
+static void sys_ui_create_main_screen(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
+  ui_ctx.widgets.main_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
 
-  w->main_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
+  // Top control buttons
+  ui_ctx.widgets.settings_btn = sys_ui_widget_create_button(ui_ctx.widgets.main_screen, SYS_UI_SETTINGS_BTN_X,
+                                                            SYS_UI_CTRL_BTN_Y, SYS_UI_SETTINGS_BTN_W, SYS_UI_CTRL_BTN_H,
+                                                            "SETTINGS", SYS_UI_COLOR_PRIMARY, SYS_UI_COLOR_BG);
 
-  /* Speedometer Arc */
-  w->speedometer_arc = sys_ui_widget_create_arc(w->main_screen, SYS_UI_SPEEDO_CX, SYS_UI_SPEEDO_CY,
-                                                SYS_UI_SPEEDO_OUTER_R, 135, 405, 0x333333, SYS_UI_COLOR_SUCCESS);
+  ui_ctx.widgets.out_btn =
+    sys_ui_widget_create_button(ui_ctx.widgets.main_screen, SYS_UI_OUT_BTN_X, SYS_UI_CTRL_BTN_Y, SYS_UI_OUT_BTN_W,
+                                SYS_UI_CTRL_BTN_H, "OUT", SYS_UI_COLOR_WARNING, SYS_UI_COLOR_BG);
 
-  w->speed_label = sys_ui_widget_create_label(w->main_screen, SYS_UI_SPEEDO_CX - 20, SYS_UI_SPEEDO_CY - 10, "0",
-                                              SYS_UI_COLOR_TEXT, &lv_font_montserrat_28);
-  lv_obj_set_style_text_align(w->speed_label, LV_TEXT_ALIGN_CENTER, 0);
+  // Speedometer Arc (center)
+  ui_ctx.widgets.speedometer_arc =
+    sys_ui_widget_create_arc(ui_ctx.widgets.main_screen, SYS_UI_SPEEDO_CX, SYS_UI_SPEEDO_CY, SYS_UI_SPEEDO_OUTER_R, 135,
+                             405, 0x1A2A3A, SYS_UI_COLOR_SUCCESS);
 
-  w->speed_unit_label = sys_ui_widget_create_label(w->main_screen, SYS_UI_SPEEDO_CX - 15, SYS_UI_SPEEDO_CY + 20, "km/h",
-                                                   SYS_UI_COLOR_PRIMARY, &lv_font_montserrat_10);
+  ui_ctx.widgets.speed_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.main_screen, SYS_UI_SPEEDO_CX - 20, SYS_UI_SPEEDO_CY - 14, "0",
+                               SYS_UI_COLOR_TEXT, &lv_font_montserrat_28);
+  lv_obj_set_width(ui_ctx.widgets.speed_label, 40);
+  lv_obj_set_style_text_align(ui_ctx.widgets.speed_label, LV_TEXT_ALIGN_CENTER, 0);
 
-  /* Compass */
-  w->compass_arc = sys_ui_widget_create_arc(w->main_screen, SYS_UI_COMPASS_CX, SYS_UI_COMPASS_CY, SYS_UI_COMPASS_R, 0,
-                                            360, 0x222222, SYS_UI_COLOR_PRIMARY);
+  ui_ctx.widgets.speed_unit_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.main_screen, SYS_UI_SPEEDO_CX - 12, SYS_UI_SPEEDO_CY + 18, "km/h",
+                               SYS_UI_COLOR_PRIMARY, &lv_font_montserrat_10);
+
+  // Map and compass panel
+  sys_ui_widget_create_panel(ui_ctx.widgets.main_screen, SYS_UI_MAP_PANEL_X, SYS_UI_MAP_PANEL_Y, SYS_UI_MAP_PANEL_W,
+                             SYS_UI_MAP_PANEL_H, SYS_UI_COMPASS_PANEL_BG_COLOR);
 
   static lv_point_precise_t needle_points[2] = { { SYS_UI_COMPASS_CX, SYS_UI_COMPASS_CY },
                                                  { SYS_UI_COMPASS_CX, SYS_UI_COMPASS_CY - SYS_UI_COMPASS_R + 4 } };
-  w->compass_needle                          = lv_line_create(w->main_screen);
-  lv_line_set_points(w->compass_needle, needle_points, 2);
-  lv_obj_set_style_line_width(w->compass_needle, 2, 0);
-  lv_obj_set_style_line_color(w->compass_needle, lv_color_hex(SYS_UI_COLOR_ACCENT), 0);
+  ui_ctx.widgets.compass_needle              = lv_line_create(ui_ctx.widgets.main_screen);
+  lv_line_set_points(ui_ctx.widgets.compass_needle, needle_points, 2);
+  lv_obj_set_style_line_width(ui_ctx.widgets.compass_needle, 2, 0);
+  lv_obj_set_style_line_color(ui_ctx.widgets.compass_needle, lv_color_hex(SYS_UI_COLOR_ACCENT), 0);
 
-  sys_ui_widget_create_label(w->main_screen, SYS_UI_COMPASS_CX - 4, SYS_UI_COMPASS_CY - SYS_UI_COMPASS_R - 10, "N",
-                             SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
-  sys_ui_widget_create_label(w->main_screen, SYS_UI_COMPASS_CX + SYS_UI_COMPASS_R + 2, SYS_UI_COMPASS_CY - 5, "E",
-                             SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
-  sys_ui_widget_create_label(w->main_screen, SYS_UI_COMPASS_CX - 4, SYS_UI_COMPASS_CY + SYS_UI_COMPASS_R + 2, "S",
-                             SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
-  sys_ui_widget_create_label(w->main_screen, SYS_UI_COMPASS_CX - SYS_UI_COMPASS_R - 10, SYS_UI_COMPASS_CY - 5, "W",
-                             SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
+  ui_ctx.widgets.compass_deg_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.main_screen, SYS_UI_HEADING_TEXT_X, SYS_UI_HEADING_TEXT_Y, "0°",
+                               SYS_UI_COLOR_TEXT, &lv_font_montserrat_18);
+  ui_ctx.widgets.compass_dir_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.main_screen, SYS_UI_COMPASS_DEG_X, SYS_UI_COMPASS_DEG_Y, "N",
+                               SYS_UI_COLOR_ACCENT, &lv_font_montserrat_18);
 
-  w->compass_deg_label = sys_ui_widget_create_label(w->main_screen, SYS_UI_COMPASS_CX - 16, SYS_UI_COMPASS_CY - 6, "0°",
-                                                    SYS_UI_COLOR_TEXT, &lv_font_montserrat_10);
-  w->compass_dir_label = sys_ui_widget_create_label(w->main_screen, SYS_UI_COMPASS_CX - 10, SYS_UI_COMPASS_CY + 6, "N",
-                                                    SYS_UI_COLOR_ACCENT, &lv_font_montserrat_10);
+  // Right Panel Info Cards
 
-  /* Time Card */
-  w->time_card = sys_ui_widget_create_card(w->main_screen, SYS_UI_TIME_CARD_X, SYS_UI_TIME_CARD_Y, SYS_UI_TIME_CARD_W,
-                                           SYS_UI_TIME_CARD_H, SYS_UI_COLOR_PRIMARY);
-
-  sys_ui_widget_create_label(w->time_card, 10, 2, "REMAIN", SYS_UI_COLOR_PRIMARY, &lv_font_montserrat_10);
-
-  w->time_label =
-    sys_ui_widget_create_label(w->time_card, 5, 18, "00:00", SYS_UI_COLOR_SUCCESS, &lv_font_montserrat_18);
-
-  w->time_unit_label =
-    sys_ui_widget_create_label(w->time_card, 25, 38, "mins", SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
+  // Time Card
+  ui_ctx.widgets.time_card = sys_ui_widget_create_card(ui_ctx.widgets.main_screen, SYS_UI_CARD_X, SYS_UI_TIME_CARD_Y,
+                                                       SYS_UI_CARD_W, SYS_UI_TIME_CARD_H, SYS_UI_COLOR_PRIMARY);
+  sys_ui_widget_create_label(ui_ctx.widgets.time_card, 8, 2, "REMAIN", SYS_UI_COLOR_PRIMARY, &lv_font_montserrat_10);
+  ui_ctx.widgets.time_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.time_card, 5, 16, "00:00", SYS_UI_COLOR_SUCCESS, &lv_font_montserrat_18);
+  ui_ctx.widgets.time_unit_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.time_card, 24, 38, "mins", SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
 
   /* Distance Card */
-  w->distance_card = sys_ui_widget_create_card(w->main_screen, SYS_UI_DIST_CARD_X, SYS_UI_DIST_CARD_Y,
-                                               SYS_UI_DIST_CARD_W, SYS_UI_DIST_CARD_H, SYS_UI_COLOR_ACCENT);
+  ui_ctx.widgets.distance_card =
+    sys_ui_widget_create_card(ui_ctx.widgets.main_screen, SYS_UI_CARD_X, SYS_UI_DIST_CARD_Y, SYS_UI_CARD_W,
+                              SYS_UI_DIST_CARD_H, SYS_UI_COLOR_ACCENT);
+  sys_ui_widget_create_label(ui_ctx.widgets.distance_card, 5, 2, "DISTANCE", SYS_UI_COLOR_TEXT_DIM,
+                             &lv_font_montserrat_10);
+  ui_ctx.widgets.distance_label      = sys_ui_widget_create_label(ui_ctx.widgets.distance_card, 5, 16, "0.00",
+                                                                  SYS_UI_COLOR_ACCENT, &lv_font_montserrat_16);
+  ui_ctx.widgets.distance_unit_label = sys_ui_widget_create_label(ui_ctx.widgets.distance_card, 62, 20, "km",
+                                                                  SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
 
-  sys_ui_widget_create_label(w->distance_card, 5, 2, "DISTANCE", SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
-
-  w->distance_label =
-    sys_ui_widget_create_label(w->distance_card, 5, 16, "0.00", SYS_UI_COLOR_ACCENT, &lv_font_montserrat_16);
-
-  w->distance_unit_label =
-    sys_ui_widget_create_label(w->distance_card, 62, 20, "km", SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
-
-  /* Environment Card */
-  w->env_card = sys_ui_widget_create_card(w->main_screen, SYS_UI_ENV_CARD_X, SYS_UI_ENV_CARD_Y, SYS_UI_ENV_CARD_W,
-                                          SYS_UI_ENV_CARD_H, SYS_UI_COLOR_TEXT_DIM);
-
-  sys_ui_widget_create_label(w->env_card, 8, 0, "ENV STATUS", SYS_UI_COLOR_TEXT, &lv_font_montserrat_10);
-
-  w->temp_label = sys_ui_widget_create_label(w->env_card, 5, 16, "0.0°C", SYS_UI_COLOR_WARNING, &lv_font_montserrat_12);
-
-  w->humidity_label =
-    sys_ui_widget_create_label(w->env_card, 5, 32, "0%", SYS_UI_COLOR_PRIMARY, &lv_font_montserrat_12);
-
-  w->aqi_label =
-    sys_ui_widget_create_label(w->env_card, 5, 48, "AQI: --", SYS_UI_COLOR_SUCCESS, &lv_font_montserrat_10);
-
-  /* Control Buttons */
-  w->settings_btn =
-    sys_ui_widget_create_button(w->main_screen, SYS_UI_SETTINGS_BTN_X, SYS_UI_CTRL_BTN_Y, SYS_UI_SETTINGS_BTN_W,
-                                SYS_UI_CTRL_BTN_H, "SETTINGS", SYS_UI_COLOR_PRIMARY, SYS_UI_COLOR_BG);
-
-  w->out_btn = sys_ui_widget_create_button(w->main_screen, SYS_UI_OUT_BTN_X, SYS_UI_CTRL_BTN_Y, SYS_UI_OUT_BTN_W,
-                                           SYS_UI_CTRL_BTN_H, "OUT", SYS_UI_COLOR_WARNING, SYS_UI_COLOR_BG);
+  // Environment Card
+  ui_ctx.widgets.env_card = sys_ui_widget_create_card(ui_ctx.widgets.main_screen, SYS_UI_CARD_X, SYS_UI_ENV_CARD_Y,
+                                                      SYS_UI_CARD_W, SYS_UI_ENV_CARD_H, SYS_UI_COLOR_TEXT_DIM);
+  sys_ui_widget_create_label(ui_ctx.widgets.env_card, 6, 0, "ENV STATUS", SYS_UI_COLOR_TEXT, &lv_font_montserrat_10);
+  ui_ctx.widgets.temp_label = sys_ui_widget_create_label(ui_ctx.widgets.env_card, 5, 14, "0.0\xc2\xb0\x43",
+                                                         SYS_UI_COLOR_WARNING, &lv_font_montserrat_12);
+  ui_ctx.widgets.humidity_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.env_card, 5, 32, "0%", SYS_UI_COLOR_PRIMARY, &lv_font_montserrat_12);
+  ui_ctx.widgets.aqi_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.env_card, 5, 50, "AQI: --", SYS_UI_COLOR_SUCCESS, &lv_font_montserrat_10);
 }
 
-static void sys_ui_createSettingsScreen(void)
+static void sys_ui_create_setting_screen(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
+  ui_ctx.widgets.settings_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
 
-  w->settings_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
+  ui_ctx.widgets.settings_back_btn =
+    sys_ui_widget_create_button(ui_ctx.widgets.settings_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
+                                SYS_UI_BACK_BTN_H, "< BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
 
-  w->settings_back_btn =
-    sys_ui_widget_create_button(w->settings_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
+  ui_ctx.widgets.settings_title = sys_ui_widget_create_label(ui_ctx.widgets.settings_screen, 90, 13, "SETTINGS",
+                                                             SYS_UI_COLOR_TEXT, &lv_font_montserrat_18);
+
+  /* Brightness section */
+  sys_ui_widget_create_label(ui_ctx.widgets.settings_screen, 40, 52, "Brightness", SYS_UI_COLOR_TEXT_DIM, nullptr);
+
+  ui_ctx.widgets.brightness_slider = sys_ui_widget_create_slider(
+    ui_ctx.widgets.settings_screen, 40, 72, 220, 22, 5, 100, ui_ctx.brightness_percent, 0x1A2A3A, SYS_UI_COLOR_PRIMARY);
+
+  ui_ctx.widgets.brightness_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.settings_screen, 268, 72, "", SYS_UI_COLOR_TEXT, nullptr);
+  sys_ui_widget_set_label_text_format(ui_ctx.widgets.brightness_label, "%d%%", ui_ctx.brightness_percent);
+
+  /* Background color section */
+  sys_ui_widget_create_label(ui_ctx.widgets.settings_screen, 40, 108, "Background", SYS_UI_COLOR_TEXT_DIM, nullptr);
+
+  /* Color swatches — generated from BG_COLOR_TABLE */
+  // clang-format off
+#define INFO(idx, r, g, b, lbl)                                                                          \
+  ui_ctx.widgets.color_btns[idx] = lv_btn_create(ui_ctx.widgets.settings_screen);                       \
+  lv_obj_set_pos(ui_ctx.widgets.color_btns[idx], 40 + (idx) * SYS_UI_SWATCH_SPAN, SYS_UI_SWATCH_ROW_Y);  \
+  lv_obj_set_size(ui_ctx.widgets.color_btns[idx], SYS_UI_SWATCH_SIZE, SYS_UI_SWATCH_SIZE);               \
+  lv_obj_set_style_bg_color(ui_ctx.widgets.color_btns[idx], lv_color_hex(BSP_DISPLAY_RGB_TO_HEX(r, g, b)), 0); \
+  lv_obj_set_style_border_color(ui_ctx.widgets.color_btns[idx], lv_color_hex(SYS_UI_COLOR_TEXT_DIM), 0); \
+  lv_obj_set_style_border_width(ui_ctx.widgets.color_btns[idx], 1, 0);                                   \
+  lv_obj_set_style_radius(ui_ctx.widgets.color_btns[idx], 4, 0);                                         \
+  sys_ui_widget_create_label(ui_ctx.widgets.settings_screen,                                            \
+    40 + (idx) * SYS_UI_SWATCH_SPAN, SYS_UI_SWATCH_ROW_Y + SYS_UI_SWATCH_SIZE + 3,                      \
+    lbl, SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
+  SYS_UI_BG_COLOR_TABLE(INFO)
+#undef INFO
+  // clang-format on
+}
+
+static void sys_ui_create_out_screen(void)
+{
+  ui_ctx.widgets.out_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
+
+  ui_ctx.widgets.out_back_btn =
+    sys_ui_widget_create_button(ui_ctx.widgets.out_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
                                 SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
 
-  w->settings_title =
-    sys_ui_widget_create_label(w->settings_screen, 90, 15, "SETTINGS", SYS_UI_COLOR_TEXT, &lv_font_montserrat_18);
+  ui_ctx.widgets.out_title = sys_ui_widget_create_label(ui_ctx.widgets.out_screen, 80, 80, "OUT MODE",
+                                                        SYS_UI_COLOR_WARNING, &lv_font_montserrat_24);
 
-  sys_ui_widget_create_label(w->settings_screen, 40, 55, "Brightness", SYS_UI_COLOR_TEXT, nullptr);
-
-  w->brightness_slider = sys_ui_widget_create_slider(w->settings_screen, 40, 80, 200, 20, 5, 100,
-                                                     ui_ctx.brightness_percent, 0x333333, SYS_UI_COLOR_PRIMARY);
-
-  w->brightness_label = sys_ui_widget_create_label(w->settings_screen, 250, 80, "", SYS_UI_COLOR_TEXT, nullptr);
-  sys_ui_widget_set_label_text_format(w->brightness_label, "%d%%", ui_ctx.brightness_percent);
-
-  sys_ui_widget_create_label(w->settings_screen, 40, 120, "Background", SYS_UI_COLOR_TEXT, nullptr);
-
-  size_t colors[3] = { 0x000000, 0xFFFFFF, 0x7B7B7B };
-  for (int i = 0; i < 3; ++i)
-  {
-    w->color_btns[i] = lv_btn_create(w->settings_screen);
-    lv_obj_set_pos(w->color_btns[i], 40 + i * SYS_UI_COLOR_SPAN, SYS_UI_COLOR_ROW_Y);
-    lv_obj_set_size(w->color_btns[i], SYS_UI_COLOR_SIZE, SYS_UI_COLOR_SIZE);
-    lv_obj_set_style_bg_color(w->color_btns[i], lv_color_hex(colors[i]), 0);
-    lv_obj_set_style_radius(w->color_btns[i], 4, 0);
-  }
+  sys_ui_widget_create_label(ui_ctx.widgets.out_screen, 80, 130, "Tap BACK to resume.", SYS_UI_COLOR_TEXT, nullptr);
 }
 
-static void sys_ui_createOutScreen(void)
+static void sys_ui_create_time_history_screen(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
+  ui_ctx.widgets.time_history_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
 
-  w->out_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
+  ui_ctx.widgets.time_back_btn =
+    sys_ui_widget_create_button(ui_ctx.widgets.time_history_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y,
+                                SYS_UI_BACK_BTN_W, SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
 
-  w->out_back_btn = sys_ui_widget_create_button(w->out_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
-                                                SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
-
-  w->out_title =
-    sys_ui_widget_create_label(w->out_screen, 80, 80, "OUT MODE", SYS_UI_COLOR_WARNING, &lv_font_montserrat_24);
-
-  sys_ui_widget_create_label(w->out_screen, 80, 130, "Tap BACK to resume.", SYS_UI_COLOR_TEXT, nullptr);
-}
-
-static void sys_ui_createTimeHistoryScreen(void)
-{
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-
-  w->time_history_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
-
-  w->time_back_btn =
-    sys_ui_widget_create_button(w->time_history_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
-                                SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
-
-  w->time_history_title = sys_ui_widget_create_label(w->time_history_screen, 60, 15, "RENTAL HISTORY",
-                                                     SYS_UI_COLOR_TEXT, &lv_font_montserrat_18);
+  ui_ctx.widgets.time_history_title = sys_ui_widget_create_label(
+    ui_ctx.widgets.time_history_screen, 60, 15, "RENTAL HISTORY", SYS_UI_COLOR_TEXT, &lv_font_montserrat_18);
 
   for (int i = 0; i < 4; ++i)
   {
-    w->history_labels[i] = sys_ui_widget_create_label(w->time_history_screen, 40, 55 + i * 20, "", SYS_UI_COLOR_TEXT,
-                                                      &lv_font_montserrat_12);
+    ui_ctx.widgets.history_labels[i] = sys_ui_widget_create_label(ui_ctx.widgets.time_history_screen, 40, 55 + i * 20,
+                                                                  "", SYS_UI_COLOR_TEXT, &lv_font_montserrat_12);
   }
 
-  w->time_remaining_label =
-    sys_ui_widget_create_label(w->time_history_screen, 40, 140, "Remaining: 00:00", SYS_UI_COLOR_TEXT, nullptr);
+  ui_ctx.widgets.time_remaining_label = sys_ui_widget_create_label(ui_ctx.widgets.time_history_screen, 40, 140,
+                                                                   "Remaining: 00:00", SYS_UI_COLOR_TEXT, nullptr);
 
-  w->extend_btn =
-    sys_ui_widget_create_button(w->time_history_screen, SYS_UI_EXTEND_BTN_X, SYS_UI_EXTEND_BTN_Y, SYS_UI_EXTEND_BTN_W,
-                                SYS_UI_EXTEND_BTN_H, "+30 min", SYS_UI_COLOR_SUCCESS, SYS_UI_COLOR_BG);
+  ui_ctx.widgets.extend_btn = sys_ui_widget_create_button(ui_ctx.widgets.time_history_screen, SYS_UI_EXTEND_BTN_X,
+                                                          SYS_UI_EXTEND_BTN_Y, SYS_UI_EXTEND_BTN_W, SYS_UI_EXTEND_BTN_H,
+                                                          "+30 min", SYS_UI_COLOR_SUCCESS, SYS_UI_COLOR_BG);
 }
 
-static void sys_ui_createDistanceScreen(void)
+static void sys_ui_create_distance_screen(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
+  ui_ctx.widgets.distance_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
 
-  w->distance_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
-
-  w->distance_back_btn =
-    sys_ui_widget_create_button(w->distance_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
+  ui_ctx.widgets.distance_back_btn =
+    sys_ui_widget_create_button(ui_ctx.widgets.distance_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
                                 SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
 
-  w->distance_title =
-    sys_ui_widget_create_label(w->distance_screen, 70, 15, "DISTANCE STATS", SYS_UI_COLOR_TEXT, &lv_font_montserrat_18);
+  ui_ctx.widgets.distance_title = sys_ui_widget_create_label(ui_ctx.widgets.distance_screen, 70, 15, "DISTANCE STATS",
+                                                             SYS_UI_COLOR_TEXT, &lv_font_montserrat_18);
 
-  w->total_distance_label =
-    sys_ui_widget_create_label(w->distance_screen, 30, 50, "Total: 0.00 km", SYS_UI_COLOR_TEXT, nullptr);
+  ui_ctx.widgets.total_distance_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.distance_screen, 30, 50, "Total: 0.00 km", SYS_UI_COLOR_TEXT, nullptr);
 
-  w->avg_speed_label =
-    sys_ui_widget_create_label(w->distance_screen, 30, 70, "Avg speed: 0.0 km/h", SYS_UI_COLOR_TEXT, nullptr);
+  ui_ctx.widgets.avg_speed_label = sys_ui_widget_create_label(ui_ctx.widgets.distance_screen, 30, 70,
+                                                              "Avg speed: 0.0 km/h", SYS_UI_COLOR_TEXT, nullptr);
 
-  w->distance_chart  = sys_ui_widget_create_chart(w->distance_screen, 30, 95, 260, 120, 16, 0x111111);
-  w->distance_series = sys_ui_widget_addChart_series(w->distance_chart, SYS_UI_COLOR_ACCENT);
+  ui_ctx.widgets.distance_chart =
+    sys_ui_widget_create_chart(ui_ctx.widgets.distance_screen, 30, 95, 260, 120, 16, 0x111111);
+  ui_ctx.widgets.distance_series = sys_ui_widget_addChart_series(ui_ctx.widgets.distance_chart, SYS_UI_COLOR_ACCENT);
 }
 
-static void sys_ui_createTemperatureScreen(void)
+static void sys_ui_create_temp_screen(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
+  ui_ctx.widgets.temp_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
 
-  w->temp_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
-
-  w->temp_back_btn =
-    sys_ui_widget_create_button(w->temp_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
+  ui_ctx.widgets.temp_back_btn =
+    sys_ui_widget_create_button(ui_ctx.widgets.temp_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
                                 SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
 
-  w->temp_title =
-    sys_ui_widget_create_label(w->temp_screen, 90, 15, "TEMPERATURE", SYS_UI_COLOR_TEXT, &lv_font_montserrat_18);
+  ui_ctx.widgets.temp_title = sys_ui_widget_create_label(ui_ctx.widgets.temp_screen, 90, 15, "TEMPERATURE",
+                                                         SYS_UI_COLOR_TEXT, &lv_font_montserrat_18);
 
-  w->temp_chart  = sys_ui_widget_create_chart(w->temp_screen, SYS_UI_TEMP_GRAPH_X, SYS_UI_TEMP_GRAPH_Y,
-                                              SYS_UI_TEMP_GRAPH_W, SYS_UI_TEMP_GRAPH_H, 60, 0x111111);
-  w->temp_series = sys_ui_widget_addChart_series(w->temp_chart, SYS_UI_COLOR_ACCENT);
+  ui_ctx.widgets.temp_chart =
+    sys_ui_widget_create_chart(ui_ctx.widgets.temp_screen, SYS_UI_TEMP_GRAPH_X, SYS_UI_TEMP_GRAPH_Y,
+                               SYS_UI_TEMP_GRAPH_W, SYS_UI_TEMP_GRAPH_H, 60, 0x111111);
+  ui_ctx.widgets.temp_series = sys_ui_widget_addChart_series(ui_ctx.widgets.temp_chart, SYS_UI_COLOR_ACCENT);
 
-  w->temp_range_label = sys_ui_widget_create_label(w->temp_screen, SYS_UI_TEMP_GRAPH_X, SYS_UI_TEMP_GRAPH_Y - 15,
-                                                   "Collecting...", SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
+  ui_ctx.widgets.temp_range_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.temp_screen, SYS_UI_TEMP_GRAPH_X, SYS_UI_TEMP_GRAPH_Y - 15,
+                               "Collecting...", SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
 
-  w->zoom_minus_btn =
-    sys_ui_widget_create_button(w->temp_screen, SYS_UI_TEMP_GRAPH_X, SYS_UI_TEMP_BTN_Y, SYS_UI_TEMP_BTN_W,
+  ui_ctx.widgets.zoom_minus_btn =
+    sys_ui_widget_create_button(ui_ctx.widgets.temp_screen, SYS_UI_TEMP_GRAPH_X, SYS_UI_TEMP_BTN_Y, SYS_UI_TEMP_BTN_W,
                                 SYS_UI_TEMP_BTN_H, "Zoom-", 0x333333, SYS_UI_COLOR_TEXT);
 
-  w->zoom_plus_btn = sys_ui_widget_create_button(
-    w->temp_screen, SYS_UI_TEMP_GRAPH_X + SYS_UI_TEMP_BTN_W + SYS_UI_TEMP_BTN_GAP, SYS_UI_TEMP_BTN_Y, SYS_UI_TEMP_BTN_W,
-    SYS_UI_TEMP_BTN_H, "Zoom+", SYS_UI_COLOR_SUCCESS, SYS_UI_COLOR_BG);
+  ui_ctx.widgets.zoom_plus_btn = sys_ui_widget_create_button(
+    ui_ctx.widgets.temp_screen, SYS_UI_TEMP_GRAPH_X + SYS_UI_TEMP_BTN_W + SYS_UI_TEMP_BTN_GAP, SYS_UI_TEMP_BTN_Y,
+    SYS_UI_TEMP_BTN_W, SYS_UI_TEMP_BTN_H, "Zoom+", SYS_UI_COLOR_SUCCESS, SYS_UI_COLOR_BG);
 
-  w->pan_left_btn = sys_ui_widget_create_button(
-    w->temp_screen, SYS_UI_TEMP_GRAPH_X + 2 * (SYS_UI_TEMP_BTN_W + SYS_UI_TEMP_BTN_GAP), SYS_UI_TEMP_BTN_Y,
+  ui_ctx.widgets.pan_left_btn = sys_ui_widget_create_button(
+    ui_ctx.widgets.temp_screen, SYS_UI_TEMP_GRAPH_X + 2 * (SYS_UI_TEMP_BTN_W + SYS_UI_TEMP_BTN_GAP), SYS_UI_TEMP_BTN_Y,
     SYS_UI_TEMP_BTN_W, SYS_UI_TEMP_BTN_H, "<", SYS_UI_COLOR_PRIMARY, SYS_UI_COLOR_BG);
 
-  w->pan_right_btn = sys_ui_widget_create_button(
-    w->temp_screen, SYS_UI_TEMP_GRAPH_X + 3 * (SYS_UI_TEMP_BTN_W + SYS_UI_TEMP_BTN_GAP), SYS_UI_TEMP_BTN_Y,
+  ui_ctx.widgets.pan_right_btn = sys_ui_widget_create_button(
+    ui_ctx.widgets.temp_screen, SYS_UI_TEMP_GRAPH_X + 3 * (SYS_UI_TEMP_BTN_W + SYS_UI_TEMP_BTN_GAP), SYS_UI_TEMP_BTN_Y,
     SYS_UI_TEMP_BTN_W, SYS_UI_TEMP_BTN_H, ">", SYS_UI_COLOR_PRIMARY, SYS_UI_COLOR_BG);
 }
 
@@ -728,7 +736,7 @@ static void sys_ui_init_full_widget(void)
 {
   if (ui_ctx.widgets.main_screen == nullptr)
   {
-    sys_ui_main_screen();
+    sys_ui_create_main_screen();
   }
 
   sys_ui_show_screen(ui_ctx.widgets.main_screen);
@@ -747,77 +755,71 @@ static void sys_ui_update_speed(int speedKph)
     return;
   ui_ctx.prev_speed_int = speedKph;
 
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-
-  if (w->speedometer_arc != nullptr)
+  if (ui_ctx.widgets.speedometer_arc != nullptr)
   {
     int arcValue = (speedKph * 100) / 40;
-    sys_ui_widget_set_arc_value(w->speedometer_arc, arcValue);
+    sys_ui_widget_set_arc_value(ui_ctx.widgets.speedometer_arc, arcValue);
 
     size_t arcColor = SYS_UI_COLOR_DANGER;
     if (speedKph <= 20)
       arcColor = SYS_UI_COLOR_SUCCESS;
     else if (speedKph <= 30)
       arcColor = SYS_UI_COLOR_WARNING;
-    sys_ui_widget_set_arc_color(w->speedometer_arc, arcColor);
+    sys_ui_widget_set_arc_color(ui_ctx.widgets.speedometer_arc, arcColor);
   }
 
-  if (w->speed_label != nullptr)
+  if (ui_ctx.widgets.speed_label != nullptr)
   {
-    sys_ui_widget_set_label_text_format(w->speed_label, "%d", speedKph);
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.speed_label, "%d", speedKph);
   }
 }
 
 static void sys_ui_update_time(int minutes, int seconds)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-  if (w->time_label == nullptr)
+  if (ui_ctx.widgets.time_label == nullptr)
     return;
 
-  sys_ui_widget_set_label_text_format(w->time_label, "%02d:%02d", minutes, seconds);
+  sys_ui_widget_set_label_text_format(ui_ctx.widgets.time_label, "%02d:%02d", minutes, seconds);
 
   size_t timeColor = SYS_UI_COLOR_SUCCESS;
   if (minutes < 5)
     timeColor = SYS_UI_COLOR_DANGER;
   else if (minutes < 10)
     timeColor = SYS_UI_COLOR_WARNING;
-  sys_ui_widget_set_label_color(w->time_label, timeColor);
+  sys_ui_widget_set_label_color(ui_ctx.widgets.time_label, timeColor);
 }
 
 static void sys_ui_update_distance(float distance_km)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-  if (w->distance_label == nullptr)
+  if (ui_ctx.widgets.distance_label == nullptr)
     return;
 
-  sys_ui_widget_set_label_text_format(w->distance_label, "%.2f", distance_km);
+  sys_ui_widget_set_label_text_format(ui_ctx.widgets.distance_label, "%.2f", distance_km);
 }
 
 static void sys_ui_update_env(float temperature_C, float humidity, int air_quality)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-
-  if (w->temp_label != nullptr)
+  if (ui_ctx.widgets.temp_label != nullptr)
   {
-    sys_ui_widget_set_label_text_format(w->temp_label, "%.1f°C", temperature_C);
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.temp_label, "%.1f°C", temperature_C);
   }
 
-  if (w->humidity_label != nullptr)
+  if (ui_ctx.widgets.humidity_label != nullptr)
   {
-    sys_ui_widget_set_label_text_format(w->humidity_label, "%.0f%%", humidity);
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.humidity_label, "%.0f%%", humidity);
   }
 
-  if (w->aqi_label != nullptr)
+  if (ui_ctx.widgets.aqi_label != nullptr)
   {
     const char *status = (air_quality >= 80) ? "Good" : ((air_quality >= 50) ? "Fair" : "Poor");
-    sys_ui_widget_set_label_text_format(w->aqi_label, "AQI:%d %s", air_quality, status);
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.aqi_label, "AQI:%d %s", air_quality, status);
 
     size_t aqiColor = SYS_UI_COLOR_DANGER;
     if (air_quality >= 80)
       aqiColor = SYS_UI_COLOR_SUCCESS;
     else if (air_quality >= 50)
       aqiColor = SYS_UI_COLOR_WARNING;
-    sys_ui_widget_set_label_color(w->aqi_label, aqiColor);
+    sys_ui_widget_set_label_color(ui_ctx.widgets.aqi_label, aqiColor);
   }
 }
 
@@ -849,107 +851,98 @@ static void sys_ui_update_env_data(void)
   ui_ctx.humidity      = SYS_UI_CLAMP(ui_ctx.humidity + static_cast<float>(random(-20, 21)) / 10.0f, 40.0f, 95.0f);
   ui_ctx.air_quality   = SYS_UI_CLAMP(ui_ctx.air_quality + random(-5, 6), 30, 100);
 
-  sys_ui_logTemperatureSample(ui_ctx.temperature_C, OS_GET_TICK());
+  sys_ui_log_temp_sample(ui_ctx.temperature_C, OS_GET_TICK());
 }
 
 static void sys_ui_update_compass(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-  if (w->compass_deg_label != nullptr)
+  if (ui_ctx.widgets.compass_deg_label != nullptr)
   {
-    sys_ui_widget_set_label_text_format(w->compass_deg_label, "%.0f°", ui_ctx.compass_heading_deg);
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.compass_deg_label, "%.0f°", ui_ctx.compass_heading_deg);
   }
 
-  if (w->compass_dir_label != nullptr)
+  if (ui_ctx.widgets.compass_dir_label != nullptr)
   {
     static const char *dirs[] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
     int                idx    = (int) ((ui_ctx.compass_heading_deg + 22.5f) / 45.0f) & 0x7;
-    sys_ui_widget_set_label_text(w->compass_dir_label, dirs[idx]);
+    sys_ui_widget_set_label_text(ui_ctx.widgets.compass_dir_label, dirs[idx]);
   }
 
-  if (w->compass_needle != nullptr)
+  if (ui_ctx.widgets.compass_needle != nullptr)
   {
     float              rad       = (ui_ctx.compass_heading_deg - 90.0f) * (float) PI / 180.0f;
     int                x2        = SYS_UI_COMPASS_CX + (int) ((SYS_UI_COMPASS_R - 4) * cosf(rad));
     int                y2        = SYS_UI_COMPASS_CY + (int) ((SYS_UI_COMPASS_R - 4) * sinf(rad));
     lv_point_precise_t points[2] = { { SYS_UI_COMPASS_CX, SYS_UI_COMPASS_CY }, { x2, y2 } };
-    lv_line_set_points(w->compass_needle, points, 2);
+    lv_line_set_points(ui_ctx.widgets.compass_needle, points, 2);
   }
 }
 
-static void sys_ui_drawSettingsOverlay(void)
+static void sys_ui_draw_setting_overlay(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-
-  if (w->settings_screen == nullptr)
+  if (ui_ctx.widgets.settings_screen == nullptr)
   {
-    sys_ui_createSettingsScreen();
+    sys_ui_create_setting_screen();
   }
 
-  if (w->brightness_slider != nullptr)
+  if (ui_ctx.widgets.brightness_slider != nullptr)
   {
-    lv_slider_set_value(w->brightness_slider, ui_ctx.brightness_percent, LV_ANIM_OFF);
+    lv_slider_set_value(ui_ctx.widgets.brightness_slider, ui_ctx.brightness_percent, LV_ANIM_OFF);
   }
-  if (w->brightness_label != nullptr)
+  if (ui_ctx.widgets.brightness_label != nullptr)
   {
-    sys_ui_widget_set_label_text_format(w->brightness_label, "%d%%", ui_ctx.brightness_percent);
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.brightness_label, "%d%%", ui_ctx.brightness_percent);
   }
 
-  sys_ui_show_screen(w->settings_screen);
+  sys_ui_show_screen(ui_ctx.widgets.settings_screen);
 }
 
-static void sys_ui_drawOutOverlay(void)
+static void sys_ui_draw_out_overlay(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-
-  if (w->out_screen == nullptr)
+  if (ui_ctx.widgets.out_screen == nullptr)
   {
-    sys_ui_createOutScreen();
+    sys_ui_create_out_screen();
   }
 
-  sys_ui_show_screen(w->out_screen);
+  sys_ui_show_screen(ui_ctx.widgets.out_screen);
 }
 
-static void sys_ui_drawTimeHistoryOverlay(void)
+static void sys_ui_draw_time_overlay(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-
-  if (w->time_history_screen == nullptr)
+  if (ui_ctx.widgets.time_history_screen == nullptr)
   {
-    sys_ui_createTimeHistoryScreen();
+    sys_ui_create_time_history_screen();
   }
 
   for (int i = 0; i < 4; ++i)
   {
-    if (w->history_labels[i] != nullptr)
+    if (ui_ctx.widgets.history_labels[i] != nullptr)
     {
       if (i < ui_ctx.rental_history_count)
       {
-        sys_ui_widget_set_label_text(w->history_labels[i], ui_ctx.rentalHistory[i]);
+        sys_ui_widget_set_label_text(ui_ctx.widgets.history_labels[i], ui_ctx.rental_history[i]);
       }
       else
       {
-        sys_ui_widget_set_label_text(w->history_labels[i], "");
+        sys_ui_widget_set_label_text(ui_ctx.widgets.history_labels[i], "");
       }
     }
   }
 
-  if (w->time_remaining_label != nullptr)
+  if (ui_ctx.widgets.time_remaining_label != nullptr)
   {
-    sys_ui_widget_set_label_text_format(w->time_remaining_label, "Remaining: %02d:%02d", ui_ctx.remaining_minutes,
-                                        ui_ctx.remaining_seconds);
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.time_remaining_label, "Remaining: %02d:%02d",
+                                        ui_ctx.remaining_minutes, ui_ctx.remaining_seconds);
   }
 
-  sys_ui_show_screen(w->time_history_screen);
+  sys_ui_show_screen(ui_ctx.widgets.time_history_screen);
 }
 
-static void sys_ui_drawDistanceOverlay(void)
+static void sys_ui_draw_distance_overlay(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-
-  if (w->distance_screen == nullptr)
+  if (ui_ctx.widgets.distance_screen == nullptr)
   {
-    sys_ui_createDistanceScreen();
+    sys_ui_create_distance_screen();
   }
 
   size_t now   = OS_GET_TICK();
@@ -958,44 +951,42 @@ static void sys_ui_drawDistanceOverlay(void)
     hours = 0.001f;
   float avgSpeed = ui_ctx.distance_km / hours;
 
-  if (w->total_distance_label != nullptr)
+  if (ui_ctx.widgets.total_distance_label != nullptr)
   {
-    sys_ui_widget_set_label_text_format(w->total_distance_label, "Total: %.2f km", ui_ctx.distance_km);
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.total_distance_label, "Total: %.2f km", ui_ctx.distance_km);
   }
 
-  if (w->avg_speed_label != nullptr)
+  if (ui_ctx.widgets.avg_speed_label != nullptr)
   {
-    sys_ui_widget_set_label_text_format(w->avg_speed_label, "Avg speed: %.1f km/h", avgSpeed);
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.avg_speed_label, "Avg speed: %.1f km/h", avgSpeed);
   }
 
-  if (w->distance_chart != nullptr && w->distance_series != nullptr)
+  if (ui_ctx.widgets.distance_chart != nullptr && ui_ctx.widgets.distance_series != nullptr)
   {
     int count = s_distance_history_count;
     int base  = (count > 16) ? (count - 16) : 0;
     int plot  = (count - base) > 0 ? (count - base) : 1;
-    lv_chart_set_point_count(w->distance_chart, plot);
+    lv_chart_set_point_count(ui_ctx.widgets.distance_chart, plot);
     for (int i = 0; i < plot; ++i)
     {
-      lv_chart_set_value_by_id(w->distance_chart, w->distance_series, i,
+      lv_chart_set_value_by_id(ui_ctx.widgets.distance_chart, ui_ctx.widgets.distance_series, i,
                                (int) (s_distance_history_mock[base + i] * 100));
     }
-    lv_chart_refresh(w->distance_chart);
+    lv_chart_refresh(ui_ctx.widgets.distance_chart);
   }
 
-  sys_ui_show_screen(w->distance_screen);
+  sys_ui_show_screen(ui_ctx.widgets.distance_screen);
 }
 
-static void sys_ui_drawTemperatureOverlay(void)
+static void sys_ui_draw_temp_overlay(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-
-  if (w->temp_screen == nullptr)
+  if (ui_ctx.widgets.temp_screen == nullptr)
   {
-    sys_ui_createTemperatureScreen();
+    sys_ui_create_temp_screen();
   }
 
   int count = s_temperature_history_count;
-  if (w->temp_chart != nullptr && w->temp_series != nullptr && count > 1)
+  if (ui_ctx.widgets.temp_chart != nullptr && ui_ctx.widgets.temp_series != nullptr && count > 1)
   {
     int zoom      = ui_ctx.temperature_zoom;
     int panOffset = ui_ctx.temperature_pan;
@@ -1020,28 +1011,30 @@ static void sys_ui_drawTemperatureOverlay(void)
         maxTemp = v;
     }
 
-    if (w->temp_range_label != nullptr)
+    if (ui_ctx.widgets.temp_range_label != nullptr)
     {
       float span = 0;
       if (count > 0)
       {
         span = (s_temperature_time_mock[panOffset + window - 1] - s_temperature_time_mock[panOffset]) / 1000.0f;
       }
-      sys_ui_widget_set_label_text_format(w->temp_range_label, "%.1f-%.1fC (%.1fs)", minTemp, maxTemp, span);
+      sys_ui_widget_set_label_text_format(ui_ctx.widgets.temp_range_label, "%.1f-%.1fC (%.1fs)", minTemp, maxTemp,
+                                          span);
     }
 
-    lv_chart_set_point_count(w->temp_chart, window);
-    lv_chart_set_range(w->temp_chart, LV_CHART_AXIS_PRIMARY_Y, (int) (minTemp * 10) - 5, (int) (maxTemp * 10) + 5);
+    lv_chart_set_point_count(ui_ctx.widgets.temp_chart, window);
+    lv_chart_set_range(ui_ctx.widgets.temp_chart, LV_CHART_AXIS_PRIMARY_Y, (int) (minTemp * 10) - 5,
+                       (int) (maxTemp * 10) + 5);
 
     for (int i = 0; i < window; ++i)
     {
-      lv_chart_set_value_by_id(w->temp_chart, w->temp_series, i,
+      lv_chart_set_value_by_id(ui_ctx.widgets.temp_chart, ui_ctx.widgets.temp_series, i,
                                (int) (s_temperature_history_mock[panOffset + i] * 10));
     }
-    lv_chart_refresh(w->temp_chart);
+    lv_chart_refresh(ui_ctx.widgets.temp_chart);
   }
 
-  sys_ui_show_screen(w->temp_screen);
+  sys_ui_show_screen(ui_ctx.widgets.temp_screen);
 }
 
 static void sys_ui_change_screen(sys_ui_view_t view)
@@ -1051,7 +1044,7 @@ static void sys_ui_change_screen(sys_ui_view_t view)
   {
   case SYS_UI_VIEW_SETTINGS:
   {
-    sys_ui_drawSettingsOverlay();
+    sys_ui_draw_setting_overlay();
     if (ui_ctx.widgets.settings_back_btn != nullptr)
     {
       lv_obj_add_event_cb(ui_ctx.widgets.settings_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
@@ -1061,7 +1054,7 @@ static void sys_ui_change_screen(sys_ui_view_t view)
       lv_obj_add_event_cb(ui_ctx.widgets.brightness_slider, sys_ui_brightness_slider_cb, LV_EVENT_VALUE_CHANGED,
                           nullptr);
     }
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < SYS_UI_BG_COLOR_COUNT; ++i)
     {
       if (ui_ctx.widgets.color_btns[i] != nullptr)
       {
@@ -1072,7 +1065,7 @@ static void sys_ui_change_screen(sys_ui_view_t view)
   }
   case SYS_UI_VIEW_OUT:
   {
-    sys_ui_drawOutOverlay();
+    sys_ui_draw_out_overlay();
     if (ui_ctx.widgets.out_back_btn != nullptr)
     {
       lv_obj_add_event_cb(ui_ctx.widgets.out_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
@@ -1081,7 +1074,7 @@ static void sys_ui_change_screen(sys_ui_view_t view)
   }
   case SYS_UI_VIEW_TIME:
   {
-    sys_ui_drawTimeHistoryOverlay();
+    sys_ui_draw_time_overlay();
     if (ui_ctx.widgets.time_back_btn != nullptr)
     {
       lv_obj_add_event_cb(ui_ctx.widgets.time_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
@@ -1093,7 +1086,7 @@ static void sys_ui_change_screen(sys_ui_view_t view)
     break;
   }
   case SYS_UI_VIEW_DISTANCE:
-    sys_ui_drawDistanceOverlay();
+    sys_ui_draw_distance_overlay();
     if (ui_ctx.widgets.distance_back_btn != nullptr)
     {
       lv_obj_add_event_cb(ui_ctx.widgets.distance_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
@@ -1101,7 +1094,7 @@ static void sys_ui_change_screen(sys_ui_view_t view)
     break;
   case SYS_UI_VIEW_TEMPERATURE:
   {
-    sys_ui_drawTemperatureOverlay();
+    sys_ui_draw_temp_overlay();
     if (ui_ctx.widgets.temp_back_btn != nullptr)
     {
       lv_obj_add_event_cb(ui_ctx.widgets.temp_back_btn, sys_ui_back_btn_cb, LV_EVENT_CLICKED, nullptr);
@@ -1130,7 +1123,21 @@ static void sys_ui_change_screen(sys_ui_view_t view)
 
 static void sys_ui_return_main_screen(void)
 {
-  ui_ctx.view                = SYS_UI_VIEW_MAIN;
+  ui_ctx.view = SYS_UI_VIEW_MAIN;
+
+  if (ui_ctx.pending_main_redraw)
+  {
+    if (ui_ctx.widgets.main_screen != nullptr)
+    {
+      lv_obj_del(ui_ctx.widgets.main_screen);
+    }
+    if (ui_ctx.widgets.settings_screen != nullptr)
+    {
+      lv_obj_del(ui_ctx.widgets.settings_screen);
+    }
+    sys_ui_reset_full_widget(&ui_ctx.widgets);
+  }
+
   ui_ctx.pending_main_redraw = false;
   sys_ui_init_full_widget();
   sys_ui_register_lvgl_callbacks();
@@ -1140,34 +1147,34 @@ static void sys_ui_log_distance_sample(float value)
 {
   if (ui_ctx.distance_history_count < SYS_UI_MAX_DISTANCE_LOG)
   {
-    ui_ctx.distanceHistory[ui_ctx.distance_history_count++] = value;
+    ui_ctx.distance_history[ui_ctx.distance_history_count++] = value;
     return;
   }
 
-  memmove(&ui_ctx.distanceHistory[0], &ui_ctx.distanceHistory[1],
-          (SYS_UI_MAX_DISTANCE_LOG - 1) * sizeof(ui_ctx.distanceHistory[0]));
-  ui_ctx.distanceHistory[SYS_UI_MAX_DISTANCE_LOG - 1] = value;
+  memmove(&ui_ctx.distance_history[0], &ui_ctx.distance_history[1],
+          (SYS_UI_MAX_DISTANCE_LOG - 1) * sizeof(ui_ctx.distance_history[0]));
+  ui_ctx.distance_history[SYS_UI_MAX_DISTANCE_LOG - 1] = value;
 }
 
-static void sys_ui_logTemperatureSample(float value, size_t timestamp)
+static void sys_ui_log_temp_sample(float value, size_t timestamp)
 {
   if (ui_ctx.temperature_sample_count < SYS_UI_MAX_TEMP_SAMPLES)
   {
-    ui_ctx.temperatureHistory[ui_ctx.temperature_sample_count]    = value;
-    ui_ctx.temperatureTimestamps[ui_ctx.temperature_sample_count] = timestamp;
+    ui_ctx.temp_history[ui_ctx.temperature_sample_count]    = value;
+    ui_ctx.temp_timestamps[ui_ctx.temperature_sample_count] = timestamp;
     ++ui_ctx.temperature_sample_count;
     return;
   }
 
-  memmove(&ui_ctx.temperatureHistory[0], &ui_ctx.temperatureHistory[1],
-          (SYS_UI_MAX_TEMP_SAMPLES - 1) * sizeof(ui_ctx.temperatureHistory[0]));
-  memmove(&ui_ctx.temperatureTimestamps[0], &ui_ctx.temperatureTimestamps[1],
-          (SYS_UI_MAX_TEMP_SAMPLES - 1) * sizeof(ui_ctx.temperatureTimestamps[0]));
-  ui_ctx.temperatureHistory[SYS_UI_MAX_TEMP_SAMPLES - 1]    = value;
-  ui_ctx.temperatureTimestamps[SYS_UI_MAX_TEMP_SAMPLES - 1] = timestamp;
+  memmove(&ui_ctx.temp_history[0], &ui_ctx.temp_history[1],
+          (SYS_UI_MAX_TEMP_SAMPLES - 1) * sizeof(ui_ctx.temp_history[0]));
+  memmove(&ui_ctx.temp_timestamps[0], &ui_ctx.temp_timestamps[1],
+          (SYS_UI_MAX_TEMP_SAMPLES - 1) * sizeof(ui_ctx.temp_timestamps[0]));
+  ui_ctx.temp_history[SYS_UI_MAX_TEMP_SAMPLES - 1]    = value;
+  ui_ctx.temp_timestamps[SYS_UI_MAX_TEMP_SAMPLES - 1] = timestamp;
 }
 
-static void sys_ui_refreshTemperatureOverlay(void)
+static void sys_ui_refresh_temp_overlay(void)
 {
   int max_pan = (s_temperature_history_count > 2) ? (s_temperature_history_count - 2) : 0;
   if (ui_ctx.temperature_pan > max_pan)
@@ -1175,7 +1182,7 @@ static void sys_ui_refreshTemperatureOverlay(void)
   if (ui_ctx.temperature_pan < 0)
     ui_ctx.temperature_pan = 0;
 
-  sys_ui_drawTemperatureOverlay();
+  sys_ui_draw_temp_overlay();
 }
 
 static void sys_ui_init_history_mock(void)
@@ -1191,7 +1198,7 @@ static void sys_ui_init_history_mock(void)
   }
 }
 
-/* ============== LVGL Callbacks ============== */
+//================= LVGL callbacks and event handlers =========================
 static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 {
   sys_ui_context_t *ctx = (sys_ui_context_t *) lv_indev_get_user_data(indev);
@@ -1216,139 +1223,146 @@ static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
   }
 }
 
-static void sys_ui_settings_btn_cb(lv_event_t *e)
+static void sys_ui_settings_btn_cb(lv_event_t *event)
 {
-  (void) e;
+  (void) event;
   LOG_DBG("[LVGL] Settings button pressed\n");
   sys_ui_change_screen(SYS_UI_VIEW_SETTINGS);
 }
 
-static void sys_ui_out_btn_cb(lv_event_t *e)
+static void sys_ui_out_btn_cb(lv_event_t *event)
 {
-  (void) e;
+  (void) event;
   LOG_DBG("[LVGL] Out button pressed\n");
   sys_ui_change_screen(SYS_UI_VIEW_OUT);
 }
 
-static void sys_ui_back_btn_cb(lv_event_t *e)
+static void sys_ui_back_btn_cb(lv_event_t *event)
 {
-  (void) e;
+  (void) event;
   LOG_DBG("[LVGL] Back button pressed\n");
   sys_ui_return_main_screen();
 }
 
-static void sys_ui_extend_btn_cb(lv_event_t *e)
+static void sys_ui_extend_btn_cb(lv_event_t *event)
 {
-  (void) e;
+  (void) event;
   LOG_DBG("[LVGL] Extend button pressed\n");
   ui_ctx.remaining_minutes += 30;
-  sys_ui_drawTimeHistoryOverlay();
+  sys_ui_draw_time_overlay();
 }
 
-static void sys_ui_brightness_slider_cb(lv_event_t *e)
+static void sys_ui_brightness_slider_cb(lv_event_t *event)
 {
-  lv_obj_t *slider          = (lv_obj_t *) lv_event_get_target(e);
+  lv_obj_t *slider          = (lv_obj_t *) lv_event_get_target(event);
   ui_ctx.brightness_percent = lv_slider_get_value(slider);
   bsp_display_set_brightness_percent(ui_ctx.brightness_percent);
+
+  if (ui_ctx.widgets.brightness_label != nullptr)
+  {
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.brightness_label, "%d%%", ui_ctx.brightness_percent);
+  }
+
   LOG_DBG("[LVGL] Brightness changed to %d%%\n", ui_ctx.brightness_percent);
 }
 
-static void sys_ui_color_btn_cb(lv_event_t *e)
+static void sys_ui_color_btn_cb(lv_event_t *event)
 {
-  int btn_index = (int) (intptr_t) lv_event_get_user_data(e);
+  int btn_index = (int) (intptr_t) lv_event_get_user_data(event);
 
-  size_t colors[3] = { 0x000000, 0xFFFFFF, 0x7B7B7B };
-  if (btn_index >= 0 && btn_index < 3)
+#define INFO(idx, r, g, b, lbl) BSP_DISPLAY_RGB_TO_HEX(r, g, b),
+  static const size_t bg_colors[SYS_UI_BG_COLOR_COUNT] = { SYS_UI_BG_COLOR_TABLE(INFO) };
+#undef INFO
+
+  if (btn_index >= 0 && btn_index < SYS_UI_BG_COLOR_COUNT)
   {
-    ui_ctx.background_color    = colors[btn_index];
+    ui_ctx.background_color    = bg_colors[btn_index];
     ui_ctx.pending_main_redraw = true;
     LOG_DBG("[LVGL] Background color changed to index %d\n", btn_index);
   }
 }
 
-static void sys_ui_zoom_minus_btn_cb(lv_event_t *e)
+static void sys_ui_zoom_minus_btn_cb(lv_event_t *event)
 {
-  (void) e;
+  (void) event;
   if (ui_ctx.temperature_zoom > 1)
   {
     --ui_ctx.temperature_zoom;
-    sys_ui_refreshTemperatureOverlay();
+    sys_ui_refresh_temp_overlay();
     LOG_DBG("[LVGL] Zoom- pressed, zoom=%d\n", ui_ctx.temperature_zoom);
   }
 }
 
-static void sys_ui_zoom_plus_btn_cb(lv_event_t *e)
+static void sys_ui_zoom_plus_btn_cb(lv_event_t *event)
 {
-  (void) e;
+  (void) event;
   if (ui_ctx.temperature_zoom < 4)
   {
     ++ui_ctx.temperature_zoom;
-    sys_ui_refreshTemperatureOverlay();
+    sys_ui_refresh_temp_overlay();
     LOG_DBG("[LVGL] Zoom+ pressed, zoom=%d\n", ui_ctx.temperature_zoom);
   }
 }
 
-static void sys_ui_pan_left_btn_cb(lv_event_t *e)
+static void sys_ui_pan_left_btn_cb(lv_event_t *event)
 {
-  (void) e;
+  (void) event;
   ui_ctx.temperature_pan -= 5;
-  sys_ui_refreshTemperatureOverlay();
+  sys_ui_refresh_temp_overlay();
   LOG_DBG("[LVGL] Pan left pressed, pan=%d\n", ui_ctx.temperature_pan);
 }
 
-static void sys_ui_pan_right_btn_cb(lv_event_t *e)
+static void sys_ui_pan_right_btn_cb(lv_event_t *event)
 {
-  (void) e;
+  (void) event;
   ui_ctx.temperature_pan += 5;
-  sys_ui_refreshTemperatureOverlay();
+  sys_ui_refresh_temp_overlay();
   LOG_DBG("[LVGL] Pan right pressed, pan=%d\n", ui_ctx.temperature_pan);
 }
 
-static void sys_ui_time_card_cb(lv_event_t *e)
+static void sys_ui_time_card_cb(lv_event_t *event)
 {
-  (void) e;
+  (void) event;
   LOG_DBG("[LVGL] Time card pressed\n");
   sys_ui_change_screen(SYS_UI_VIEW_TIME);
 }
 
-static void sys_ui_distance_card_cb(lv_event_t *e)
+static void sys_ui_distance_card_cb(lv_event_t *event)
 {
-  (void) e;
+  (void) event;
   LOG_DBG("[LVGL] Distance card pressed\n");
   sys_ui_change_screen(SYS_UI_VIEW_DISTANCE);
 }
 
-static void sys_ui_env_card_cb(lv_event_t *e)
+static void sys_ui_env_card_cb(lv_event_t *event)
 {
-  (void) e;
+  (void) event;
   LOG_DBG("[LVGL] Environment card pressed\n");
   sys_ui_change_screen(SYS_UI_VIEW_TEMPERATURE);
 }
 
 static void sys_ui_register_lvgl_callbacks(void)
 {
-  sys_ui_widgets_t *w = &ui_ctx.widgets;
-
-  if (w->settings_btn != nullptr)
+  if (ui_ctx.widgets.settings_btn != nullptr)
   {
-    lv_obj_add_event_cb(w->settings_btn, sys_ui_settings_btn_cb, LV_EVENT_CLICKED, nullptr);
+    lv_obj_add_event_cb(ui_ctx.widgets.settings_btn, sys_ui_settings_btn_cb, LV_EVENT_CLICKED, nullptr);
   }
-  if (w->out_btn != nullptr)
+  if (ui_ctx.widgets.out_btn != nullptr)
   {
-    lv_obj_add_event_cb(w->out_btn, sys_ui_out_btn_cb, LV_EVENT_CLICKED, nullptr);
+    lv_obj_add_event_cb(ui_ctx.widgets.out_btn, sys_ui_out_btn_cb, LV_EVENT_CLICKED, nullptr);
   }
 
-  if (w->time_card != nullptr)
+  if (ui_ctx.widgets.time_card != nullptr)
   {
-    sys_ui_widget_set_clickable(w->time_card, sys_ui_time_card_cb, nullptr);
+    sys_ui_widget_set_clickable(ui_ctx.widgets.time_card, sys_ui_time_card_cb, nullptr);
   }
-  if (w->distance_card != nullptr)
+  if (ui_ctx.widgets.distance_card != nullptr)
   {
-    sys_ui_widget_set_clickable(w->distance_card, sys_ui_distance_card_cb, nullptr);
+    sys_ui_widget_set_clickable(ui_ctx.widgets.distance_card, sys_ui_distance_card_cb, nullptr);
   }
-  if (w->env_card != nullptr)
+  if (ui_ctx.widgets.env_card != nullptr)
   {
-    sys_ui_widget_set_clickable(w->env_card, sys_ui_env_card_cb, nullptr);
+    sys_ui_widget_set_clickable(ui_ctx.widgets.env_card, sys_ui_env_card_cb, nullptr);
   }
 }
 
