@@ -22,7 +22,7 @@
 #include <math.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_DBG)
+LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_WARN)
 
 // #define DEMO_VEHICLE (1)
 #define DEMO_WALKING                (1)
