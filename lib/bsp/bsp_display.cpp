@@ -61,7 +61,7 @@ void bsp_display_init(void)
   }
 
   display_ctx.tft.init();
-  display_ctx.tft.setRotation(1);
+  display_ctx.tft.setRotation(3);
   display_ctx.tft.fillScreen(TFT_BLACK);
 
   bsp_display_set_brightness_percent(display_ctx.brightness_percent);

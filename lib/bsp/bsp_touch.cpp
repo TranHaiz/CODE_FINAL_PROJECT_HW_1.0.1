@@ -36,8 +36,8 @@ typedef struct
 /* Private variables -------------------------------------------------- */
 static bsp_touch_ctx_t s_touch_ctx = {
   .tft            = nullptr,
-  .invert_x       = false,
-  .invert_y       = true,
+  .invert_x       = true,
+  .invert_y       = false,
   .is_initialized = false,
 };
 
