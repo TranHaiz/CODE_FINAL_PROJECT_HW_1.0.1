@@ -6,7 +6,7 @@
  * @date       2026-02-27
  * @author     Hai Tran
  *
- * @brief      BSP for SIM module
+ * @brief      BSP for SIM module — ported to Quectel EG800K
  *
  */
 

@@ -21,7 +21,7 @@
 #include "sys_ui_simple.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_NONE)
+LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_INFO)
 #define MQTT_CLIENT_ID           "haq-trk-001"
 #define MQTT_PUB_TOPIC           "haq-trk-001/data"
 #define MQTT_TOPIC_COMMAND       "haq-trk-001/cmd"
@@ -340,7 +340,7 @@ static void net_run_sim_hard_reset(void)
 
 static void net_on_mqtt_message(const char *topic, const uint8_t *data, size_t len)
 {
-  LOG_DBG("MQTT rx [%s]: %.*s", topic, (int) len, (const char *) data);
+  LOG_DBG("MQTT rx [%s]: %d bytes, %s", topic, (int) len, (const char *) data);
   memset(sys_cmd_input_buffer, 0, CMD_INPUT_MAX_LEN);
   if ((data == NULL) || (len >= CMD_INPUT_MAX_LEN))
   {
@@ -349,7 +349,7 @@ static void net_on_mqtt_message(const char *topic, const uint8_t *data, size_t l
   }
 
   strncpy(sys_cmd_input_buffer, (const char *) data, len);
-  OS_SEM_GIVE(sys_cmd_req_sem);
+  // OS_SEM_GIVE(sys_cmd_req_sem);
 }
 
 static void net_build_payload(const sys_input_data_t *data, char *buf, size_t buf_len)

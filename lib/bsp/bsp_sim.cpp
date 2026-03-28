@@ -6,14 +6,13 @@
  * @date       2026-02-27
  * @author     Hai Tran
  *
- * @brief      BSP for SIM module
+ * @brief      BSP for SIM module — ported to Quectel EG800K
  *
  */
 
 /* Includes ----------------------------------------------------------- */
 #include "bsp_sim.h"
 
-#include "a7680c.h"
 #include "log_service.h"
 #include "os_lib.h"
 
@@ -26,13 +25,16 @@ LOG_MODULE_REGISTER(bsp_sim, LOG_LEVEL_INFO)
 #define MQTT_MAX_TOPIC_LEN   (128u)
 #define MQTT_MAX_PAYLOAD_LEN (1024u)
 #define MQTT_CLIENT_ID_LEN   (32u)
+#define MQTT_PUBLISH_QOS     (1)
+#define MQTT_SUB_QOS         (2)
 
-#define MQTT_BROKER_HOST     "broker.hivemq.com"
+#define MQTT_BROKER_HOST     "test.mosquitto.org"
 #define MQTT_BROKER_PORT     (1883)
 
-#endif  // CONFIG_MQTT_SERVER
+// EG800K: MQTT context index (0–5)
+#define MQTT_CTX             (0)
+#endif
 
-/* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 #define SIM_SEND(data) (bsp_uart_write(SIM_UART_HANDLER, (data), strlen((data))))
 #ifdef DEBUG_SIM
@@ -47,43 +49,32 @@ LOG_MODULE_REGISTER(bsp_sim, LOG_LEVEL_INFO)
 uint8_t sim_raw_data[SIM_RAW_RSP_SIZE];
 
 /* Private variables -------------------------------------------------- */
-static bool    is_sim_rsp = false;
-static uint8_t sim_rx_buffer[SIM_RX_BUFFER_SIZE];
-static char    json_data_buffer[128];
-static char    request_buffer[64];
-static bool    is_sim_ready = false;
+static volatile bool is_sim_rsp = false;
+static uint8_t       sim_rx_buffer[SIM_RX_BUFFER_SIZE];
+static char          json_data_buffer[128];
+static char          request_buffer[64];
+static bool          is_sim_ready = false;
 
 #if (CONFIG_MQTT_SERVER == true)
 static bsp_sim_mqtt_callback_t sim_mqtt_cb = NULL;
 static uint8_t                 sim_mqtt_buf[512];
 static uint16_t                sim_mqtt_buf_len              = 0;
 static char                    client_id[MQTT_CLIENT_ID_LEN] = "001";
-
-#endif  // CONFIG_MQTT_SERVER
+#endif
 
 /* Private function prototypes ---------------------------------------- */
-/**
- * @brief  Send command and wait for specific response or timeout
- */
 static bool bsp_sim_send_and_wait_response(const char *cmd, const char *resp, size_t timeout);
 
 #if (CONFIG_FIREBASE_SERVER == true)
-/**
- * @brief Find raw data response from DMA RX buffer
- */
 static status_function_t
 bsp_sim_parse_raw_data(uint8_t *source, uint16_t source_len, uint8_t *dest, uint16_t *dest_size);
 #endif
 
-/**
- * @brief  SIM response callback
- */
 static void bsp_sim_rsp_callback(uart_port_t uart_num, uint8_t *data, size_t len);
 
 #if (CONFIG_MQTT_SERVER == true)
-static void build_client_id(char *buf, size_t buf_size);
-
-#endif  // CONFIG_MQTT_SERVER
+static void bsp_sim_build_client_id(char *buf, size_t buf_size);
+#endif
 
 /* Function definitions ----------------------------------------------- */
 status_function_t bsp_sim_init(void)
@@ -98,15 +89,11 @@ status_function_t bsp_sim_init(void)
   SIM_SEND("ATE0\r\n");
   OS_DELAY_MS(50);
 
-  // Tắt các URC không cần thiết
-  bsp_sim_send_and_wait_response("AT*URCMODE=0\r\n", "OK", 1000);
   bsp_sim_send_and_wait_response("AT+CFUN=1\r\n", "OK", 2000);
-  bsp_sim_send_and_wait_response("AT+CIURC=0\r\n", "OK", 1000);
   bsp_sim_send_and_wait_response("AT+CNMI=0,0,0,0,0\r\n", "OK", 1000);
   bsp_sim_send_and_wait_response("AT+CGEREP=0,0\r\n", "OK", 1000);
   bsp_sim_send_and_wait_response("AT+CREG=0\r\n", "OK", 1000);
   bsp_sim_send_and_wait_response("AT+CGREG=0\r\n", "OK", 1000);
-  bsp_sim_send_and_wait_response("AT+STSF=0\r\n", "OK", 1000);
 
   bsp_sim_send_and_wait_response("AT\r\n", "OK", 2000);
 
@@ -120,18 +107,16 @@ status_function_t bsp_sim_init(void)
   bsp_sim_send_and_wait_response("AT+CREG?\r\n", "+CREG: 0,1", 3000);
   bsp_sim_send_and_wait_response("AT+CGATT?\r\n", "+CGATT: 1", 3000);
 
-  if (!bsp_sim_send_and_wait_response("AT+CGDCONT=1,\"IP\",\"v-internet\"\r\n", "OK", 2000))
+  if (!bsp_sim_send_and_wait_response("AT+QICSGP=1,1,\"v-internet\",\"\",\"\",1\r\n", "OK", 2000))
   {
     is_sim_ready = false;
     return STATUS_ERROR;
   }
 
-  bsp_sim_send_and_wait_response("AT+CGACT=1,1\r\n", "OK", 3000);
+  bsp_sim_send_and_wait_response("AT+QIACT=1\r\n", "OK", 5000);
 
 #if (CONFIG_FIREBASE_SERVER == true)
-  bool res = true;
-  res      = bsp_sim_send_and_wait_response("AT+HTTPINIT\r\n", "OK", 5000);
-  if (res == false)
+  if (!bsp_sim_send_and_wait_response("AT+HTTPINIT\r\n", "OK", 5000))
   {
     return STATUS_ERROR;
   }
@@ -171,19 +156,12 @@ status_function_t bsp_sim_reset_http(void)
 {
   for (uint8_t i = 0; i < SIM_SEND_CMD_RETRY; i++)
   {
-    if (bsp_sim_send_and_wait_response("AT+HTTPTERM\r\n", "OK", 1000) != STATUS_OK)
-    {
-      OS_YIELD();
-    }
-    else
-    {
+    if (bsp_sim_send_and_wait_response("AT+HTTPTERM\r\n", "OK", 1000))
       break;
-    }
+    OS_YIELD();
   }
-  if (bsp_sim_send_and_wait_response("AT+HTTPINIT\r\n", "OK", 1000) == false)
-  {
+  if (!bsp_sim_send_and_wait_response("AT+HTTPINIT\r\n", "OK", 1000))
     return STATUS_ERROR;
-  }
   return STATUS_OK;
 }
 
@@ -192,50 +170,28 @@ status_function_t bsp_sim_send_data_firebase(firebase_data_t *data)
   assert_param(data != NULL);
 
   char json_data[128];
-  // clang-format off
-  sprintf(json_data,
-          "{\"Battery level\":\"%d\",\"Position\":\"%.6f,%.6f\",\"Speed\":\"%.2f\"}",
-          data->batt_level,
-          data->position.latitude,
-          data->position.longitude,
-          data->speed);
-  // clang-format on
+  sprintf(json_data, "{\"Battery level\":\"%d\",\"Position\":\"%.6f,%.6f\",\"Speed\":\"%.2f\"}", data->batt_level,
+          data->position.latitude, data->position.longitude, data->speed);
   uint8_t data_len = strlen(json_data);
 
   char request[64];
   sprintf(request, "AT+HTTPDATA=%d,10000\r\n", data_len);
 
-  bool res = false;
+  if (!bsp_sim_send_and_wait_response("AT+HTTPPARA=\"SSLCFG\",0\r\n", "OK", 100))
+    return STATUS_ERROR;
+  if (!bsp_sim_send_and_wait_response(
+        "AT+HTTPPARA=\"URL\",\"https://tracking-project-cf57e-default-rtdb.firebaseio.com/Device%201.json\"\r\n", "OK",
+        2000))
+    return STATUS_ERROR;
+  if (!bsp_sim_send_and_wait_response("AT+HTTPPARA=\"CONTENT\",\"application/json\"\r\n", "OK", 1000))
+    return STATUS_ERROR;
+  if (!bsp_sim_send_and_wait_response(request, "DOWNLOAD", 1000))
+    return STATUS_ERROR;
+  if (!bsp_sim_send_and_wait_response(json_data, "OK", 1000))
+    return STATUS_ERROR;
 
-  res = bsp_sim_send_and_wait_response("AT+HTTPPARA=\"SSLCFG\",0\r\n", "OK", 100);
-  if (res == false)
-  {
-    return STATUS_ERROR;
-  }
-  res = bsp_sim_send_and_wait_response(
-    "AT+HTTPPARA=\"URL\",\"https://tracking-project-cf57e-default-rtdb.firebaseio.com/Device%201.json\"\r\n", "OK",
-    2000);
-  if (res == false)
-  {
-    return STATUS_ERROR;
-  }
-  res = bsp_sim_send_and_wait_response("AT+HTTPPARA=\"CONTENT\",\"application/json\"\r\n", "OK", 1000);
-  if (res == false)
-  {
-    return STATUS_ERROR;
-  }
-  res = bsp_sim_send_and_wait_response(request, "DOWNLOAD", 1000);
-  if (res == false)
-  {
-    return STATUS_ERROR;
-  }
-  res = bsp_sim_send_and_wait_response(json_data, "OK", 1000);
-  if (res == false)
-  {
-    return STATUS_ERROR;
-  }
-  res = bsp_sim_send_and_wait_response("AT+HTTPACTION=4\r\n", "+HTTPACTION: ", 15000);
-  res = bsp_sim_send_and_wait_response("AT+HTTPREAD=0,100\r\n", "}", 1000);
+  bsp_sim_send_and_wait_response("AT+HTTPACTION=4\r\n", "+HTTPACTION: ", 15000);
+  bsp_sim_send_and_wait_response("AT+HTTPREAD=0,100\r\n", "}", 1000);
 
   return STATUS_OK;
 }
@@ -243,56 +199,57 @@ status_function_t bsp_sim_send_data_firebase(firebase_data_t *data)
 status_function_t bsp_sim_get_raw_data_firebase(uint8_t *raw_data_buffer, uint16_t *size)
 {
   assert_param(raw_data_buffer != NULL);
-  bool res = false;
 
-  res = bsp_sim_send_and_wait_response("AT+HTTPPARA=\"SSLCFG\",0\r\n", "OK", 100);
-  res = bsp_sim_send_and_wait_response(
+  bsp_sim_send_and_wait_response("AT+HTTPPARA=\"SSLCFG\",0\r\n", "OK", 100);
+  bsp_sim_send_and_wait_response(
     "AT+HTTPPARA=\"URL\",\"https://tracking-project-cf57e-default-rtdb.firebaseio.com/Device%201.json\"\r\n", "OK",
     2000);
 
-  res = bsp_sim_send_and_wait_response("AT+HTTPACTION=0\r\n", "+HTTPACTION: ", 15000);
-  if (res == false)
-  {
+  if (!bsp_sim_send_and_wait_response("AT+HTTPACTION=0\r\n", "+HTTPACTION: ", 15000))
     return STATUS_ERROR;
-  }
-
-  res = bsp_sim_send_and_wait_response("AT+HTTPREAD=0,500\r\n", "{", 15000);
-  if (res == false)
-  {
+  if (!bsp_sim_send_and_wait_response("AT+HTTPREAD=0,500\r\n", "{", 15000))
     return STATUS_ERROR;
-  }
 
-  // Copy response data to output buffer
   bsp_sim_parse_raw_data(sim_rx_buffer, SIM_RX_BUFFER_SIZE, raw_data_buffer, size);
-
   return STATUS_OK;
 }
-#endif
+#endif  // CONFIG_FIREBASE_SERVER
 
 #if (CONFIG_MQTT_SERVER == true)
+
 status_function_t bsp_sim_mqtt_init(void)
 {
   char cmd[128];
 
-  /* 1. Start MQTT Service */
-  if (bsp_sim_send_and_wait_response("AT+CMQTTSTART\r\n", "+CMQTTSTART: 0", 5000) == false)
+  // 1. Config MQTT receive mode: URC with topic + payload (mode 1,0,0,1)
+  if (!bsp_sim_send_and_wait_response("AT+QMTCFG=\"recv/mode\",0,0,1\r\n", "OK", 2000))
   {
-    LOG_ERR("Failed to start MQTT service: %s", sim_rx_buffer);
+    LOG_ERR("Failed to set MQTT recv mode: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
-  /* 2. Acquire MQTT Client — client ID động theo thiết bị */
-  build_client_id(client_id, sizeof(client_id));
-  snprintf(cmd, sizeof(cmd), "AT+CMQTTACCQ=0,\"%s\"\r\n", client_id);
-  if (bsp_sim_send_and_wait_response(cmd, "OK", 3000) == false)
+  // 2. MQTT version 3.1.1
+  if (!bsp_sim_send_and_wait_response("AT+QMTCFG=\"version\",0,4\r\n", "OK", 2000))
   {
-    LOG_ERR("Failed to acquire MQTT client: %s", sim_rx_buffer);
+    LOG_ERR("Failed to set MQTT version: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
-  /* 3. Connect to Broker */
-  snprintf(cmd, sizeof(cmd), "AT+CMQTTCONNECT=0,\"tcp://%s:%d\",60,1\r\n", MQTT_BROKER_HOST, MQTT_BROKER_PORT);
-  if (bsp_sim_send_and_wait_response(cmd, "+CMQTTCONNECT: 0,0", 15000) == false)
+  // 3. Keepalive 60s
+  bsp_sim_send_and_wait_response("AT+QMTCFG=\"keepalive\",0,60\r\n", "OK", 2000);
+
+  // 4. Open MQTT
+  snprintf(cmd, sizeof(cmd), "AT+QMTOPEN=%d,\"%s\",%d\r\n", MQTT_CTX, MQTT_BROKER_HOST, MQTT_BROKER_PORT);
+  if (!bsp_sim_send_and_wait_response(cmd, "+QMTOPEN: 0,0", 15000))
+  {
+    LOG_ERR("Failed to open MQTT connection: %s", sim_rx_buffer);
+    return STATUS_ERROR;
+  }
+
+  // 5. CONNECT broker
+  bsp_sim_build_client_id(client_id, sizeof(client_id));
+  snprintf(cmd, sizeof(cmd), "AT+QMTCONN=%d,\"%s\",\"\",\"\"\r\n", MQTT_CTX, client_id);
+  if (!bsp_sim_send_and_wait_response(cmd, "+QMTCONN: 0,0,0", 15000))
   {
     LOG_ERR("Failed to connect MQTT broker: %s", sim_rx_buffer);
     return STATUS_ERROR;
@@ -304,9 +261,7 @@ status_function_t bsp_sim_mqtt_init(void)
 status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
 {
   if (msg == NULL || msg->topic == NULL || msg->payload == NULL)
-  {
     return STATUS_ERROR;
-  }
 
   char   cmd[256];
   size_t topic_len   = strlen(msg->topic);
@@ -323,39 +278,33 @@ status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
     return STATUS_ERROR;
   }
 
-  // Step 1: Set Topic
-  snprintf(cmd, sizeof(cmd), "AT+CMQTTTOPIC=0,%d\r\n", (int) topic_len);
-  if (bsp_sim_send_and_wait_response(cmd, ">", 2000) == false)
+#if (MQTT_PUBLISH_QOS == 0)
+  snprintf(cmd, sizeof(cmd), "AT+QMTPUBEX=%d,0,%d,0,\"%s\",%d\r\n", MQTT_CTX, MQTT_PUBLISH_QOS, msg->topic,
+           (int) payload_len);
+#elif (MQTT_PUBLISH_QOS == 1)
+  snprintf(cmd, sizeof(cmd), "AT+QMTPUBEX=%d,1,%d,0,\"%s\",%d\r\n", MQTT_CTX, MQTT_PUBLISH_QOS, msg->topic,
+           (int) payload_len);
+#endif
+
+  if (!bsp_sim_send_and_wait_response(cmd, ">", 5000))
   {
-    LOG_ERR("Failed to set MQTT topic: %s", sim_rx_buffer);
-    return STATUS_ERROR;
-  }
-  if (bsp_sim_send_and_wait_response(msg->topic, "OK", 2000) == false)
-  {
-    LOG_ERR("Failed to send MQTT topic: %s", sim_rx_buffer);
+    LOG_ERR("Failed to get > prompt for MQTT publish: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
-  // Step 2: Set Payload
-  snprintf(cmd, sizeof(cmd), "AT+CMQTTPAYLOAD=0,%d\r\n", (int) payload_len);
-  if (bsp_sim_send_and_wait_response(cmd, ">", 2000) == false)
-  {
-    LOG_ERR("Failed to set MQTT payload: %s", sim_rx_buffer);
-    return STATUS_ERROR;
-  }
-  if (bsp_sim_send_and_wait_response(msg->payload, "OK", 2000) == false)
-  {
-    LOG_ERR("Failed to send MQTT payload: %s", sim_rx_buffer);
-    return STATUS_ERROR;
-  }
-
-  // Step 3: Publish
-  snprintf(cmd, sizeof(cmd), "AT+CMQTTPUB=0,1,60\r\n");
-  if (bsp_sim_send_and_wait_response(cmd, "+CMQTTPUB: 0,0", 10000) == false)
+#if (MQTT_PUBLISH_QOS == 0)
+  if (!bsp_sim_send_and_wait_response(msg->payload, "+QMTPUBEX: 0,0,0", 10000))
   {
     LOG_ERR("Failed to publish MQTT message: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
+#elif (MQTT_PUBLISH_QOS == 1)
+  if (!bsp_sim_send_and_wait_response(msg->payload, "+QMTPUBEX: 0,1,0", 10000))
+  {
+    LOG_ERR("Failed to publish MQTT message: %s", sim_rx_buffer);
+    return STATUS_ERROR;
+  }
+#endif
 
   return STATUS_OK;
 }
@@ -363,11 +312,10 @@ status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
 status_function_t bsp_sim_mqtt_sub(const char *topic, bsp_sim_mqtt_callback_t cb)
 {
   if (topic == NULL)
-  {
     return STATUS_ERROR;
-  }
 
   char   cmd[192];
+  char   resp[128];
   size_t topic_len = strlen(topic);
 
   if (topic_len == 0 || topic_len > MQTT_MAX_TOPIC_LEN)
@@ -376,47 +324,16 @@ status_function_t bsp_sim_mqtt_sub(const char *topic, bsp_sim_mqtt_callback_t cb
     return STATUS_ERROR;
   }
 
-  // Step 1: Set topic length
-  snprintf(cmd, sizeof(cmd), "AT+CMQTTTOPIC=0,%d\r\n", (int) topic_len);
-  if (bsp_sim_send_and_wait_response(cmd, ">", 2000) == false)
+  snprintf(cmd, sizeof(cmd), "AT+QMTSUB=%d,1,\"%s\",%d\r\n", MQTT_CTX, topic, MQTT_SUB_QOS);
+  snprintf(resp, sizeof(resp), "+QMTSUB: 0,1,0,%d", MQTT_SUB_QOS);
+  if (!bsp_sim_send_and_wait_response(cmd, resp, 5000))
   {
-    LOG_DBG("Topic length: %d", topic_len);
-    LOG_ERR("Failed to set MQTT topic for subscription: %s", sim_rx_buffer);
-    return STATUS_ERROR;
-  }
-
-  // Step 2: Send topic string
-  if (bsp_sim_send_and_wait_response(topic, "OK", 2000) == false)
-  {
-    LOG_ERR("Failed to send MQTT topic for subscription 1: %s", sim_rx_buffer);
-    return STATUS_ERROR;
-  }
-
-  // Step 3: Subscribe
-  snprintf(cmd, sizeof(cmd), "AT+CMQTTSUB=0,%d,1\r\n", (int) topic_len);
-  if (bsp_sim_send_and_wait_response(cmd, ">", 5000) == false)
-  {
-    LOG_ERR("No response to CMQTTSUB: %s", sim_rx_buffer);
-    return STATUS_ERROR;
-  }
-  if (bsp_sim_send_and_wait_response(topic, "OK", 2000) == false)
-  {
-    LOG_ERR("Failed to send MQTT topic for subscription 2: %s", sim_rx_buffer);
     int err_code = -1;
-    if (sscanf((char *) sim_rx_buffer, "+CMQTTSUB: 0,%d", &err_code) != 1)
-    {
-      LOG_ERR("Failed to parse CMQTTSUB response: %s", sim_rx_buffer);
-    }
+    sscanf((char *) sim_rx_buffer, "+QMTSUB: 0,1,%d", &err_code);
 
-    // 0  = subscribed successfully
-    // 18 = already subscribed from a previous session — acceptable
     if (err_code == 0)
     {
       LOG_DBG("MQTT subscribed to topic: %s", topic);
-    }
-    else if (err_code == 18)
-    {
-      LOG_WRN("Topic already subscribed (code 18) — reusing existing subscription: %s", topic);
     }
     else
     {
@@ -456,36 +373,37 @@ status_function_t bsp_sim_mqtt_get(uint8_t *out_buf, uint16_t *out_size)
 status_function_t bsp_sim_mqtt_deinit(void)
 {
   bool ret = true;
+  char cmd[64];
 
-  // Disconnect from broker
-  if (bsp_sim_send_and_wait_response("AT+CMQTTDISC=0,60\r\n", "OK", 10000) == false)
+  // Disconnect
+  snprintf(cmd, sizeof(cmd), "AT+QMTDISC=%d\r\n", MQTT_CTX);
+  if (!bsp_sim_send_and_wait_response(cmd, "+QMTDISC: 0,0", 10000))
   {
-    LOG_ERR("Failed to disconnect MQTT client: %s", sim_rx_buffer);
-    ret = false;
-    /* Tiếp tục để release client và stop service */
-  }
-
-  // Release client
-  if (bsp_sim_send_and_wait_response("AT+CMQTTREL=0\r\n", "OK", 3000) == false)
-  {
-    LOG_ERR("Failed to release MQTT client: %s", sim_rx_buffer);
+    LOG_ERR("Failed to disconnect MQTT: %s", sim_rx_buffer);
     ret = false;
   }
 
-  if (bsp_sim_send_and_wait_response("AT+CMQTTSTOP\r\n", "OK", 5000) == false)
+  // Close TCP
+  snprintf(cmd, sizeof(cmd), "AT+QMTCLOSE=%d\r\n", MQTT_CTX);
+  if (!bsp_sim_send_and_wait_response(cmd, "+QMTCLOSE: 0,0", 5000))
   {
-    LOG_ERR("Failed to stop MQTT service: %s", sim_rx_buffer);
-    return STATUS_ERROR;
+    LOG_ERR("Failed to close MQTT connection: %s", sim_rx_buffer);
+    ret = false;
   }
 
   return ret ? STATUS_OK : STATUS_ERROR;
 }
 
-#endif
-/* Private definitions ----------------------------------------------- */
+#endif  // CONFIG_MQTT_SERVER
+
 static bool bsp_sim_send_and_wait_response(const char *cmd, const char *resp, size_t timeout)
 {
-  SIM_SEND(cmd);
+  if (cmd && cmd[0] != '\0')
+    SIM_SEND(cmd);
+
+  if (resp == NULL || resp[0] == '\0')
+    return true;
+
   size_t start_tick = OS_GET_TICK();
   while ((OS_GET_TICK() - start_tick) < timeout)
   {
@@ -493,9 +411,7 @@ static bool bsp_sim_send_and_wait_response(const char *cmd, const char *resp, si
     {
       is_sim_rsp = false;
       if (strstr((const char *) sim_rx_buffer, resp))
-      {
         return true;
-      }
     }
     OS_YIELD();
   }
@@ -504,11 +420,10 @@ static bool bsp_sim_send_and_wait_response(const char *cmd, const char *resp, si
 
 static void bsp_sim_rsp_callback(uart_port_t uart_num, uint8_t *data, size_t len)
 {
-  // Copy data to SIM RX buffer
   if (len < SIM_RX_BUFFER_SIZE)
   {
     memcpy(sim_rx_buffer, data, len);
-    sim_rx_buffer[len] = '\0';  // Null-terminate
+    sim_rx_buffer[len] = '\0';
   }
   else
   {
@@ -518,54 +433,43 @@ static void bsp_sim_rsp_callback(uart_port_t uart_num, uint8_t *data, size_t len
   is_sim_rsp = true;
 
 #if (CONFIG_MQTT_SERVER == true)
-  // Detect MQTT incoming message markers
-  if (strstr((const char *) sim_rx_buffer, "+CMQTTRXSTART"))
+  const char *recv_marker = strstr((const char *) sim_rx_buffer, "+QMTRECV:");
+  if (recv_marker)
   {
-    // Best-effort parser for CMQTT URCs
-    const char *topic_marker   = strstr((const char *) sim_rx_buffer, "+CMQTTRXTOPIC:");
-    const char *payload_marker = strstr((const char *) sim_rx_buffer, "+CMQTTRXPAYLOAD:");
-    const char *end_marker     = strstr((const char *) sim_rx_buffer, "+CMQTTRXEND:");
+    char topic[128] = { 0 };
 
-    if (topic_marker && payload_marker && end_marker)
+    const char *p = strchr(recv_marker, '"');
+    if (p)
     {
-      // Extract topic
-      char        topic[128]  = { 0 };
-      const char *topic_start = strchr(topic_marker, '\n');
-      if (topic_start)
+      p++;
+      const char *topic_end = strchr(p, '"');
+      if (topic_end)
       {
-        topic_start++;  // Move past '\n'
-        const char *topic_end = strstr(topic_start, "\r\n+CMQTTRXPAYLOAD");
-        if (topic_end)
-        {
-          size_t topic_len = topic_end - topic_start;
-          if (topic_len < sizeof(topic))
-          {
-            memcpy(topic, topic_start, topic_len);
-          }
-        }
-      }
+        size_t tlen = topic_end - p;
+        if (tlen < sizeof(topic))
+          memcpy(topic, p, tlen);
 
-      // Extract payload
-      const char *payload_start = strchr(payload_marker, '\n');
-      if (payload_start)
-      {
-        payload_start++;  // Move past '\n'
-        const char *payload_end = strstr(payload_start, "\r\n+CMQTTRXEND");
-        if (payload_end)
-        {
-          size_t payload_len = payload_end - payload_start;
-          if (payload_len < sizeof(sim_mqtt_buf))
-          {
-            memcpy(sim_mqtt_buf, payload_start, payload_len);
-            sim_mqtt_buf[payload_len] = '\0';
-            sim_mqtt_buf_len          = (uint16_t) payload_len;
+        const char *q = topic_end + 1;
+        if (*q == ',')
+          q++;
+        while (*q && *q != ',') q++;
+        if (*q == ',')
+          q++;
 
-            // call user callback if set
-            if (sim_mqtt_cb != NULL)
-            {
-              sim_mqtt_cb(topic, sim_mqtt_buf, sim_mqtt_buf_len);
-            }
-          }
+        if (*q == '"')
+          q++;
+        const char *payload_end = q;
+        while (*payload_end && *payload_end != '"' && *payload_end != '\r' && *payload_end != '\n') payload_end++;
+
+        size_t plen = payload_end - q;
+        if (plen > 0 && plen < sizeof(sim_mqtt_buf))
+        {
+          memcpy(sim_mqtt_buf, q, plen);
+          sim_mqtt_buf[plen] = '\0';
+          sim_mqtt_buf_len   = (uint16_t) plen;
+
+          if (sim_mqtt_cb != NULL)
+            sim_mqtt_cb(topic, sim_mqtt_buf, sim_mqtt_buf_len);
         }
       }
     }
@@ -588,35 +492,25 @@ bsp_sim_parse_raw_data(uint8_t *source, uint16_t source_len, uint8_t *dest, uint
       break;
     }
   }
-
   if (!is_found)
-  {
     return STATUS_ERROR;
-  }
 
-  // Find ending '}'
   uint8_t end           = 0;
   is_found              = false;
-  uint8_t remaining_len = source_len - start + 1;
+  uint8_t remaining_len = source_len - start;
   for (uint8_t i = 0; i < remaining_len; i++)
   {
-    if (source[i] == '}')
+    if (source[start + i] == '}')
     {
       is_found = true;
-      end      = i;
+      end      = start + i;
       break;
     }
   }
-
-  // Not found '}'
   if (!is_found)
-  {
     return STATUS_ERROR;
-  }
 
-  // Calculate length both '{' and '}'
   uint8_t length = (end - start) + 1;
-
   memcpy(dest, &source[start], length);
   dest[length] = '\0';
   *dest_size   = length;
@@ -626,19 +520,14 @@ bsp_sim_parse_raw_data(uint8_t *source, uint16_t source_len, uint8_t *dest, uint
 #endif
 
 #if (CONFIG_MQTT_SERVER == true)
-static void build_client_id(char *buf, size_t buf_size)
+static void bsp_sim_build_client_id(char *buf, size_t buf_size)
 {
   const char *dev_id = "1";
   if (dev_id == NULL || dev_id[0] == '\0')
-  {
     snprintf(buf, buf_size, "haq-trk-unknown");
-  }
   else
-  {
     snprintf(buf, buf_size, "haq-trk-%.16s", dev_id);
-  }
 }
-
 #endif
 
 /* End of file -------------------------------------------------------- */
