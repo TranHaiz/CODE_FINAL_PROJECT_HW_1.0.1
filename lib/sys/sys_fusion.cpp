@@ -230,23 +230,26 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   if (dt > 0.1f)  // Sample rates (50-100ms)
     dt = 0.1f;
 
-  // 1. Caculate Vins from Acc
+  // 1. Compass, sample rates: COMPASS_UPDATE_MS
+  sys_fusion_read_compass(data, current_time_ms);
+
+  // 2. Caculate Vins from Acc
   if (fusion_ctx.is_offset_mag_ready && fusion_ctx.acc_ready)
   {
     sys_fusion_update_ins_velocity(dt);
   }
 
-  // 2. ZUPT for Vins
-  sys_fusion_detect_zupt(fusion_ctx.acc_raw * GRAVITY_MS2, dt);
-
   // 3. GPS state update
   sys_fusion_update_gps_data();
   sys_fusion_update_gps_state(current_time_ms);
 
-  // 4. Output velocity — complementary filter (INS + GPS)
+  // 4. ZUPT
+  sys_fusion_detect_zupt(fusion_ctx.acc_raw * GRAVITY_MS2, dt);
+
+  // 5. Output velocity — complementary filter (INS + GPS)
   sys_fusion_compute_output_velocity(data, dt);
 
-  // 5. INS-only distance fallback when GPS unavailable
+  // 6. INS-only distance fallback when GPS unavailable
   if (fusion_ctx.gps_state == GPS_STATE_INVALID && fusion_ctx.is_offset_mag_ready && dt > 0.0f
       && data->velocity_ms > GPS_SPEED_MIN_MS)
   {
@@ -265,9 +268,6 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   {
     LOG_DBG("Vout = %.2f m/s", fusion_ctx.velocity_out);
   }
-
-  // 6. Compass — rate-limited to COMPASS_UPDATE_MS, always copies cached heading
-  sys_fusion_read_compass(data, current_time_ms);
 
   // 7. Finalize output
   data->distance_m             = fusion_ctx.distance_m;
@@ -322,7 +322,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   if (bsp_acc_get_raw_data(&imu) != STATUS_OK)
     return;
 
-  // --- Step 1: Per-axis EMA filter ---
+  // 1. Acc EMA filter - 3 axes
   if (!fusion_ctx.acc_ema_init)
   {
     fusion_ctx.acc_ema_x    = imu.acc_x;
@@ -337,58 +337,52 @@ static void sys_fusion_update_ins_velocity(float dt)
     fusion_ctx.acc_ema_z = ACC_EMA_ALPHA * imu.acc_z + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_z;
   }
 
-  float ax = fusion_ctx.acc_ema_x;
-  float ay = fusion_ctx.acc_ema_y;
-  float az = fusion_ctx.acc_ema_z;
+  float acc_x = fusion_ctx.acc_ema_x;
+  float acc_y = fusion_ctx.acc_ema_y;
+  float acc_z = fusion_ctx.acc_ema_z;
 
-  // --- Step 2: Attitude update (roll, pitch) ---
-  // Accelerometer provides tilt reference (valid when near-static)
-  float roll_acc  = atan2f(ay, az);
-  float pitch_acc = atan2f(-ax, hypotf(ay, az));
+  // 2. Update attittude: rool, pitch
+  float roll_acc  = atan2f(acc_y, acc_z);
+  float pitch_acc = atan2f(-acc_x, hypotf(acc_y, acc_z));
 
-  // Gyroscope gives dynamic rotation rate (dps → rad/s)
   float gyro_x_rads = imu.gyro_x * DEG_TO_RAD;
   float gyro_y_rads = imu.gyro_y * DEG_TO_RAD;
 
-  // Complementary filter: gyro tracks dynamics, acc corrects long-term drift
   fusion_ctx.roll_rad =
     ATTITUDE_GYRO_WEIGHT * (fusion_ctx.roll_rad + gyro_x_rads * dt) + (1.0f - ATTITUDE_GYRO_WEIGHT) * roll_acc;
   fusion_ctx.pitch_rad =
     ATTITUDE_GYRO_WEIGHT * (fusion_ctx.pitch_rad + gyro_y_rads * dt) + (1.0f - ATTITUDE_GYRO_WEIGHT) * pitch_acc;
 
-  // --- Step 3: Body → Navigation frame (ZYX Euler rotation matrix) ---
-  // Yaw from cached compass heading — updated on its own rate in sys_fusion_read_compass
+  // 3. Body fram -> Navigation frame rotation (ZYX Euler, yaw from compass)
   float roll  = fusion_ctx.roll_rad;
   float pitch = fusion_ctx.pitch_rad;
   float yaw   = fusion_ctx.heading_deg * DEG_TO_RAD;
 
-  float sr = sinf(roll);
-  float cr = cosf(roll);
-  float sp = sinf(pitch);
-  float cp = cosf(pitch);
-  float sy = sinf(yaw);
-  float cy = cosf(yaw);
+  float sin_roll  = sinf(roll);
+  float cos_roll  = cosf(roll);
+  float sin_pitch = sinf(pitch);
+  float cos_pitch = cosf(pitch);
+  float sin_yaw   = sinf(yaw);
+  float cos_yaw   = cosf(yaw);
 
-  // Specific force in body frame (m/s²)
-  float abx = ax * GRAVITY_MS2;
-  float aby = ay * GRAVITY_MS2;
-  float abz = az * GRAVITY_MS2;
+  float abx = acc_x * GRAVITY_MS2;
+  float aby = acc_y * GRAVITY_MS2;
+  float abz = acc_z * GRAVITY_MS2;
 
-  // Rotate to NED navigation frame
-  float acc_n = cp * cy * abx + (sr * sp * cy - cr * sy) * aby + (cr * sp * cy + sr * sy) * abz;
-  float acc_e = cp * sy * abx + (sr * sp * sy + cr * cy) * aby + (cr * sp * sy - sr * cy) * abz;
-  // acc_d (vertical): acc_d = -sp*abx + sr*cp*aby + cr*cp*abz - GRAVITY_MS2 (not needed here)
+  float acc_n = cos_pitch * cos_yaw * abx + (sin_roll * sin_pitch * cos_yaw - cos_roll * sin_yaw) * aby
+                + (cos_roll * sin_pitch * cos_yaw + sin_roll * sin_yaw) * abz;
+  float acc_e = cos_pitch * sin_yaw * abx + (sin_roll * sin_pitch * sin_yaw + cos_roll * cos_yaw) * aby
+                + (cos_roll * sin_pitch * sin_yaw - sin_roll * cos_yaw) * abz;
+  // acc_d (vertical): acc_d = -sin_pitch*abx + sin_roll*cos_pitch*aby + cos_roll*cos_pitch*abz - GRAVITY_MS2 (not
+  // needed here)
 
-  // --- Step 4: Project onto forward (heading) direction ---
-  float acc_forward = acc_n * cy + acc_e * sy;
-
-  // Net dynamic acc magnitude for ZUPT (subtract static gravity baseline)
-  float mag_g        = hypotf(hypotf(ax, ay), az);
-  fusion_ctx.acc_raw = mag_g - fusion_ctx.offset_magnitude;
-
+  // 4. Heading foward
+  float acc_forward      = acc_n * cos_yaw + acc_e * sin_yaw;
+  float mag_g            = hypotf(hypotf(acc_x, acc_y), acc_z);
+  fusion_ctx.acc_raw     = mag_g - fusion_ctx.offset_magnitude;
   fusion_ctx.acc_forward = acc_forward;
 
-  // --- Step 5: INS velocity integration ---
+  // 5. INS velocity integration
   if (fabsf(acc_forward) > ACC_THRESHOLD_MS2)
   {
     fusion_ctx.velocity_ins += acc_forward * dt;
@@ -409,7 +403,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   if (fusion_ctx.velocity_ins < 0.0f)
     fusion_ctx.velocity_ins = 0.0f;
 
-  // --- Step 6: Accumulate INS distance for GPS reliability check (Chiang 2013) ---
+  // 6. Accumulate INS distance for GPS reliability check (Chiang 2013)
   if (fusion_ctx.velocity_ins > GPS_SPEED_MIN_MS)
     fusion_ctx.ins_dist_since_gps += fusion_ctx.velocity_ins * dt;
 }
