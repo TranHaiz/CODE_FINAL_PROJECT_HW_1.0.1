@@ -32,7 +32,8 @@ typedef enum
   SYS_UI_VIEW_OUT,
   SYS_UI_VIEW_TIME,
   SYS_UI_VIEW_DISTANCE,
-  SYS_UI_VIEW_TEMPERATURE
+  SYS_UI_VIEW_TEMPERATURE,
+  SYS_UI_VIEW_LOCK
 } sys_ui_view_t;
 
 typedef struct
