@@ -103,7 +103,7 @@ typedef struct
   size_t         gps_lost_ms;
 
   // GPS reliability (Chiang 2013)
-  float ins_dist_since_gps;  // INS-accumulated distance between GPS updates
+  float distance_ins;  // INS-accumulated distance between GPS updates
   bool  gps_reliable;
 
   // INS
@@ -369,15 +369,15 @@ static void sys_fusion_update_ins_velocity(float dt)
   float aby = acc_y * GRAVITY_MS2;
   float abz = acc_z * GRAVITY_MS2;
 
-  float acc_n = cos_pitch * cos_yaw * abx + (sin_roll * sin_pitch * cos_yaw - cos_roll * sin_yaw) * aby
-                + (cos_roll * sin_pitch * cos_yaw + sin_roll * sin_yaw) * abz;
-  float acc_e = cos_pitch * sin_yaw * abx + (sin_roll * sin_pitch * sin_yaw + cos_roll * cos_yaw) * aby
-                + (cos_roll * sin_pitch * sin_yaw - sin_roll * cos_yaw) * abz;
+  float acc_north = cos_pitch * cos_yaw * abx + (sin_roll * sin_pitch * cos_yaw - cos_roll * sin_yaw) * aby
+                    + (cos_roll * sin_pitch * cos_yaw + sin_roll * sin_yaw) * abz;
+  float acc_east = cos_pitch * sin_yaw * abx + (sin_roll * sin_pitch * sin_yaw + cos_roll * cos_yaw) * aby
+                   + (cos_roll * sin_pitch * sin_yaw - sin_roll * cos_yaw) * abz;
   // acc_d (vertical): acc_d = -sin_pitch*abx + sin_roll*cos_pitch*aby + cos_roll*cos_pitch*abz - GRAVITY_MS2 (not
   // needed here)
 
   // 4. Heading foward
-  float acc_forward      = acc_n * cos_yaw + acc_e * sin_yaw;
+  float acc_forward      = acc_north * cos_yaw + acc_east * sin_yaw;
   float mag_g            = hypotf(hypotf(acc_x, acc_y), acc_z);
   fusion_ctx.acc_raw     = mag_g - fusion_ctx.offset_magnitude;
   fusion_ctx.acc_forward = acc_forward;
@@ -405,7 +405,7 @@ static void sys_fusion_update_ins_velocity(float dt)
 
   // 6. Accumulate INS distance for GPS reliability check (Chiang 2013)
   if (fusion_ctx.velocity_ins > GPS_SPEED_MIN_MS)
-    fusion_ctx.ins_dist_since_gps += fusion_ctx.velocity_ins * dt;
+    fusion_ctx.distance_ins += fusion_ctx.velocity_ins * dt;
 }
 
 static void sys_fusion_update_gps_data(void)
@@ -452,21 +452,21 @@ static void sys_fusion_update_gps_data(void)
 
     if (fusion_ctx.has_last_gps_position)
     {
-      float d_gps = sys_fusion_haversine_m(fusion_ctx.last_valid_lat, fusion_ctx.last_valid_lon, lat, lon);
+      float distance_gps = sys_fusion_haversine_m(fusion_ctx.last_valid_lat, fusion_ctx.last_valid_lon, lat, lon);
 
       // GPS reliability check (Chiang 2013):
       // z_r = |d_INS - d_GPS|; reject GPS if residual exceeds threshold
-      float z_r = fabsf(fusion_ctx.ins_dist_since_gps - d_gps);
+      float z_r = fabsf(fusion_ctx.distance_ins - distance_gps);
       if (z_r < GPS_RELIABILITY_THRESHOLD_M)
       {
         fusion_ctx.gps_reliable = true;
-        if (d_gps < GPS_MAX_STEP_M && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
-          fusion_ctx.distance_m += d_gps;
+        if (distance_gps < GPS_MAX_STEP_M && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
+          fusion_ctx.distance_m += distance_gps;
       }
       else
       {
         fusion_ctx.gps_reliable = false;
-        LOG_WRN("GPS rejected: z_r=%.1fm (ins=%.1fm gps=%.1fm)", z_r, fusion_ctx.ins_dist_since_gps, d_gps);
+        LOG_WRN("GPS rejected: z_r=%.1fm (ins=%.1fm gps=%.1fm)", z_r, fusion_ctx.distance_ins, distance_gps);
       }
     }
     else
@@ -476,7 +476,7 @@ static void sys_fusion_update_gps_data(void)
     }
 
     // Reset INS distance accumulator for next GPS interval
-    fusion_ctx.ins_dist_since_gps = 0.0f;
+    fusion_ctx.distance_ins = 0.0f;
 
     fusion_ctx.last_valid_lat        = lat;
     fusion_ctx.last_valid_lon        = lon;
