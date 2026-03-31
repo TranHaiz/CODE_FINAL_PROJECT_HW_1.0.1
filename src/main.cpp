@@ -59,6 +59,7 @@ void setup()
 {
   Serial.begin(115200);
   delay(1000);  // Wait for Serial to initialize
+  device_info_init();
   bsp_rtc_init();
   bsp_sdcard_init();
   delay(1000);
