@@ -61,7 +61,19 @@ void bsp_display_init(void)
   }
 
   display_ctx.tft.init();
+
+#if (SCREEN_ROTATION_0)
+  display_ctx.tft.setRotation(0);
+#elif (SCREEN_ROTATION_90)
+  display_ctx.tft.setRotation(1);
+#elif (SCREEN_ROTATION_180)
+  display_ctx.tft.setRotation(2);
+#elif (SCREEN_ROTATION_270)
   display_ctx.tft.setRotation(3);
+#else
+#error "No screen rotation defined"
+#endif
+
   display_ctx.tft.fillScreen(TFT_BLACK);
 
   bsp_display_set_brightness_percent(display_ctx.brightness_percent);

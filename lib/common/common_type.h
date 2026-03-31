@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 /* Public defines ----------------------------------------------------- */
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
@@ -76,6 +75,13 @@ typedef struct
   uint8_t       month;   // Month [1-12]
   uint32_t      year;    // Full year (e.g. 2025)
 } timeline_t;
+typedef enum
+{
+  MODEM_USB = 0,
+  MODEM_BLE,
+  MODEM_WIFI,
+  MODEM_MAX
+} modem_t;
 
 #if (CONFIG_FIREBASE_SERVER == true)
 typedef struct

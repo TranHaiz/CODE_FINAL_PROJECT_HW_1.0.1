@@ -18,19 +18,26 @@
 #include "device_config.h"
 
 /* Public defines ----------------------------------------------------- */
+/**
+ * @brief  Enabble log to SD card
+ *
 // #define CONFIG_SD_DEBUG_MODE
+
+/**
+ * @brief  Server configuration
+ */
 #define CONFIG_FIREBASE_SERVER (false)
 #define CONFIG_MQTT_SERVER     (true)
 
-/* Public enumerate/structure ----------------------------------------- */
-typedef enum
-{
-  MODEM_USB = 0,
-  MODEM_BLE,
-  MODEM_WIFI,
-  MODEM_MAX
-} modem_t;
+/**
+ * @brief  Screen rotation configuration
+ */
+#define SCREEN_ROTATION_0      (0)
+#define SCREEN_ROTATION_90     (0)
+#define SCREEN_ROTATION_180    (0)
+#define SCREEN_ROTATION_270    (1)
 
+/* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
 /* Public function prototypes ----------------------------------------- */

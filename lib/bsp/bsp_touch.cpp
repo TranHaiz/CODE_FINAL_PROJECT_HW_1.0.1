@@ -35,9 +35,22 @@ typedef struct
 /* Public variables --------------------------------------------------- */
 /* Private variables -------------------------------------------------- */
 static bsp_touch_ctx_t s_touch_ctx = {
-  .tft            = nullptr,
-  .invert_x       = true,
-  .invert_y       = false,
+  .tft = nullptr,
+
+#if (SCREEN_ROTATION_0)
+  .invert_x = false,
+  .invert_y = true,
+#elif (SCREEN_ROTATION_90)
+  .invert_x = false,
+  .invert_y = false,
+#elif (SCREEN_ROTATION_180)
+  .invert_x = true,
+  .invert_y = true,
+#elif (SCREEN_ROTATION_270)
+  .invert_x = true,
+  .invert_y = false,
+#endif
+
   .is_initialized = false,
 };
 
@@ -83,7 +96,7 @@ bool bsp_touch_read(bsp_touch_point_t *point)
 #else
   uint16_t raw_x = 0;
   uint16_t raw_y = 0;
-  bool     hit  = s_touch_ctx.tft->getTouch(&raw_x, &raw_y);
+  bool     hit   = s_touch_ctx.tft->getTouch(&raw_x, &raw_y);
 
   point->touched = hit;
   if (!hit)
