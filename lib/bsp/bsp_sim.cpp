@@ -299,6 +299,7 @@ status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
     return STATUS_ERROR;
   }
 #elif (MQTT_PUBLISH_QOS == 1)
+  OS_DELAY_MS(5);
   if (!bsp_sim_send_and_wait_response(msg->payload, "+QMTPUBEX: 0,1,0", 10000))
   {
     LOG_ERR("Failed to publish MQTT message: %s", sim_rx_buffer);
