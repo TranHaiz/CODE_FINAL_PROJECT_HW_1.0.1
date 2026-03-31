@@ -40,6 +40,7 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_COLOR_TEXT             SYS_UI_WIDGET_COLOR_TEXT
 #define SYS_UI_COLOR_TEXT_DIM         SYS_UI_WIDGET_COLOR_TEXT_DIM
 #define SYS_UI_DATA_HISTORY_SAMPLES   (100)
+#define SYS_UI_BRIGHTNESS_PERCENT_OFF (0)
 
 // Timing
 #define SYS_UI_COUNTDOWN_MS           (1000)
@@ -265,8 +266,13 @@ static float  temperature_history_data[SYS_UI_DATA_HISTORY_SAMPLES];
 static size_t temperature_time_data[SYS_UI_DATA_HISTORY_SAMPLES];
 static int    s_temperature_history_count = 0;
 
+OS_SEM_DEFINE_STATIC(sys_ui_wakeup_sem);
+
 /* Private function prototypes ---------------------------------------- */
 // Core
+static void              sys_ui_process_active(void);
+static void              sys_ui_process_idle(void);
+static void              sys_ui_process_locked(void);
 static void              sys_ui_show_screen(lv_obj_t *screen);
 static void              sys_ui_change_screen(sys_ui_view_t view);
 static void              sys_ui_init_data(void);
@@ -338,6 +344,7 @@ void sys_ui_init(void)
 {
   memset(&ui_ctx, 0, sizeof(ui_ctx));
 
+  OS_SEM_CREATE(sys_ui_wakeup_sem);
   ui_ctx.prev_speed_int      = -1;
   ui_ctx.battery_percent     = 85;
   ui_ctx.brightness_percent  = 80;
@@ -373,90 +380,26 @@ void sys_ui_init(void)
 
 void sys_ui_process(void)
 {
-  size_t now = OS_GET_TICK();
-
-  switch (ui_ctx.view)
+  switch (g_device_info.state)
   {
-  case SYS_UI_VIEW_MAIN:
+  case DEVICE_STATE_IDLE:
   {
-    if (now - ui_ctx.last_second_tick >= SYS_UI_COUNTDOWN_MS)
-    {
-      ui_ctx.last_second_tick = now;
-      sys_ui_main_screen_update_countdown();
-      sys_ui_main_screen_update_time(ui_ctx.remaining_minutes, ui_ctx.remaining_seconds);
-    }
-
-    if (g_sys_ui_data_status.is_fusion_data_ready_for_ui)
-    {
-      sys_input_get_fusion_data(&ui_ctx.fusion);
-      sys_ui_main_screen_update_speed_n_distance();
-      sys_ui_main_screen_update_compass();
-      ui_ctx.frame_counter++;
-
-      if ((ui_ctx.frame_counter % 60U) == 0U)
-      {
-        sys_ui_log_distance_sample(ui_ctx.distance_km);
-      }
-
-      g_sys_ui_data_status.is_fusion_data_ready_for_ui = false;
-    }
-
-    if (g_sys_ui_data_status.is_env_data_ready_for_ui)
-    {
-      sys_input_data_t env = { 0 };
-      if (sys_input_get_env_data(&env) == STATUS_OK)
-      {
-        ui_ctx.temperature_C = env.temp_hum.temperature;
-        ui_ctx.humidity      = env.temp_hum.humidity;
-      }
-      sys_ui_main_screen_update_env(ui_ctx.temperature_C, ui_ctx.humidity, ui_ctx.air_quality);
-      g_sys_ui_data_status.is_env_data_ready_for_ui = false;
-    }
+    sys_ui_process_idle();
+  }
+  case DEVICE_STATE_LOCKED:
+  {
+    sys_ui_process_locked();
+    lvgl_driver_task(&ui_ctx.lvgl);
     break;
   }
-  case SYS_UI_VIEW_TIME:
+  case DEVICE_STATE_ACTIVE:
   {
-    if (now - ui_ctx.last_second_tick >= SYS_UI_COUNTDOWN_MS)
-    {
-      ui_ctx.last_second_tick = now;
-      sys_ui_main_screen_update_countdown();
-      sys_ui_time_screen_draw();
-    }
-    break;
-  }
-  case SYS_UI_VIEW_DISTANCE:
-  {
-    sys_ui_distance_screen_draw();
-    break;
-  }
-  case SYS_UI_VIEW_TEMPERATURE:
-  {
-    sys_ui_temp_screen_draw();
-    break;
-  }
-  case SYS_UI_VIEW_LOCK:
-  case SYS_UI_VIEW_SETTINGS:
-  case SYS_UI_VIEW_OUT:
-  {
-    // Static screens — no periodic update needed
+    sys_ui_process_active();
+    lvgl_driver_task(&ui_ctx.lvgl);
     break;
   }
   default: break;
   }
-
-  if (ui_ctx.view == SYS_UI_VIEW_MAIN && ui_ctx.pending_main_redraw)
-  {
-    if (ui_ctx.widgets.main_screen != nullptr)
-    {
-      lv_obj_del(ui_ctx.widgets.main_screen);
-    }
-    sys_ui_reset_all_widgets(&ui_ctx.widgets);
-    sys_ui_init_all_widgets();
-    sys_ui_register_callbacks();
-    ui_ctx.pending_main_redraw = false;
-  }
-
-  lvgl_driver_task(&ui_ctx.lvgl);
 }
 
 void sys_ui_lock(void)
@@ -469,6 +412,11 @@ void sys_ui_unlock(void)
 {
   LOG_DBG("sys_ui_unlock: unlocking");
   sys_ui_change_screen(SYS_UI_VIEW_MAIN);
+}
+
+void sys_ui_wakeup(void)
+{
+  OS_SEM_GIVE(sys_ui_wakeup_sem);
 }
 
 /* Private definitions ----------------------------------------------- */
@@ -1525,6 +1473,102 @@ static void sys_ui_lock_screen_draw(void)
   }
 
   sys_ui_show_screen(ui_ctx.widgets.lock_screen);
+}
+
+static void sys_ui_process_active(void)
+{
+  size_t now = OS_GET_TICK();
+
+  switch (ui_ctx.view)
+  {
+  case SYS_UI_VIEW_MAIN:
+  {
+    if (now - ui_ctx.last_second_tick >= SYS_UI_COUNTDOWN_MS)
+    {
+      ui_ctx.last_second_tick = now;
+      sys_ui_main_screen_update_countdown();
+      sys_ui_main_screen_update_time(ui_ctx.remaining_minutes, ui_ctx.remaining_seconds);
+    }
+
+    if (g_sys_ui_data_status.is_fusion_data_ready_for_ui)
+    {
+      sys_input_get_fusion_data(&ui_ctx.fusion);
+      sys_ui_main_screen_update_speed_n_distance();
+      sys_ui_main_screen_update_compass();
+      ui_ctx.frame_counter++;
+
+      if ((ui_ctx.frame_counter % 60U) == 0U)
+      {
+        sys_ui_log_distance_sample(ui_ctx.distance_km);
+      }
+
+      g_sys_ui_data_status.is_fusion_data_ready_for_ui = false;
+    }
+
+    if (g_sys_ui_data_status.is_env_data_ready_for_ui)
+    {
+      sys_input_data_t env = { 0 };
+      if (sys_input_get_env_data(&env) == STATUS_OK)
+      {
+        ui_ctx.temperature_C = env.temp_hum.temperature;
+        ui_ctx.humidity      = env.temp_hum.humidity;
+      }
+      sys_ui_main_screen_update_env(ui_ctx.temperature_C, ui_ctx.humidity, ui_ctx.air_quality);
+      g_sys_ui_data_status.is_env_data_ready_for_ui = false;
+    }
+    break;
+  }
+  case SYS_UI_VIEW_TIME:
+  {
+    if (now - ui_ctx.last_second_tick >= SYS_UI_COUNTDOWN_MS)
+    {
+      ui_ctx.last_second_tick = now;
+      sys_ui_main_screen_update_countdown();
+      sys_ui_time_screen_draw();
+    }
+    break;
+  }
+  case SYS_UI_VIEW_DISTANCE:
+  {
+    sys_ui_distance_screen_draw();
+    break;
+  }
+  case SYS_UI_VIEW_TEMPERATURE:
+  {
+    sys_ui_temp_screen_draw();
+    break;
+  }
+  case SYS_UI_VIEW_LOCK:
+  case SYS_UI_VIEW_SETTINGS:
+  case SYS_UI_VIEW_OUT:
+  {
+    // Static screens — no periodic update needed
+    break;
+  }
+  default: break;
+  }
+
+  if (ui_ctx.view == SYS_UI_VIEW_MAIN && ui_ctx.pending_main_redraw)
+  {
+    if (ui_ctx.widgets.main_screen != nullptr)
+    {
+      lv_obj_del(ui_ctx.widgets.main_screen);
+    }
+    sys_ui_reset_all_widgets(&ui_ctx.widgets);
+    sys_ui_init_all_widgets();
+    sys_ui_register_callbacks();
+    ui_ctx.pending_main_redraw = false;
+  }
+}
+
+static void sys_ui_process_idle(void)
+{
+  bsp_display_set_brightness_percent(SYS_UI_BRIGHTNESS_PERCENT_OFF);
+  OS_SEM_TAKE(sys_ui_wakeup_sem, OS_MAX_DELAY);
+}
+static void sys_ui_process_locked(void)
+{
+  bsp_display_set_brightness_percent(ui_ctx.brightness_percent);
 }
 
 /* End of file -------------------------------------------------------- */

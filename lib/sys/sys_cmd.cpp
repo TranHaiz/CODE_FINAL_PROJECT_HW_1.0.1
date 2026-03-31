@@ -16,6 +16,7 @@
 
 #include "bsp_rtc.h"
 #include "log_service.h"
+#include "sys_manager.h"
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_cmd, LOG_LEVEL_DBG)
@@ -39,7 +40,7 @@ static void sys_cmd_set_time_handler(void);
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
 OS_SEM_DEFINE_GLOBAL(sys_cmd_req_sem)
-char sys_cmd_input_buffer[CMD_INPUT_MAX_LEN];
+char g_cmd_input_buffer[CMD_INPUT_MAX_LEN];
 
 /* Private variables -------------------------------------------------- */
 // clang-format off
@@ -52,21 +53,59 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
 #undef INFO
 // clang-format on
 
-/* Command Handlers --------------------------------------------------- */
+/* Function definitions ----------------------------------------------- */
+void sys_cmd_process()
+{
+  OS_SEM_TAKE(sys_cmd_req_sem, OS_MAX_DELAY);
+  char cmd_buffer[CMD_INPUT_MAX_LEN];
+  strncpy(cmd_buffer, g_cmd_input_buffer, CMD_INPUT_MAX_LEN);
+  if (sys_cmd_parse_and_execute(cmd_buffer) == STATUS_OK)
+  {
+    LOG_DBG("Command executed successfully");
+  }
+  else
+  {
+    LOG_WRN("Failed to execute command: %s", cmd_buffer);
+  }
+}
+
+/* Private definitions ----------------------------------------------- */
+static status_function_t sys_cmd_parse_and_execute(const char *input)
+{
+  for (int i = 0; i < CMD_MAX; ++i)
+  {
+    if (strcmp(input, CMD_INFO[i].command) == 0)
+    {
+      if (CMD_INFO[i].handler)
+      {
+        CMD_INFO[i].handler();
+        return STATUS_OK;
+      }
+      else
+      {
+        // Do nothing
+        return STATUS_OK;
+      }
+    }
+  }
+  LOG_WRN("Unknown command: %s", input);
+  return STATUS_ERROR;
+}
+
 static void sys_cmd_lock_device_handler(void)
 {
-  // TODO: Add lock logic
+  sys_manager_write_event(SYS_MANAGER_EVT_LOCKED);
 }
 
 static void sys_cmd_unlock_device_handler(void)
 {
-  // TODO: Add unlock logic
+  sys_manager_write_event(SYS_MANAGER_EVT_UNLOCKED);
 }
 
 static void sys_cmd_set_time_handler(void)
 {
   timeline_t  req_time = { 0 };
-  const char *cmd      = sys_cmd_input_buffer;
+  const char *cmd      = g_cmd_input_buffer;
   const char *time_str = strchr(cmd, '=');
 
   if (!time_str || strlen(time_str + 1) < CMD_TIME_VALID_FORMAT_LEN)
@@ -135,30 +174,6 @@ static void sys_cmd_set_time_handler(void)
   {
     LOG_WRN("Invalid format SET_TIME");
   }
-}
-
-/* Function definitions ----------------------------------------------- */
-/* Private definitions ----------------------------------------------- */
-static status_function_t sys_cmd_parse_and_execute(const char *input)
-{
-  for (int i = 0; i < CMD_MAX; ++i)
-  {
-    if (strcmp(input, CMD_INFO[i].command) == 0)
-    {
-      if (CMD_INFO[i].handler)
-      {
-        CMD_INFO[i].handler();
-        return STATUS_OK;
-      }
-      else
-      {
-        // Do nothing
-        return STATUS_OK;
-      }
-    }
-  }
-  LOG_WRN("Unknown command: %s", input);
-  return STATUS_ERROR;
 }
 
 /* End of file -------------------------------------------------------- */

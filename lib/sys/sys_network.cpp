@@ -21,7 +21,7 @@
 #include "sys_ui_simple.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_INFO)
+LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
 #define MQTT_CLIENT_ID           "haq-trk-001"
 #define MQTT_PUB_TOPIC           "haq-trk-001/data"
 #define MQTT_TOPIC_COMMAND       "haq-trk-001/cmd"
@@ -78,23 +78,25 @@ bool is_data_network_ready = false;
 static net_ctx_t        network_ctx;
 static char             mqtt_payload_buffer[MQTT_MESSAGE_MAX_LEN];
 static sys_input_data_t last_published_data;
+OS_SEM_DEFINE_STATIC(sys_network_wakeup_sem);
 
 /* Private function prototypes ---------------------------------------- */
-static void        net_transition(net_state_t new_state);
-static uint32_t    net_backoff_ms(uint8_t retry);
-static const char *net_state_name(net_state_t state);
+static void     sys_network_change_state(net_state_t new_state);
+static uint32_t sys_network_backoff(uint8_t retry);
 
-static void net_run_sim_init(void);
-static void net_run_sim_wait_ready(void);
-static void net_run_mqtt_init(void);
-static void net_run_online(void);
-static void net_run_error_backoff(void);
-static void net_run_sim_hard_reset(void);
+static void sys_network_run_sim_init(void);
+static void sys_network_run_mqtt_init(void);
+static void sys_network_run_sim_wait_ready(void);
+static void sys_network_run_online(void);
+static void sys_network_run_error_backoff(void);
+static void sys_network_run_sim_hard_reset(void);
 
 static bool sys_network_build_payload(sys_input_data_t *data);
-static void net_on_mqtt_message(const char *topic, const uint8_t *data, size_t len);
-static bool net_publish_telemetry(void);
-static void net_build_payload(const sys_input_data_t *data, char *buf, size_t buf_len);
+static void sys_network_mqtt_message_cb(const char *topic, const uint8_t *data, size_t len);
+
+static void sys_network_process_idle(void);
+static void sys_network_process_locked(void);
+static void sys_network_process_active(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_network_init(void)
@@ -102,55 +104,37 @@ void sys_network_init(void)
   memset(&network_ctx, 0, sizeof(network_ctx));
   network_ctx.state      = NETWORK_STATE_SIM_INIT;
   network_ctx.prev_state = NETWORK_STATE_SIM_INIT;
+  OS_SEM_CREATE(sys_network_wakeup_sem);
 
   LOG_DBG("Network layer initialized");
 }
 
 void sys_network_process(void)
 {
-  switch (network_ctx.state)
+  switch (g_device_info.state)
   {
-  case NETWORK_STATE_SIM_INIT:
+  case DEVICE_STATE_LOCKED:
+  case DEVICE_STATE_ACTIVE:
   {
-    net_run_sim_init();
+    sys_network_process_active();
     break;
   }
-  case NETWORK_STATE_SIM_WAIT_READY:
+  case DEVICE_STATE_IDLE:
   {
-    net_run_sim_wait_ready();
+    sys_network_process_idle();
     break;
   }
-  case NETWORK_STATE_MQTT_INIT:
-  {
-    net_run_mqtt_init();
-    break;
-  }
-  case NETWORK_STATE_ONLINE:
-  {
-    net_run_online();
-    break;
-  }
-  case NETWORK_STATE_ERROR:
-  {
-    net_run_error_backoff();
-    break;
-  }
-  case NETWORK_STATE_SIM_RESET:
-  {
-    net_run_sim_hard_reset();
-    break;
-  }
-  default:
-  {
-    LOG_ERR("Unknown state %d — resetting", network_ctx.state);
-    net_transition(NETWORK_STATE_SIM_INIT);
-    break;
-  }
+  default: break;
   }
 }
 
+void sys_network_wakeup(void)
+{
+  OS_SEM_GIVE(sys_network_wakeup_sem);
+}
+
 /* Private definitions ----------------------------------------------- */
-static void net_transition(net_state_t new_state)
+static void sys_network_change_state(net_state_t new_state)
 {
   LOG_DBG("net: %d → %d  (retry=%d)", network_ctx.state, new_state, network_ctx.retry_count);
 
@@ -162,14 +146,14 @@ static void net_transition(net_state_t new_state)
   network_ctx.last_log_ms  = 0;
 }
 
-static uint32_t net_backoff_ms(uint8_t retry)
+static uint32_t sys_network_backoff(uint8_t retry)
 {
   uint8_t  shift   = (retry < 4) ? retry : 4;
   uint32_t backoff = (uint32_t) BACKOFF_BASE_MS << shift;
   return (backoff > BACKOFF_MAX_MS) ? BACKOFF_MAX_MS : backoff;
 }
 
-static void net_run_sim_init(void)
+static void sys_network_run_sim_init(void)
 {
   LOG_DBG("Triggering SIM init");
   network_ctx.sim_ready  = false;
@@ -178,19 +162,19 @@ static void net_run_sim_init(void)
   if (bsp_sim_init() != STATUS_OK)
   {
     LOG_ERR("Failed to initialize SIM");
-    net_transition(NETWORK_STATE_SIM_WAIT_READY);
+    sys_network_change_state(NETWORK_STATE_SIM_WAIT_READY);
     return;
   }
 
-  net_transition(NETWORK_STATE_MQTT_INIT);
+  sys_network_change_state(NETWORK_STATE_MQTT_INIT);
 }
 
-static void net_run_sim_wait_ready(void)
+static void sys_network_run_sim_wait_ready(void)
 {
   if (COUNT_MS(network_ctx.state_enter_ms) >= SIM_READY_TIMEOUT_MS)
   {
     LOG_WRN("SIM not ready after %d ms", SIM_READY_TIMEOUT_MS);
-    net_transition(NETWORK_STATE_ERROR);
+    sys_network_change_state(NETWORK_STATE_ERROR);
     return;
   }
 
@@ -204,7 +188,7 @@ static void net_run_sim_wait_ready(void)
   {
     LOG_DBG("SIM ready");
     network_ctx.sim_ready = true;
-    net_transition(NETWORK_STATE_MQTT_INIT);
+    sys_network_change_state(NETWORK_STATE_MQTT_INIT);
   }
   else
   {
@@ -212,12 +196,12 @@ static void net_run_sim_wait_ready(void)
   }
 }
 
-static void net_run_mqtt_init(void)
+static void sys_network_run_mqtt_init(void)
 {
   if (COUNT_MS(network_ctx.state_enter_ms) >= MQTT_INIT_TIMEOUT_MS)
   {
     LOG_WRN("MQTT init timeout (%d ms)", MQTT_INIT_TIMEOUT_MS);
-    net_transition(NETWORK_STATE_ERROR);
+    sys_network_change_state(NETWORK_STATE_ERROR);
     return;
   }
 
@@ -229,14 +213,14 @@ static void net_run_mqtt_init(void)
   if (bsp_sim_mqtt_init() != STATUS_OK)
   {
     LOG_WRN("MQTT init failed");
-    net_transition(NETWORK_STATE_ERROR);
+    sys_network_change_state(NETWORK_STATE_ERROR);
     return;
   }
 
-  if (bsp_sim_mqtt_sub(MQTT_TOPIC_COMMAND, net_on_mqtt_message) != STATUS_OK)
+  if (bsp_sim_mqtt_sub(MQTT_TOPIC_COMMAND, sys_network_mqtt_message_cb) != STATUS_OK)
   {
     LOG_WRN("MQTT subscribe failed");
-    net_transition(NETWORK_STATE_ERROR);
+    sys_network_change_state(NETWORK_STATE_ERROR);
     return;
   }
 
@@ -246,10 +230,10 @@ static void net_run_mqtt_init(void)
   network_ctx.last_publish_ms   = millis();
   network_ctx.last_keepalive_ms = millis();
 
-  net_transition(NETWORK_STATE_ONLINE);
+  sys_network_change_state(NETWORK_STATE_ONLINE);
 }
 
-static void net_run_online(void)
+static void sys_network_run_online(void)
 {
   // Public data if ready
   if (is_data_network_ready)
@@ -268,7 +252,7 @@ static void net_run_online(void)
     if (bsp_sim_mqtt_pub(&msg) != STATUS_OK)
     {
       LOG_WRN("Publish failed — assuming connection lost");
-      net_transition(NETWORK_STATE_ERROR);
+      sys_network_change_state(NETWORK_STATE_ERROR);
       return;
     }
     network_ctx.last_publish_ms = millis();
@@ -280,7 +264,7 @@ static void net_run_online(void)
     if (bsp_sim_is_ready() != STATUS_OK)
     {
       LOG_WRN("Sim or network not ready");
-      net_transition(NETWORK_STATE_ERROR);
+      sys_network_change_state(NETWORK_STATE_ERROR);
       return;
     }
     LOG_DBG("MQTT keepalive OK");
@@ -288,13 +272,9 @@ static void net_run_online(void)
   }
 }
 
-/* -------------------------------------------------------------------- */
-/* State: ERROR_BACKOFF                                                   */
-/* -------------------------------------------------------------------- */
-
-static void net_run_error_backoff(void)
+static void sys_network_run_error_backoff(void)
 {
-  uint32_t backoff = net_backoff_ms(network_ctx.retry_count);
+  uint32_t backoff = sys_network_backoff(network_ctx.retry_count);
   uint32_t elapsed = COUNT_MS(network_ctx.state_enter_ms);
 
   if (elapsed < backoff)
@@ -314,16 +294,16 @@ static void net_run_error_backoff(void)
   {
     LOG_WRN("Before %d retries — performing hard SIM reset", network_ctx.retry_count);
     network_ctx.retry_count = 0;
-    net_transition(NETWORK_STATE_SIM_RESET);
+    sys_network_change_state(NETWORK_STATE_SIM_RESET);
   }
   else
   {
     LOG_DBG("Backoff complete — soft retry %d", network_ctx.retry_count);
-    net_transition(NETWORK_STATE_SIM_WAIT_READY);
+    sys_network_change_state(NETWORK_STATE_SIM_WAIT_READY);
   }
 }
 
-static void net_run_sim_hard_reset(void)
+static void sys_network_run_sim_hard_reset(void)
 {
   if (COUNT_MS(network_ctx.state_enter_ms) < 10)
   {
@@ -335,41 +315,21 @@ static void net_run_sim_hard_reset(void)
     return;
   }
 
-  net_transition(NETWORK_STATE_SIM_INIT);
+  sys_network_change_state(NETWORK_STATE_SIM_INIT);
 }
 
-static void net_on_mqtt_message(const char *topic, const uint8_t *data, size_t len)
+static void sys_network_mqtt_message_cb(const char *topic, const uint8_t *data, size_t len)
 {
   LOG_DBG("MQTT rx [%s]: %d bytes, %s", topic, (int) len, (const char *) data);
-  memset(sys_cmd_input_buffer, 0, CMD_INPUT_MAX_LEN);
+  memset(g_cmd_input_buffer, 0, CMD_INPUT_MAX_LEN);
   if ((data == NULL) || (len >= CMD_INPUT_MAX_LEN))
   {
     LOG_WRN("Invalid command payload: %d bytes", (int) len);
     return;
   }
 
-  strncpy(sys_cmd_input_buffer, (const char *) data, len);
-  // OS_SEM_GIVE(sys_cmd_req_sem);
-}
-
-static void net_build_payload(const sys_input_data_t *data, char *buf, size_t buf_len)
-{
-  snprintf(buf, buf_len,
-           "{"
-           "\"ts\":%lu,"
-           "\"spd\":%.2f,"
-           "\"dist\":%.1f,"
-           "\"hdg\":%.1f,"
-           "\"dir\":\"%s\","
-           "\"lat\":%.6f,"
-           "\"lon\":%.6f,"
-           "\"dust\":%.1f,"
-           "\"temp\":%.1f,"
-           "\"hum\":%.1f"
-           "}",
-           data->timestamp_ms, data->velocity_kmh, data->distance_m, data->heading_deg,
-           (data->direction_str != NULL) ? data->direction_str : "?", data->gps_position.latitude,
-           data->gps_position.longitude, data->dust_value, data->temp_hum.temperature, data->temp_hum.humidity);
+  strncpy(g_cmd_input_buffer, (const char *) data, len);
+  OS_SEM_GIVE(sys_cmd_req_sem);
 }
 
 static bool sys_network_build_payload(sys_input_data_t *data)
@@ -411,6 +371,66 @@ static bool sys_network_build_payload(sys_input_data_t *data)
   }
 
   return true;
+}
+
+static void sys_network_process_idle(void)
+{
+  // TODO: Enter low-power mode, deinit SIM, etc.
+  bsp_sim_mqtt_deinit();
+  network_ctx.sim_ready  = false;
+  network_ctx.mqtt_ready = false;
+  sys_network_change_state(NETWORK_STATE_SIM_INIT);
+  OS_SEM_TAKE(sys_network_wakeup_sem, OS_MAX_DELAY);
+}
+
+static void sys_network_process_locked(void)
+{
+  // Do nothing for now, just receive commands
+}
+
+static void sys_network_process_active(void)
+{
+  switch (network_ctx.state)
+  {
+  case NETWORK_STATE_SIM_INIT:
+  {
+    sys_network_run_sim_init();
+    break;
+  }
+  case NETWORK_STATE_SIM_WAIT_READY:
+  {
+    sys_network_run_sim_wait_ready();
+    break;
+  }
+  case NETWORK_STATE_MQTT_INIT:
+  {
+    sys_network_run_mqtt_init();
+    break;
+  }
+  case NETWORK_STATE_ONLINE:
+  {
+    if (g_device_info.state != DEVICE_STATE_ACTIVE)
+      return;
+    sys_network_run_online();
+    break;
+  }
+  case NETWORK_STATE_ERROR:
+  {
+    sys_network_run_error_backoff();
+    break;
+  }
+  case NETWORK_STATE_SIM_RESET:
+  {
+    sys_network_run_sim_hard_reset();
+    break;
+  }
+  default:
+  {
+    LOG_ERR("Unknown state %d — resetting", network_ctx.state);
+    sys_network_change_state(NETWORK_STATE_SIM_INIT);
+    break;
+  }
+  }
 }
 
 /* End of file -------------------------------------------------------- */

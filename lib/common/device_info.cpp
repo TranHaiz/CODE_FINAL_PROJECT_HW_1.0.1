@@ -24,6 +24,7 @@ device_info_t g_device_info;
 /* Function definitions ----------------------------------------------- */
 void device_info_init(void)
 {
+  g_device_info.state = DEVICE_STATE_LOCKED;
   strncpy(g_device_info.device_name, DEFAULT_DEVICE_NAME, DEVICE_NAME_MAX_LEN);
 }
 

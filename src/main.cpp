@@ -20,12 +20,13 @@
 #include "device_info.h"
 #include "log_service.h"
 #include "os_lib.h"
+#include "sys_cmd.h"
 #include "sys_input.h"
 #include "sys_log.h"
+#include "sys_manager.h"
 #include "sys_network.h"
 #include "sys_ui.h"
 #include "sys_ui_simple.h"
-
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
@@ -46,12 +47,16 @@ OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 3, 4096);
 OS_THREAD_DECLARE(sys_network_thread, tskIDLE_PRIORITY + 2, 8192);
 OS_THREAD_DECLARE(sys_ui_thread, tskIDLE_PRIORITY + 4, 16384);
 OS_THREAD_DECLARE(sys_log_thread, tskIDLE_PRIORITY + 1, 4096);
+OS_THREAD_DECLARE(sys_cmd_thread, tskIDLE_PRIORITY + 5, 4096);
+OS_THREAD_DECLARE(sys_manager_thread, tskIDLE_PRIORITY + 5, 4096);
 
 /* Private function prototypes ---------------------------------------- */
 void sys_input_thread_func(void *param);
 void sys_network_thread_func(void *param);
 void sys_ui_thread_func(void *param);
 void sys_log_thread_func(void *param);
+void sys_cmd_thread_func(void *param);
+void sys_manager_thread_func(void *param);
 
 /* Function definitions ----------------------------------------------- */
 
@@ -65,6 +70,8 @@ void setup()
   delay(1000);
   Serial.println("START");
   delay(1000);
+  OS_THREAD_CREATE(sys_manager_thread, sys_manager_thread_func);
+  OS_THREAD_CREATE(sys_cmd_thread, sys_cmd_thread_func);
   OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
   OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
   OS_THREAD_CREATE(sys_ui_thread, sys_ui_thread_func);
@@ -90,7 +97,7 @@ void sys_input_thread_func(void *param)
     g_ret = sys_input_process();
     if (g_ret != STATUS_OK)
     {
-      Serial.println("Error processing sensor data");
+      // Do nothing, just wait for next cycle to retry
     }
     else
     {
@@ -137,6 +144,25 @@ void sys_log_thread_func(void *param)
   {
     sys_log_process();
     OS_DELAY_MS(SYS_LOG_UPDATE_RATE_MS);
+  }
+}
+
+void sys_cmd_thread_func(void *param)
+{
+  OS_SEM_CREATE(sys_cmd_req_sem);
+  while (true)
+  {
+    sys_cmd_process();
+  }
+}
+
+void sys_manager_thread_func(void *param)
+{
+  sys_manager_init();
+
+  while (true)
+  {
+    sys_manager_process();
   }
 }
 

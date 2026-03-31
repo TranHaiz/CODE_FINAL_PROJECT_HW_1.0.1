@@ -54,17 +54,19 @@ typedef struct
 /* Private macros ----------------------------------------------------- */
 
 /* Public variables --------------------------------------------------- */
-
 /* Private variables -------------------------------------------------- */
 static sys_input_context_t input_ctx = { 0 };
+OS_SEM_DEFINE_STATIC(sys_input_wakeup_sem);
 
 /* Private function prototypes ---------------------------------------- */
-static void sys_input_read_dust_sensor(void);
-static void sys_input_initial_battery_level(void);
-static void sys_input_read_battery_level(float *battery_level);
+static status_function_t sys_input_process_active(void);
+static void              sys_input_process_idle(void);
+static void              sys_input_process_locked(void);
+static void              sys_input_read_dust_sensor(void);
+static void              sys_input_initial_battery_level(void);
+static void              sys_input_read_battery_level(float *battery_level);
 
 /* Function definitions ----------------------------------------------- */
-
 void sys_input_init(void)
 {
   if (input_ctx.initialized)
@@ -72,6 +74,7 @@ void sys_input_init(void)
 
   LOG_DBG("Initializing system input...");
 
+  OS_SEM_CREATE(sys_input_wakeup_sem);
   input_ctx.data.velocity_ms          = 0.0f;
   input_ctx.data.velocity_kmh         = 0.0f;
   input_ctx.data.distance_m           = 0.0f;
@@ -115,48 +118,24 @@ void sys_input_init(void)
 
 status_function_t sys_input_process(void)
 {
-  if (!input_ctx.initialized)
-    return STATUS_ERROR;
-
-  size_t current_time_ms = millis();
-
-  // 1. Sensor fusion: velocity, distance, heading, GPS position
-  sys_fusion_data_t fusion_data = { 0 };
-  fusion_data.direction_str     = "N";
-  sys_fusion_process(&fusion_data);
-
-  input_ctx.data.velocity_ms                       = fusion_data.velocity_ms;
-  input_ctx.data.velocity_kmh                      = fusion_data.velocity_kmh;
-  input_ctx.data.distance_m                        = fusion_data.distance_m;
-  input_ctx.data.heading_deg                       = fusion_data.heading_deg;
-  input_ctx.data.direction_str                     = fusion_data.direction_str;
-  input_ctx.data.gps_position                      = fusion_data.gps_position;
-  g_sys_ui_data_status.is_fusion_data_ready_for_ui = true;
-
-  // 2. Environmental sensors
-  if ((current_time_ms - input_ctx.last_env_update_ms) >= SYS_INPUT_ENV_UPDATE_RATE_MS)
+  switch (g_device_info.state)
   {
-    input_ctx.last_env_update_ms = current_time_ms;
-    sys_input_read_dust_sensor();
-    if (input_ctx.temp_hum_ready)
-    {
-      (void) bsp_temp_hum_read(&input_ctx.data.temp_hum);
-    }
-    g_sys_ui_data_status.is_env_data_ready_for_ui = true;
-  }
-
-  // 3. Battery level
-  if ((current_time_ms - input_ctx.batt_last_update_ms) >= SYS_INPUT_BATT_UPDATE_RATE_MS)
+  case DEVICE_STATE_ACTIVE:
   {
-    input_ctx.batt_last_update_ms = current_time_ms;
-    sys_input_read_battery_level(&input_ctx.data.battery_level);
-    g_sys_ui_data_status.is_battery_data_ready_for_ui = true;
+    return sys_input_process_active();
   }
-
-  // 4. Finalize
-  input_ctx.data.timestamp_ms = current_time_ms;
-
-  return STATUS_OK;
+  case DEVICE_STATE_IDLE:
+  {
+    sys_input_process_idle();
+    break;
+  }
+  case DEVICE_STATE_LOCKED:
+  {
+    sys_input_process_locked();
+    return STATUS_BUSY;
+  }
+  default: break;
+  }
 }
 
 status_function_t sys_input_get_data(sys_input_data_t *data)
@@ -200,6 +179,11 @@ status_function_t sys_input_enter_sleep_mode(void)
 
   status = bsp_acc_enable_interrupt(BSP_ACC_INT_PIN_1);
   return status;
+}
+
+void sys_input_wakeup(void)
+{
+  OS_SEM_GIVE(sys_input_wakeup_sem);
 }
 
 /* Private definitions ----------------------------------------------- */
@@ -320,6 +304,60 @@ static void sys_input_initial_battery_level(void)
   input_ctx.data.battery_level = initial_soc;
 
   LOG_INF("Initial battery level: %.2f%%", initial_soc);
+}
+
+static status_function_t sys_input_process_active(void)
+{
+  if (!input_ctx.initialized)
+    return STATUS_ERROR;
+
+  size_t current_time_ms = millis();
+
+  // 1. Sensor fusion: velocity, distance, heading, GPS position
+  sys_fusion_data_t fusion_data = { 0 };
+  fusion_data.direction_str     = "N";
+  sys_fusion_process(&fusion_data);
+
+  input_ctx.data.velocity_ms                       = fusion_data.velocity_ms;
+  input_ctx.data.velocity_kmh                      = fusion_data.velocity_kmh;
+  input_ctx.data.distance_m                        = fusion_data.distance_m;
+  input_ctx.data.heading_deg                       = fusion_data.heading_deg;
+  input_ctx.data.direction_str                     = fusion_data.direction_str;
+  input_ctx.data.gps_position                      = fusion_data.gps_position;
+  g_sys_ui_data_status.is_fusion_data_ready_for_ui = true;
+
+  // 2. Environmental sensors
+  if ((current_time_ms - input_ctx.last_env_update_ms) >= SYS_INPUT_ENV_UPDATE_RATE_MS)
+  {
+    input_ctx.last_env_update_ms = current_time_ms;
+    sys_input_read_dust_sensor();
+    if (input_ctx.temp_hum_ready)
+    {
+      (void) bsp_temp_hum_read(&input_ctx.data.temp_hum);
+    }
+    g_sys_ui_data_status.is_env_data_ready_for_ui = true;
+  }
+
+  // 3. Battery level
+  if ((current_time_ms - input_ctx.batt_last_update_ms) >= SYS_INPUT_BATT_UPDATE_RATE_MS)
+  {
+    input_ctx.batt_last_update_ms = current_time_ms;
+    sys_input_read_battery_level(&input_ctx.data.battery_level);
+    g_sys_ui_data_status.is_battery_data_ready_for_ui = true;
+  }
+
+  // 4. Finalize
+  input_ctx.data.timestamp_ms = current_time_ms;
+  return STATUS_OK;
+}
+static void sys_input_process_idle(void)
+{
+  // TODO: Turn off sensors before sleeping
+  OS_SEM_TAKE(sys_input_wakeup_sem, OS_MAX_DELAY);
+}
+static void sys_input_process_locked(void)
+{
+  // TODO: Detect motion to avoid lost device, maybe read GPS occasionally, etc.
 }
 
 /* End of file -------------------------------------------------------- */

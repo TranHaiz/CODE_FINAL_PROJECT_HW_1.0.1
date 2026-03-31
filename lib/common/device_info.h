@@ -41,9 +41,18 @@
 #define DEVICE_NAME_MAX_LEN    (32)
 
 /* Public enumerate/structure ----------------------------------------- */
+typedef enum
+{
+  DEVICE_STATE_IDLE = 0,
+  DEVICE_STATE_LOCKED,
+  DEVICE_STATE_ACTIVE,
+  DEVICE_STATE_ERROR,
+  DEVICE_STATE_MAX
+} device_state_t;
 typedef struct
 {
-  char device_name[DEVICE_NAME_MAX_LEN];
+  device_state_t state;
+  char           device_name[DEVICE_NAME_MAX_LEN];
 } device_info_t;
 
 /* Public macros ------------------------------------------------------ */

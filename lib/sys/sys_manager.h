@@ -1,52 +1,56 @@
 /**
- * @file       sys_network.h
+ * @file       sys_manager.h
  * @copyright  Copyright (C) 2019 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
  * @version    1.0.0
- * @date       2026-01-17
+ * @date       2026-03-31
  * @author     Hai Tran
  *
- * @brief      System Network Layer - Network management interface
+ * @brief      Manage system state and device information
  *
  */
 
 /* Define to prevent recursive inclusion ------------------------------ */
-#ifndef _SYS_NETWORK_H_
-#define _SYS_NETWORK_H_
+#ifndef _SYS_MANAGER_H_
+#define _SYS_MANAGER_H_
 
 /* Includes ----------------------------------------------------------- */
-#include "bsp_sim.h"
 #include "common_type.h"
-#include "sys_input.h"
+#include "log_service.h"
+#include "os_lib.h"
 
 /* Public defines ----------------------------------------------------- */
 /* Public enumerate/structure ----------------------------------------- */
+typedef enum
+{
+  SYS_MANAGER_EVT_IDLE = 0,
+  SYS_MANAGER_EVT_LOCKED,
+  SYS_MANAGER_EVT_UNLOCKED,
+  SYS_MANAGER_EVT_ACTIVE,
+  SYS_MANAGER_EVT_WAKEUP,
+  SYS_MANAGER_EVT_MAX
+} sys_manager_event_t;
+
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
-extern bool is_data_network_ready;
-
 /* Public function prototypes ----------------------------------------- */
 /**
- * @brief Initialize the network layer, including SIM and MQTT setup.
+ * @brief Initialize system manager
  *
  * @return none
  */
-void sys_network_init(void);
+void sys_manager_init(void);
 
 /**
- * @brief Process the network state machine. Should be called periodically.
- *
- * @return none
+ * @brief Write event function, call to submit events
  */
-void sys_network_process(void);
+void sys_manager_write_event(sys_manager_event_t event);
 
 /**
- * @brief Trigger a network wakeup (e.g. after device unlock)
- *
- * @return none
+ * @brief Process function, call in thread loop
  */
-void sys_network_wakeup(void);
+void sys_manager_process(void);
 
-#endif /*End file _SYS_NETWORK_H_*/
+#endif /*End file _SYS_MANAGER_H_*/
 
 /* End of file -------------------------------------------------------- */

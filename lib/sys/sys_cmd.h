@@ -33,9 +33,10 @@ typedef enum
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
 OS_SEM_DECLARE(sys_cmd_req_sem)
-extern char sys_cmd_input_buffer[CMD_INPUT_MAX_LEN];
+extern char g_cmd_input_buffer[CMD_INPUT_MAX_LEN];
 
 /* Public function prototypes ----------------------------------------- */
+void sys_cmd_process();
 
 #endif /*End file _SYS_CMD_H_*/
 

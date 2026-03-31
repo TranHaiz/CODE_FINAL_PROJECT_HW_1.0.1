@@ -68,6 +68,11 @@ void sys_ui_lock(void);
  */
 void sys_ui_unlock(void);
 
+/**
+ * @brief Wake up the device from idle/sleep mode
+ */
+void sys_ui_wakeup(void);
+
 #endif /*End file _SYS_UI_H_*/
 
 /* End of file -------------------------------------------------------- */
