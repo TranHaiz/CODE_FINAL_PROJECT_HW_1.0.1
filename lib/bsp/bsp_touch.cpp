@@ -39,10 +39,10 @@ static bsp_touch_ctx_t s_touch_ctx = {
 
 #if (SCREEN_ROTATION_0)
   .invert_x = false,
-  .invert_y = true,
+  .invert_y = false,
 #elif (SCREEN_ROTATION_90)
   .invert_x = false,
-  .invert_y = false,
+  .invert_y = true,
 #elif (SCREEN_ROTATION_180)
   .invert_x = true,
   .invert_y = true,

@@ -12,6 +12,8 @@
 /* Includes ----------------------------------------------------------- */
 #include "sys_ui.h"
 
+#include "bsp_sdcard.h"
+#include "common_type.h"
 #include "log_service.h"
 #include "os_lib.h"
 #include "sys_input.h"
@@ -111,6 +113,24 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_TEMP_BTN_H             (24)
 #define SYS_UI_TEMP_BTN_GAP           (10)
 
+// Lock screen
+#define SYS_UI_QR_PATH                "/img/xb.bin"
+#define SYS_UI_QR_LABEL               "SCAN TO UNLOCK"
+#define SYS_UI_QR_LABEL_X             (80)
+#define SYS_UI_QR_LABEL_Y             (20)
+#define SYS_UI_QR_LABEL_FAIL          "[QR]"
+#define SYS_UI_QR_LABEL_FAIL_X        (100)
+#define SYS_UI_QR_LABEL_FAIL_Y        (80)
+#define SYS_UI_QR_LABEL_FAIL_FONT     (&lv_font_montserrat_28)
+#define SYS_UI_QR_LABEL_FONT          (&lv_font_montserrat_18)
+#define SYS_UI_QR_WIDTH               (160)
+#define SYS_UI_QR_HEIGHT              (160)
+#define SYS_UI_QR_X                   (80)
+#define SYS_UI_QR_Y                   (50)
+#define SYS_UI_DEVICE_ID_LABEL_X      (80)
+#define SYS_UI_DEVICE_ID_LABEL_Y      (215)
+#define SYS_UI_DEVICE_ID_LABEL_FONT   (&lv_font_montserrat_10)
+
 /* Background color palette for settings screen
  * INFO(index, R, G, B, label)            */
 #define SYS_UI_BG_COLOR_TABLE(INFO) \
@@ -155,6 +175,11 @@ typedef struct
   lv_obj_t *out_screen;
   lv_obj_t *out_title;
   lv_obj_t *out_back_btn;
+  // Lock screen
+  lv_obj_t      *lock_screen;
+  lv_obj_t      *lock_qr_img;
+  lv_obj_t      *device_id_label;
+  lv_image_dsc_t lock_qr_dsc;
   // Time history screen
   lv_obj_t *time_history_screen;
   lv_obj_t *time_history_title;
@@ -242,13 +267,21 @@ static int    s_temperature_history_count = 0;
 
 /* Private function prototypes ---------------------------------------- */
 // Core
-static void sys_ui_show_screen(lv_obj_t *screen);
-static void sys_ui_change_screen(sys_ui_view_t view);
-static void sys_ui_init_data(void);
-static void sys_ui_init_history_data(void);
-static void sys_ui_init_all_widgets(void);
-static void sys_ui_reset_all_widgets(sys_ui_widgets_t *w);
-static void sys_ui_register_callbacks(void);
+static void              sys_ui_show_screen(lv_obj_t *screen);
+static void              sys_ui_change_screen(sys_ui_view_t view);
+static void              sys_ui_init_data(void);
+static void              sys_ui_init_history_data(void);
+static void              sys_ui_init_all_widgets(void);
+static void              sys_ui_reset_all_widgets(sys_ui_widgets_t *w);
+static void              sys_ui_register_callbacks(void);
+static status_function_t sys_ui_image_draw(lv_obj_t     *parent,
+                                           const char   *path,
+                                           uint16_t      width,
+                                           uint16_t      height,
+                                           int16_t       x,
+                                           int16_t       y,
+                                           lv_img_dsc_t *out_dsc,
+                                           lv_obj_t    **out_obj);
 // Main screen
 static void sys_ui_main_screen_create(void);
 static void sys_ui_main_screen_update_speed(int speed_kph);
@@ -273,6 +306,9 @@ static void sys_ui_settings_screen_cb_color_btn(lv_event_t *event);
 static void sys_ui_out_screen_create(void);
 static void sys_ui_out_screen_draw(void);
 static void sys_ui_out_screen_cb_back_btn(lv_event_t *event);
+// Lock screen
+static void sys_ui_lock_screen_create(void);
+static void sys_ui_lock_screen_draw(void);
 // Time history screen
 static void sys_ui_time_screen_create(void);
 static void sys_ui_time_screen_draw(void);
@@ -307,7 +343,7 @@ void sys_ui_init(void)
   ui_ctx.brightness_percent  = 80;
   ui_ctx.background_color    = SYS_UI_COLOR_BG;
   ui_ctx.session_start_ms    = OS_GET_TICK();
-  ui_ctx.view                = SYS_UI_VIEW_MAIN;
+  ui_ctx.view                = SYS_UI_VIEW_LOCK;
   ui_ctx.pending_main_redraw = false;
   ui_ctx.temperature_zoom    = 1;
 
@@ -332,7 +368,7 @@ void sys_ui_init(void)
 
   bsp_touch_init();
 
-  LOG_INF("sys_ui_init: complete");
+  LOG_DBG("sys_ui_init: complete");
 }
 
 void sys_ui_process(void)
@@ -398,6 +434,7 @@ void sys_ui_process(void)
     sys_ui_temp_screen_draw();
     break;
   }
+  case SYS_UI_VIEW_LOCK:
   case SYS_UI_VIEW_SETTINGS:
   case SYS_UI_VIEW_OUT:
   {
@@ -422,6 +459,18 @@ void sys_ui_process(void)
   lvgl_driver_task(&ui_ctx.lvgl);
 }
 
+void sys_ui_lock(void)
+{
+  LOG_DBG("sys_ui_lock: locking");
+  sys_ui_change_screen(SYS_UI_VIEW_LOCK);
+}
+
+void sys_ui_unlock(void)
+{
+  LOG_DBG("sys_ui_unlock: unlocking");
+  sys_ui_change_screen(SYS_UI_VIEW_MAIN);
+}
+
 /* Private definitions ----------------------------------------------- */
 static void sys_ui_show_screen(lv_obj_t *screen)
 {
@@ -440,6 +489,11 @@ static void sys_ui_change_screen(sys_ui_view_t view)
 
   switch (view)
   {
+  case SYS_UI_VIEW_LOCK:
+  {
+    sys_ui_lock_screen_draw();
+    break;
+  }
   case SYS_UI_VIEW_MAIN:
   {
     if (ui_ctx.pending_main_redraw)
@@ -584,9 +638,15 @@ static void sys_ui_init_history_data(void)
 
 static void sys_ui_init_all_widgets(void)
 {
-  if (ui_ctx.widgets.main_screen == nullptr)
+  if (ui_ctx.widgets.lock_screen == nullptr)
   {
-    sys_ui_main_screen_create();
+    sys_ui_lock_screen_create();
+  }
+
+  if (ui_ctx.view == SYS_UI_VIEW_LOCK)
+  {
+    sys_ui_show_screen(ui_ctx.widgets.lock_screen);
+    return;
   }
 
   sys_ui_show_screen(ui_ctx.widgets.main_screen);
@@ -650,6 +710,9 @@ static void sys_ui_reset_all_widgets(sys_ui_widgets_t *w)
   w->zoom_plus_btn        = nullptr;
   w->pan_left_btn         = nullptr;
   w->pan_right_btn        = nullptr;
+  w->lock_screen          = nullptr;
+  w->device_id_label      = nullptr;
+  w->lock_qr_img          = nullptr;
 
   for (int i = 0; i < SYS_UI_BG_COLOR_COUNT; ++i)
   {
@@ -683,6 +746,76 @@ static void sys_ui_register_callbacks(void)
   {
     sys_ui_widget_set_clickable(ui_ctx.widgets.env_card, sys_ui_main_screen_cb_env_card, nullptr);
   }
+}
+
+static status_function_t sys_ui_image_draw(lv_obj_t       *parent,
+                                           const char     *path,
+                                           uint16_t        width,
+                                           uint16_t        height,
+                                           int16_t         x,
+                                           int16_t         y,
+                                           lv_image_dsc_t *out_dsc,
+                                           lv_obj_t      **out_obj)
+{
+  if ((parent == nullptr) || (path == nullptr) || (out_dsc == nullptr) || (out_obj == nullptr))
+  {
+    LOG_ERR("sys_ui_image_draw: invalid arguments");
+    return STATUS_ERROR;
+  }
+
+  // 1. Allocate PSRAM buffer
+  size_t   buf_size = (size_t) width * height * 2U;
+  uint8_t *buf      = (uint8_t *) heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
+  if (buf == nullptr)
+  {
+    LOG_ERR("sys_ui_image_draw: PSRAM alloc failed (%u bytes)", buf_size);
+    return STATUS_ERROR;
+  }
+
+  // 2. Read file from SD into PSRAM buffer
+  bsp_sdcard_file_t file;
+  size_t            read_len = 0U;
+
+  if (bsp_sdcard_open(path, BSP_SDCARD_MODE_READ, &file) != STATUS_OK)
+  {
+    LOG_ERR("sys_ui_image_draw: cannot open %s", path);
+    heap_caps_free(buf);
+    return STATUS_ERROR;
+  }
+
+  if (bsp_sdcard_read(&file, buf, buf_size, &read_len) != STATUS_OK || read_len != buf_size)
+  {
+    LOG_ERR("sys_ui_image_draw: read failed, got %u / %u bytes", read_len, buf_size);
+    bsp_sdcard_close(&file);
+    heap_caps_free(buf);
+    return STATUS_ERROR;
+  }
+
+  bsp_sdcard_close(&file);
+
+  // 3. Bind buffer
+  out_dsc->header.magic  = LV_IMAGE_HEADER_MAGIC;
+  out_dsc->header.cf     = LV_COLOR_FORMAT_RGB565;
+  out_dsc->header.w      = width;
+  out_dsc->header.h      = height;
+  out_dsc->header.stride = width * 2U;  // RGB565: 2 bytes/pixel
+  out_dsc->data_size     = (uint32_t) buf_size;
+  out_dsc->data          = buf;
+
+  // 4. Create LVGL image object and attach descriptor
+  *out_obj = lv_image_create(parent);
+  if (*out_obj == nullptr)
+  {
+    LOG_ERR("sys_ui_image_draw: lv_image_create failed");
+    heap_caps_free(buf);
+    return STATUS_ERROR;
+  }
+
+  lv_image_set_src(*out_obj, out_dsc);
+  lv_obj_set_pos(*out_obj, x, y);
+
+  LOG_DBG("sys_ui_image_draw: OK %s (%ux%u) pos(%d,%d)", path, width, height, x, y);
+  return STATUS_OK;
 }
 
 static void sys_ui_main_screen_create(void)
@@ -1360,6 +1493,38 @@ static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
   {
     data->state = LV_INDEV_STATE_RELEASED;
   }
+}
+
+static void sys_ui_lock_screen_create(void)
+{
+  char buf[128];
+  ui_ctx.widgets.lock_screen = sys_ui_widget_create_screen(0x000000);
+
+  snprintf(buf, sizeof(buf), "Device ID: %s", g_device_info.device_name);
+  sys_ui_widget_create_label(ui_ctx.widgets.lock_screen, SYS_UI_QR_LABEL_X, SYS_UI_QR_LABEL_Y, SYS_UI_QR_LABEL,
+                             SYS_UI_COLOR_TEXT, SYS_UI_QR_LABEL_FONT);
+  if (sys_ui_image_draw(ui_ctx.widgets.lock_screen, SYS_UI_QR_PATH, SYS_UI_QR_WIDTH, SYS_UI_QR_HEIGHT, SYS_UI_QR_X,
+                        SYS_UI_QR_Y, &ui_ctx.widgets.lock_qr_dsc, &ui_ctx.widgets.lock_qr_img)
+      != STATUS_OK)
+  {
+    LOG_ERR("sys_ui_lock_screen_create: QR image load failed");
+    ui_ctx.widgets.lock_qr_img =
+      sys_ui_widget_create_label(ui_ctx.widgets.lock_screen, SYS_UI_QR_LABEL_FAIL_X, SYS_UI_QR_LABEL_FAIL_Y,
+                                 SYS_UI_QR_LABEL_FAIL, SYS_UI_COLOR_TEXT_DIM, SYS_UI_QR_LABEL_FAIL_FONT);
+  }
+  ui_ctx.widgets.device_id_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.lock_screen, SYS_UI_DEVICE_ID_LABEL_X, SYS_UI_DEVICE_ID_LABEL_Y, buf,
+                               SYS_UI_COLOR_TEXT, &lv_font_montserrat_10);
+}
+
+static void sys_ui_lock_screen_draw(void)
+{
+  if (ui_ctx.widgets.lock_screen == nullptr)
+  {
+    sys_ui_lock_screen_create();
+  }
+
+  sys_ui_show_screen(ui_ctx.widgets.lock_screen);
 }
 
 /* End of file -------------------------------------------------------- */

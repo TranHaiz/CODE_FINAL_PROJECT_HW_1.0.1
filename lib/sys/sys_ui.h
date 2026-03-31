@@ -58,6 +58,16 @@ void sys_ui_init(void);
  */
 void sys_ui_process(void);
 
+/**
+ * @brief Lock the device (for rental end)
+ */
+void sys_ui_lock(void);
+
+/**
+ * @brief Unlock the device from lock screen (for rental start)
+ */
+void sys_ui_unlock(void);
+
 #endif /*End file _SYS_UI_H_*/
 
 /* End of file -------------------------------------------------------- */
