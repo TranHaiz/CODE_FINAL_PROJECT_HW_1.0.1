@@ -26,7 +26,7 @@
 #include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
+LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_INFO)
 
 #define SYS_INPUT_DUST_EMA_ALPHA       (0.2f)
 
@@ -35,6 +35,8 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 #define SYS_INPUT_BATT_READ_VOLT_TIMES (20)
 #define SYS_INPUT_BATT_DEBOUNCE        (10)
 #define SYS_INPUT_BATT_MAX_ERROR       (5)
+
+#define SYS_INPUT_BATT_ENABLE          (0)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
@@ -70,7 +72,7 @@ void sys_input_init(void)
   if (input_ctx.initialized)
     return;
 
-  LOG_DBG("Initializing system input...");
+  LOG_INF("Initializing system input...");
 
   input_ctx.data.velocity_ms          = 0.0f;
   input_ctx.data.velocity_kmh         = 0.0f;
@@ -88,25 +90,29 @@ void sys_input_init(void)
   input_ctx.temp_hum_ready     = false;
   input_ctx.initialized        = true;
 
-  LOG_DBG("Init Battery");
+#if SYS_INPUT_BATT_ENABLE
+  LOG_INF("Init Battery");
   if (bsp_batt_init() != STATUS_OK)
   {
     LOG_ERR("Failed to initialize battery monitoring");
   }
   sys_input_initial_battery_level();
+#else
+  // Do nothing
+#endif
 
-  LOG_DBG("Init Dust");
+  LOG_INF("Init Dust");
   if (bsp_dust_sensor_init() == STATUS_OK)
   {
     input_ctx.dust_ready = true;
-    LOG_DBG("Dust OK");
+    LOG_INF("Dust OK");
   }
 
-  LOG_DBG("Init Temp/Hum");
+  LOG_INF("Init Temp/Hum");
   if (bsp_temp_hum_init() == STATUS_OK)
   {
     input_ctx.temp_hum_ready = true;
-    LOG_DBG("Temp/Hum OK");
+    LOG_INF("Temp/Hum OK");
   }
 
   // Sensor fusion: ACC, GPS, Compass

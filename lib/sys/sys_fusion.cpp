@@ -22,7 +22,7 @@
 #include <math.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_WARN)
+LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_INFO)
 
 // #define DEMO_VEHICLE (1)
 #define DEMO_WALKING                (1)
@@ -177,11 +177,11 @@ void sys_fusion_init(void)
   memset(&fusion_ctx, 0, sizeof(fusion_ctx));
   fusion_ctx.direction_str = "N";
 
-  LOG_DBG("Init ACC");
+  LOG_INF("Init ACC");
   if (bsp_acc_init() == STATUS_OK)
   {
     fusion_ctx.acc_ready = true;
-    LOG_DBG("ACC OK");
+    LOG_INF("ACC OK");
 
     bsp_acc_raw_data_t init_acc = { 0 };
     if (bsp_acc_get_raw_data(&init_acc) == STATUS_OK)
@@ -196,21 +196,21 @@ void sys_fusion_init(void)
     }
   }
 
-  LOG_DBG("Init GPS");
+  LOG_INF("Init GPS");
   if (bsp_gps_init(sys_fusion_gps_callback) == STATUS_OK)
   {
     fusion_ctx.gps_ready = true;
-    LOG_DBG("GPS OK");
+    LOG_INF("GPS OK");
   }
 
-  LOG_DBG("Init Compass");
+  LOG_INF("Init Compass");
   if (bsp_compass_init() == STATUS_OK)
   {
     fusion_ctx.compass_ready = true;
-    LOG_DBG("Compass OK");
+    LOG_INF("Compass OK");
   }
 
-  LOG_DBG("Calib acc offset. Device must be stationary");
+  LOG_INF("Calib acc offset. Device must be stationary");
   if (fusion_ctx.acc_ready)
   {
     sys_fusion_calculate_offset_mag();
