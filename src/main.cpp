@@ -26,9 +26,8 @@
 #include "sys_ui.h"
 #include "sys_ui_simple.h"
 
-
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG)
 
 #define SYS_INPUT_UPDATE_RATE_MS   (20)
 #define SYS_NETWORK_UPDATE_RATE_MS (500)
@@ -64,15 +63,16 @@ void setup()
   delay(1000);
   Serial.println("START");
   delay(1000);
-  OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
-  OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
-  OS_THREAD_CREATE(sys_ui_thread, sys_ui_thread_func);
-  OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
+  // OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
+  // OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
+  // OS_THREAD_CREATE(sys_ui_thread, sys_ui_thread_func);
+  // OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
 }
 
 void loop()
 {
-  OS_DELAY_MS(OS_MAX_DELAY);
+  LOG_INF("Main loop running");
+  OS_DELAY_MS(1000);
 }
 
 /* Private definitions ----------------------------------------------- */
@@ -118,12 +118,12 @@ void sys_network_thread_func(void *param)
 
 void sys_ui_thread_func(void *param)
 {
-  sys_ui_init();
+  sys_ui_simple_init();
   bsp_led_set(LED_COLOR_PURPLE, LED_MODE_PULSE, 50);
 
   while (true)
   {
-    sys_ui_process();
+    sys_ui_simple_process();
     OS_DELAY_MS(SYS_UI_UPDATE_RATE_MS);
   }
 }
