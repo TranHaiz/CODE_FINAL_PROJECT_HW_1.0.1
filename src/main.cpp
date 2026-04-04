@@ -61,6 +61,15 @@ void setup()
   bsp_rtc_init();
   bsp_sdcard_init();
   delay(1000);
+  timeline_t current_time;
+  current_time.second = 0;
+  current_time.minute = 0;
+  current_time.hour   = 1;
+  current_time.day    = MONDAY;
+  current_time.date   = 1;
+  current_time.month  = 1;
+  current_time.year   = 2026;
+  bsp_rtc_set(&current_time);
   Serial.println("START");
   delay(1000);
   // OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
