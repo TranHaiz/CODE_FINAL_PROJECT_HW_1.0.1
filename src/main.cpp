@@ -29,7 +29,7 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG)
 
-#define SYS_INPUT_UPDATE_RATE_MS   (20)
+#define SYS_INPUT_UPDATE_RATE_MS   (2000)
 #define SYS_NETWORK_UPDATE_RATE_MS (500)
 #define SYS_UI_UPDATE_RATE_MS      (10)
 #define SYS_LOG_UPDATE_RATE_MS     (500)
@@ -71,8 +71,7 @@ void setup()
 
 void loop()
 {
-  LOG_INF("Main loop running");
-  OS_DELAY_MS(1000);
+  OS_DELAY_MS(OS_MAX_DELAY);
 }
 
 /* Private definitions ----------------------------------------------- */

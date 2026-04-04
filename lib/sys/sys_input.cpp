@@ -150,7 +150,7 @@ status_function_t sys_input_process(void)
     }
     g_sys_ui_data_status.is_env_data_ready_for_ui = true;
   }
-
+#if SYS_INPUT_BATT_ENABLE
   // 3. Battery level
   if ((current_time_ms - input_ctx.batt_last_update_ms) >= SYS_INPUT_BATT_UPDATE_RATE_MS)
   {
@@ -158,9 +158,15 @@ status_function_t sys_input_process(void)
     sys_input_read_battery_level(&input_ctx.data.battery_level);
     g_sys_ui_data_status.is_battery_data_ready_for_ui = true;
   }
+#else
+  // Do nothing
+#endif
 
   // 4. Finalize
   input_ctx.data.timestamp_ms = current_time_ms;
+  LOG_INF("Input data updated: Vel=%.2f m/s, Pos=(%.6f, %.6f), Head %.2f %s", input_ctx.data.velocity_ms,
+          input_ctx.data.gps_position.latitude, input_ctx.data.gps_position.longitude, input_ctx.data.heading_deg,
+          input_ctx.data.direction_str);
 
   return STATUS_OK;
 }
