@@ -19,7 +19,7 @@
 #include <Arduino.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_dust_sensor, LOG_LEVEL_INFO);
+LOG_MODULE_REGISTER(bsp_dust_sensor, LOG_LEVEL_WARN);
 
 #define BSP_DUST_SENSOR_ADC_RES        (12)
 #define BSP_DUST_SENSOR_ADC_MAX        (4095.0f)

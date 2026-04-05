@@ -71,8 +71,7 @@ void setup()
 
 void loop()
 {
-  LOG_INF("Main loop running");
-  OS_DELAY_MS(1000);
+  OS_DELAY_MS(OS_MAX_DELAY);
 }
 
 /* Private definitions ----------------------------------------------- */

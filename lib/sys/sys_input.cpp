@@ -227,7 +227,7 @@ static void sys_input_read_dust_sensor(void)
     return;
 
   float new_value = (float) dust_data.running_average;
-  LOG_INF("Dust sensor read: density=%d ug/m^3, avg=%d ug/m^3, baseline=%.2f V", dust_data.dust_density,
+  LOG_DBG("Dust sensor read: density=%d ug/m^3, avg=%d ug/m^3, baseline=%.2f V", dust_data.dust_density,
           dust_data.running_average, dust_data.baseline_voltage);
   input_ctx.data.dust_value =
     (uint16_t) (SYS_INPUT_DUST_EMA_ALPHA * new_value + (1.0f - SYS_INPUT_DUST_EMA_ALPHA) * input_ctx.data.dust_value);
