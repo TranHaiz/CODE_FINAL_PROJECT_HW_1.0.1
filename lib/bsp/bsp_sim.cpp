@@ -27,6 +27,7 @@ LOG_MODULE_REGISTER(bsp_sim, LOG_LEVEL_INFO)
 #define MQTT_CLIENT_ID_LEN   (32u)
 #define MQTT_PUBLISH_QOS     (1)
 #define MQTT_SUB_QOS         (2)
+#define WAIT_MS_AFTER_REBOOT (500)
 
 #define MQTT_BROKER_HOST     "test.mosquitto.org"
 #define MQTT_TLS_ENABLED     (false)
@@ -93,6 +94,10 @@ status_function_t bsp_sim_init(void)
                                   .baudrate = SIM_UART_BAUDRATE,
                                   .callback = bsp_sim_rsp_callback };
   bsp_uart_init(&uart2_cfg);
+
+  // Reboot SIM
+  SIM_SEND("AT+CFUN=1,1\r\n");
+  OS_DELAY_MS(WAIT_MS_AFTER_REBOOT);
 
   SIM_SEND("ATE0\r\n");
   OS_DELAY_MS(50);
