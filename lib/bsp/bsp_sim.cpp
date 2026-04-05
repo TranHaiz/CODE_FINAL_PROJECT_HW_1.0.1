@@ -29,10 +29,18 @@ LOG_MODULE_REGISTER(bsp_sim, LOG_LEVEL_INFO)
 #define MQTT_SUB_QOS         (2)
 
 #define MQTT_BROKER_HOST     "test.mosquitto.org"
-#define MQTT_BROKER_PORT     (1883)
+#define MQTT_TLS_ENABLED     (false)
 
+#if (MQTT_TLS_ENABLED == true)
+#define MQTT_BROKER_PORT  (8883)
+#define MQTT_SSL_CTX      (0)          /* QSSLCFG context index 0–5 */
+#define MQTT_SSL_SECLEVEL (1)          /* 0=no auth, 1=server auth, 2=mutual auth */
+#define MQTT_SSL_CA_FILE  "UFS:ca.pem" /* CA cert path on module filesystem */
+#else
+#define MQTT_BROKER_PORT (1883)
+#endif
 // EG800K: MQTT context index (0–5)
-#define MQTT_CTX             (0)
+#define MQTT_CTX (0)
 #endif
 
 /* Private macros ----------------------------------------------------- */
@@ -220,6 +228,35 @@ status_function_t bsp_sim_get_raw_data_firebase(uint8_t *raw_data_buffer, uint16
 status_function_t bsp_sim_mqtt_init(void)
 {
   char cmd[128];
+
+#if (MQTT_TLS_ENABLED == true)
+  // TLS: configure SSL context
+  char ssl_cmd[128];
+
+  snprintf(ssl_cmd, sizeof(ssl_cmd), "AT+QSSLCFG=\"cacert\",%d,\"%s\"\r\n", MQTT_SSL_CTX, MQTT_SSL_CA_FILE);
+  if (!bsp_sim_send_and_wait_response(ssl_cmd, "OK", 3000))
+  {
+    LOG_ERR("Failed to set SSL CA cert: %s", sim_rx_buffer);
+    return STATUS_ERROR;
+  }
+
+  snprintf(ssl_cmd, sizeof(ssl_cmd), "AT+QSSLCFG=\"seclevel\",%d,%d\r\n", MQTT_SSL_CTX, MQTT_SSL_SECLEVEL);
+  if (!bsp_sim_send_and_wait_response(ssl_cmd, "OK", 2000))
+  {
+    LOG_ERR("Failed to set SSL seclevel: %s", sim_rx_buffer);
+    return STATUS_ERROR;
+  }
+
+  snprintf(ssl_cmd, sizeof(ssl_cmd), "AT+QSSLCFG=\"ignorelocaltime\",%d,1\r\n", MQTT_SSL_CTX);
+  bsp_sim_send_and_wait_response(ssl_cmd, "OK", 2000);
+
+  snprintf(ssl_cmd, sizeof(ssl_cmd), "AT+QMTCFG=\"ssl\",%d,1,%d\r\n", MQTT_CTX, MQTT_SSL_CTX);
+  if (!bsp_sim_send_and_wait_response(ssl_cmd, "OK", 2000))
+  {
+    LOG_ERR("Failed to enable MQTT SSL: %s", sim_rx_buffer);
+    return STATUS_ERROR;
+  }
+#endif  // MQTT_TLS_ENABLED
 
   // 1. Config MQTT receive mode: URC with topic + payload (mode 1,0,0,1)
   if (!bsp_sim_send_and_wait_response("AT+QMTCFG=\"recv/mode\",0,0,1\r\n", "OK", 2000))
