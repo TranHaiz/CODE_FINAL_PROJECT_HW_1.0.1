@@ -36,6 +36,8 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 #define SYS_INPUT_BATT_DEBOUNCE        (10)
 #define SYS_INPUT_BATT_MAX_ERROR       (5)
 
+#define SYS_INPUT_BATT_ENABLE          (0)
+
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
 {
@@ -91,12 +93,16 @@ void sys_input_init(void)
   input_ctx.temp_hum_ready     = false;
   input_ctx.initialized        = true;
 
+#if SYS_INPUT_BATT_ENABLE
   LOG_DBG("Init Battery");
   if (bsp_batt_init() != STATUS_OK)
   {
     LOG_ERR("Failed to initialize battery monitoring");
   }
   sys_input_initial_battery_level();
+#else
+  // Do nothing
+#endif
 
   LOG_DBG("Init Dust");
   if (bsp_dust_sensor_init() == STATUS_OK)
@@ -338,13 +344,17 @@ static status_function_t sys_input_process_active(void)
     g_sys_ui_data_status.is_env_data_ready_for_ui = true;
   }
 
-  // 3. Battery level
+// 3. Battery level
+#if SYS_INPUT_BATT_ENABLE
   if ((current_time_ms - input_ctx.batt_last_update_ms) >= SYS_INPUT_BATT_UPDATE_RATE_MS)
   {
     input_ctx.batt_last_update_ms = current_time_ms;
     sys_input_read_battery_level(&input_ctx.data.battery_level);
     g_sys_ui_data_status.is_battery_data_ready_for_ui = true;
   }
+#else
+// Do nothing
+#endif
 
   // 4. Finalize
   input_ctx.data.timestamp_ms = current_time_ms;
