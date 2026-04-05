@@ -26,7 +26,7 @@ typedef struct
   uart_port_t     port;
   int             tx_pin;
   int             rx_pin;
-  int             baudrate;  // Chuyển thành int để khớp với uart_config_t
+  int             baudrate;
   uart_callback_t callback;
 } bsp_uart_config_t;
 

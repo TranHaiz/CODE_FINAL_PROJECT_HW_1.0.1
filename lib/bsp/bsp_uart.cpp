@@ -36,10 +36,9 @@ void bsp_uart_init(bsp_uart_config_t *config)
     .stop_bits           = UART_STOP_BITS_1,
     .flow_ctrl           = UART_HW_FLOWCTRL_DISABLE,
     .rx_flow_ctrl_thresh = 122,
-    .source_clk          = UART_SCLK_APB,  // S3 sử dụng DEFAULT thay vì APB cũ
+    .source_clk          = UART_SCLK_APB,
   };
 
-  // 1. Cài đặt Driver - check for errors
   esp_err_t ret =
     uart_driver_install(config->port, RX_BUF_SIZE * 2, RX_BUF_SIZE * 2, 20, &bsp_uart_queues[config->port], 0);
   if (ret != ESP_OK)
@@ -62,11 +61,8 @@ void bsp_uart_init(bsp_uart_config_t *config)
     return;
   }
 
-  // 2. Kích hoạt Idle Detection (Timeout)
-  // Sau khi nhận byte cuối, nếu im lặng 10 symbol sẽ bắn sự kiện UART_DATA
   uart_set_rx_timeout(config->port, 10);
 
-  // 3. Tạo Task xử lý (Sử dụng heap để truyền config vào task an toàn)
   // Add a small delay to ensure FreeRTOS scheduler is fully ready before task creation
   vTaskDelay(pdMS_TO_TICKS(10));
 
@@ -96,9 +92,8 @@ void bsp_uart_write(uart_port_t uart_num, const char *data, size_t len)
 /* Private definitions ----------------------------------------------- */
 static void uart_event_task(void *pvParameters)
 {
-  // Copy config vào local để đảm bảo an toàn vùng nhớ
   bsp_uart_config_t cfg = *(bsp_uart_config_t *) pvParameters;
-  delete (bsp_uart_config_t *) pvParameters;  // Giải phóng vùng nhớ tạm đã malloc ở init
+  delete (bsp_uart_config_t *) pvParameters;
 
   // Safety check: ensure queue handle is valid
   if (bsp_uart_queues[cfg.port] == NULL)
@@ -120,7 +115,6 @@ static void uart_event_task(void *pvParameters)
 
   for (;;)
   {
-    // Đợi sự kiện IDLE/Timeout (Tương đương ngắt DMA Idle của STM32)
     if (xQueueReceive(bsp_uart_queues[cfg.port], (void *) &event, portMAX_DELAY))
     {
       switch (event.type)
@@ -128,7 +122,6 @@ static void uart_event_task(void *pvParameters)
       case UART_DATA:
         if (event.size > 0)
         {
-          // Đọc dữ liệu từ Hardware Buffer
           int len = uart_read_bytes(cfg.port, dtmp, event.size, 0);
           if (len > 0 && cfg.callback != NULL)
           {

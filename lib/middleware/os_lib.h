@@ -43,7 +43,6 @@
 
 /**
  * @brief Create and start thread
- * Lưu ý: Ưu tiên dùng xTaskCreatePinnedToCore trên ESP32 để cố định Core (mặc định Core 1)
  */
 #define OS_THREAD_CREATE(thread_name, func)                                                        \
   xTaskCreatePinnedToCore((func), #thread_name, thread_name##_stack, NULL, thread_name##_priority, \
