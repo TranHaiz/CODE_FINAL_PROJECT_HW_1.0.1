@@ -39,8 +39,8 @@
 #define GPS_UART_BAUDRATE           (9600)
 
 // GP2Y1010AU0F Dust Sensor configuration
-#define DUST_SENSOR_LED_PIN         (7)
-#define DUST_SENSOR_AOOUT_PIN       (6)
+#define DUST_SENSOR_LED_PIN         (15)
+#define DUST_SENSOR_AOOUT_PIN       (16)
 
 // LSM6DS3 Accelerometer I2C configuration
 #define ACC_I2C_SDA_PIN             (4)

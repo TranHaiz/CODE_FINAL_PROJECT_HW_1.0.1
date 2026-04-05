@@ -21,9 +21,9 @@
 
 typedef struct
 {
-  uint16_t dust_density;      // Current dust ug/m^3
-  uint16_t running_average;   // Running average dust density in ug/m^3
-  float    baseline_voltage;  // Current baseline (zero-dust) voltage
+  uint16_t dust_density;      // Current dust density in ug/m^3
+  uint16_t running_average;   // Running average (EMA done at sys_input layer)
+  float    baseline_voltage;  // Baseline voltage at no-dust condition
   size_t   timestamp_ms;      // Timestamp of last reading
 } bsp_dust_sensor_data_t;
 
@@ -42,27 +42,29 @@ typedef enum
 /* Public function prototypes ----------------------------------------- */
 
 /**
- * @brief Initialize dust sensor
+ * @brief  Initialize dust sensor with warmup and baseline calibration
  *
- * @return status_function_t Status of operation
+ * @note   Blocks for ~30s during warmup. Call once at startup.
+ *
+ * @return status_function_t
  */
 status_function_t bsp_dust_sensor_init(void);
 
 /**
- * @brief Read dust sensor data
+ * @brief  Read dust density
  *
- * @param[out] data Pointer to data structure to fill
+ * @param[out] data  Pointer to output data structure
  *
- * @return status_function_t Status of operation
+ * @return status_function_t
  */
 status_function_t bsp_dust_sensor_read(bsp_dust_sensor_data_t *data);
 
 /**
- * @brief Get air quality level from density value
+ * @brief  Map density value to AQI level
  *
- * @param[in]  density Dust density in ug/m^3
+ * @param[in]  density  Dust density in ug/m^3
  *
- * @return AQI level
+ * @return bsp_dust_aqi_level_t
  */
 bsp_dust_aqi_level_t bsp_dust_sensor_get_aqi_level(uint16_t density);
 
