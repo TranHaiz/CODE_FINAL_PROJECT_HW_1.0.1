@@ -75,7 +75,7 @@ static void sys_ui_simple_update_values(void);
 void sys_ui_simple_init(void)
 {
   // Led initialization
-  // bsp_led_init(SYS_UI_TASK_SLEEP_MS);
+  bsp_led_init(SYS_UI_TASK_SLEEP_MS);
 
   // Int first display
   bsp_display_init();
@@ -107,7 +107,7 @@ void sys_ui_simple_process(void)
     sys_input_get_data(&input_data);
     sys_ui_simple_update_values();
   }
-  // bsp_led_task();
+  bsp_led_task();
 }
 
 void sys_ui_simple_change_ui(sys_ui_simple_view_t view)

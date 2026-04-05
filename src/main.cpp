@@ -58,15 +58,15 @@ void setup()
 {
   Serial.begin(115200);
   delay(1000);  // Wait for Serial to initialize
-  // bsp_rtc_init();
-  // bsp_sdcard_init();
+  bsp_rtc_init();
+  bsp_sdcard_init();
   delay(1000);
   Serial.println("START");
   delay(1000);
-  // OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
-  // OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
+  OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
+  OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
   OS_THREAD_CREATE(sys_ui_thread, sys_ui_thread_func);
-  // OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
+  OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
 }
 
 void loop()
