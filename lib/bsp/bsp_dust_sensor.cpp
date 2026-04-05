@@ -17,89 +17,117 @@
 #include "os_lib.h"
 
 #include <Arduino.h>
-#include <GP2YDustSensor.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_dust_sensor, LOG_LEVEL_ERROR);
-#define BSP_DUST_SENSOR_SAMPLES   (30)
-#define BSP_DUST_SENSOR_AVG_COUNT (90)
-#define BSP_DUST_SENSOR_BASELINE  (0.4f)
-#define BSP_DUST_SENSOR_CALIB     (1.0f)
+LOG_MODULE_REGISTER(bsp_dust_sensor, LOG_LEVEL_WARN);
+
+#define BSP_DUST_SENSOR_ADC_RES        (12)
+#define BSP_DUST_SENSOR_ADC_MAX        (4095.0f)
+#define BSP_DUST_SENSOR_VCC            (3.3f)
+#define BSP_DUST_SENSOR_CAL_FACTOR     (1000.0f)
+#define BSP_DUST_SENSOR_SAMPLES        (10)
+#define BSP_DUST_SENSOR_BASELINE_SAMPS (50)
+#define BSP_DUST_SENSOR_WARMUP_MS      (5000u)
+#define BSP_DUST_SENSOR_T_ON_US        (280u)  // LED on → wait → sample (datasheet)
+#define BSP_DUST_SENSOR_T_HOLD_US      (40u)
+#define BSP_DUST_SENSOR_T_CYCLE_MS     (10u)
+#define BSP_DUST_SENSOR_MAX_UGM3       (600.0f)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
 {
-  GP2YDustSensor        *sensor;
-  bsp_dust_sensor_data_t data;
-  size_t                 last_update_ms;
-  bool                   is_initialized;
+  float  baseline_adc;
+  size_t last_update_ms;
+  bool   is_initialized;
 } bsp_dust_sensor_ctx_t;
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
 /* Private variables -------------------------------------------------- */
-static bsp_dust_sensor_ctx_t dust_handler = {
-  .sensor         = nullptr,
-  .data           = { 0 },
+static bsp_dust_sensor_ctx_t dust_ctx = {
+  .baseline_adc   = 0.0f,
   .last_update_ms = 0,
   .is_initialized = false,
 };
 
 /* Private function prototypes ---------------------------------------- */
+static int   bsp_dust_sensor_read_once(void);
+static float bsp_dust_sensor_calibrate_baseline(void);
+
 /* Function definitions ----------------------------------------------- */
 status_function_t bsp_dust_sensor_init(void)
 {
-  if (dust_handler.is_initialized)
+  if (dust_ctx.is_initialized)
   {
     return STATUS_OK;
   }
 
-  dust_handler.sensor = new GP2YDustSensor(GP2YDustSensorType::GP2Y1010AU0F, DUST_SENSOR_LED_PIN, DUST_SENSOR_AOOUT_PIN,
-                                           BSP_DUST_SENSOR_AVG_COUNT);
+  pinMode(DUST_SENSOR_LED_PIN, OUTPUT);
+  digitalWrite(DUST_SENSOR_LED_PIN, LOW);  // LED off
 
-  if (dust_handler.sensor == nullptr)
+  analogReadResolution(BSP_DUST_SENSOR_ADC_RES);
+  analogSetPinAttenuation(DUST_SENSOR_AOOUT_PIN, ADC_11db);
+  OS_DELAY_MS(100);
+
+  // Warmup
+  LOG_DBG("Warming up dust sensor (%dms)...", BSP_DUST_SENSOR_WARMUP_MS);
+  size_t warmup_end = OS_GET_TICK() + BSP_DUST_SENSOR_WARMUP_MS;
+  while (OS_GET_TICK() < warmup_end)
   {
-    LOG_ERR("Failed to create sensor object");
-    return STATUS_ERROR;
+    bsp_dust_sensor_read_once();
+    OS_YIELD();
   }
+  LOG_DBG("Warmup done");
 
-  dust_handler.sensor->setBaseline(BSP_DUST_SENSOR_BASELINE);
-  dust_handler.sensor->setCalibrationFactor(BSP_DUST_SENSOR_CALIB);
-  dust_handler.sensor->begin();
+  // Calibrate baseline
+  LOG_DBG("Calibrating baseline (%d samples)...", BSP_DUST_SENSOR_BASELINE_SAMPS);
+  dust_ctx.baseline_adc = bsp_dust_sensor_calibrate_baseline();
+  LOG_DBG("Baseline ADC = %.2f (%.4fV)", dust_ctx.baseline_adc,
+          dust_ctx.baseline_adc * (BSP_DUST_SENSOR_VCC / BSP_DUST_SENSOR_ADC_MAX));
 
-  // Initialize data structure
-  dust_handler.data.dust_density     = 0;
-  dust_handler.data.running_average  = 0;
-  dust_handler.data.baseline_voltage = BSP_DUST_SENSOR_BASELINE;
-  dust_handler.data.timestamp_ms     = 0;
-
-  dust_handler.last_update_ms = OS_GET_TICK();
-  dust_handler.is_initialized = true;
+  dust_ctx.last_update_ms = OS_GET_TICK();
+  dust_ctx.is_initialized = true;
 
   return STATUS_OK;
 }
 
 status_function_t bsp_dust_sensor_read(bsp_dust_sensor_data_t *data)
 {
-  if (data == nullptr || !dust_handler.is_initialized || dust_handler.sensor == nullptr)
+  if (data == nullptr || !dust_ctx.is_initialized)
   {
     return STATUS_ERROR;
   }
 
-  // Read dust density
-  uint16_t density  = dust_handler.sensor->getDustDensity(BSP_DUST_SENSOR_SAMPLES);
-  uint16_t average  = dust_handler.sensor->getRunningAverage();
-  float    baseline = dust_handler.sensor->getBaseline();
+  float sum = 0.0f;
+  for (uint8_t i = 0; i < BSP_DUST_SENSOR_SAMPLES; i++)
+  {
+    sum += (float) bsp_dust_sensor_read_once();
+  }
+  float adc_avg = sum / (float) BSP_DUST_SENSOR_SAMPLES;
 
-  // Update internal data
-  dust_handler.data.dust_density     = density;
-  dust_handler.data.running_average  = average;
-  dust_handler.data.baseline_voltage = baseline;
-  dust_handler.data.timestamp_ms     = OS_GET_TICK();
-  dust_handler.last_update_ms        = dust_handler.data.timestamp_ms;
+  float delta_adc = adc_avg - dust_ctx.baseline_adc;
+  if (delta_adc < 0.0f)
+  {
+    delta_adc = 0.0f;
+  }
 
-  // Return data to caller
-  *data = dust_handler.data;
+  float delta_v = delta_adc * (BSP_DUST_SENSOR_VCC / BSP_DUST_SENSOR_ADC_MAX);
+  float density = delta_v * BSP_DUST_SENSOR_CAL_FACTOR;
+  if (density > BSP_DUST_SENSOR_MAX_UGM3)
+  {
+    density = BSP_DUST_SENSOR_MAX_UGM3;
+  }
+
+  // Fill output
+  data->dust_density     = (uint16_t) density;
+  data->running_average  = data->dust_density;
+  data->baseline_voltage = dust_ctx.baseline_adc * (BSP_DUST_SENSOR_VCC / BSP_DUST_SENSOR_ADC_MAX);
+  data->timestamp_ms     = OS_GET_TICK();
+
+  dust_ctx.last_update_ms = data->timestamp_ms;
+
+  LOG_DBG("adc_avg=%.1f delta_adc=%.1f delta_v=%.4fV density=%d ug/m3", adc_avg, delta_adc, delta_v,
+          data->dust_density);
 
   return STATUS_OK;
 }
@@ -130,6 +158,28 @@ bsp_dust_aqi_level_t bsp_dust_sensor_get_aqi_level(uint16_t density)
   {
     return BSP_DUST_AQI_HAZARDOUS;
   }
+}
+
+/* Private definitions ----------------------------------------------- */
+static int bsp_dust_sensor_read_once(void)
+{
+  digitalWrite(DUST_SENSOR_LED_PIN, HIGH);  // LED on (active HIGH - Waveshare board)
+  delayMicroseconds(BSP_DUST_SENSOR_T_ON_US);
+  int adc = analogRead(DUST_SENSOR_AOOUT_PIN);
+  delayMicroseconds(BSP_DUST_SENSOR_T_HOLD_US);
+  digitalWrite(DUST_SENSOR_LED_PIN, LOW);  // LED off
+  OS_DELAY_MS(BSP_DUST_SENSOR_T_CYCLE_MS);
+  return adc;
+}
+
+static float bsp_dust_sensor_calibrate_baseline(void)
+{
+  long sum = 0;
+  for (uint8_t i = 0; i < BSP_DUST_SENSOR_BASELINE_SAMPS; i++)
+  {
+    sum += bsp_dust_sensor_read_once();
+  }
+  return (float) sum / (float) BSP_DUST_SENSOR_BASELINE_SAMPS;
 }
 
 /* End of file -------------------------------------------------------- */
