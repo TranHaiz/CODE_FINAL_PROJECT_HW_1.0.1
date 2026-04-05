@@ -239,6 +239,7 @@ typedef struct
   size_t background_color;
   // Navigation
   sys_ui_view_t view;
+  sys_ui_view_t last_view;
   bool          pending_main_redraw;
   uint16_t      last_touch_x;
   uint16_t      last_touch_y;
@@ -351,6 +352,7 @@ void sys_ui_init(void)
   ui_ctx.background_color    = SYS_UI_COLOR_BG;
   ui_ctx.session_start_ms    = OS_GET_TICK();
   ui_ctx.view                = SYS_UI_VIEW_LOCK;
+  ui_ctx.last_view           = SYS_UI_VIEW_UNKNOWN;
   ui_ctx.pending_main_redraw = false;
   ui_ctx.temperature_zoom    = 1;
 
@@ -385,15 +387,26 @@ void sys_ui_process(void)
   case DEVICE_STATE_IDLE:
   {
     sys_ui_process_idle();
+    break;
   }
   case DEVICE_STATE_LOCKED:
   {
+    if (ui_ctx.last_view != SYS_UI_VIEW_LOCK)
+    {
+      sys_ui_change_screen(SYS_UI_VIEW_LOCK);
+      ui_ctx.last_view = SYS_UI_VIEW_LOCK;
+    }
     sys_ui_process_locked();
     lvgl_driver_task(&ui_ctx.lvgl);
     break;
   }
   case DEVICE_STATE_ACTIVE:
   {
+    if (ui_ctx.last_view != SYS_UI_VIEW_MAIN)
+    {
+      sys_ui_change_screen(SYS_UI_VIEW_MAIN);
+      ui_ctx.last_view = SYS_UI_VIEW_MAIN;
+    }
     sys_ui_process_active();
     lvgl_driver_task(&ui_ctx.lvgl);
     break;
@@ -405,13 +418,13 @@ void sys_ui_process(void)
 void sys_ui_lock(void)
 {
   LOG_DBG("sys_ui_lock: locking");
-  sys_ui_change_screen(SYS_UI_VIEW_LOCK);
+  ui_ctx.view = SYS_UI_VIEW_UNKNOWN;
 }
 
 void sys_ui_unlock(void)
 {
   LOG_DBG("sys_ui_unlock: unlocking");
-  sys_ui_change_screen(SYS_UI_VIEW_MAIN);
+  ui_ctx.view = SYS_UI_VIEW_UNKNOWN;
 }
 
 void sys_ui_wakeup(void)
@@ -595,6 +608,11 @@ static void sys_ui_init_all_widgets(void)
   {
     sys_ui_show_screen(ui_ctx.widgets.lock_screen);
     return;
+  }
+
+  if (ui_ctx.widgets.main_screen == nullptr)
+  {
+    sys_ui_main_screen_create();
   }
 
   sys_ui_show_screen(ui_ctx.widgets.main_screen);
@@ -1568,7 +1586,7 @@ static void sys_ui_process_idle(void)
 }
 static void sys_ui_process_locked(void)
 {
-  bsp_display_set_brightness_percent(ui_ctx.brightness_percent);
+  // Do nothing, just show the lock screen
 }
 
 /* End of file -------------------------------------------------------- */

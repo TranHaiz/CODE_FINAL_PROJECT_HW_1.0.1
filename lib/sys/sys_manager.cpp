@@ -18,6 +18,8 @@
 #include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
+LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_DBG)
+
 /* Private enumerate/structure ---------------------------------------- */
 typedef void (*sys_manager_process_handler_t)(void);
 typedef struct
@@ -70,6 +72,7 @@ void sys_manager_process(void)
 
   if (manager_handler.handler[manager_handler.current_event] != nullptr)
   {
+  LOG_DBG("Processed event: %d", manager_handler.current_event);
     manager_handler.handler[manager_handler.current_event]();
   }
 }
@@ -77,19 +80,23 @@ void sys_manager_process(void)
 /* Private definitions ----------------------------------------------- */
 static void sys_manager_wakeup_handler(void)
 {
+  LOG_DBG("Handling wakeup event");
 }
 static void sys_manager_lock_handler(void)
 {
   g_device_info.state = DEVICE_STATE_LOCKED;
   sys_ui_lock();
+  LOG_DBG("Device locked");
 }
 static void sys_manager_active_handler(void)
 {
+  LOG_DBG("Handling active event");
 }
 static void sys_manager_unlocked_handler(void)
 {
   g_device_info.state = DEVICE_STATE_ACTIVE;
   sys_ui_unlock();
+  LOG_DBG("Device unlocked and active");
 }
 
 /* End of file -------------------------------------------------------- */
