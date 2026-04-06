@@ -44,6 +44,9 @@ typedef struct
   size_t              timestamp_ms;   // Timestamp of last update
   gps_position_type_t gps_position;   // GPS position data
   float               battery_level;  // Battery level percentage
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  sys_fusion_debug_data_t debug;
+#endif
 } sys_input_data_t;
 
 /* Public macros ------------------------------------------------------ */

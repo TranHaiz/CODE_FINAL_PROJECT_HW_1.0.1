@@ -22,17 +22,21 @@
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
-#define MQTT_CLIENT_ID           "haq-trk-001"
-#define MQTT_PUB_TOPIC           "haq-trk-001/data"
-#define MQTT_TOPIC_COMMAND       "haq-trk-001/cmd"
-#define MQTT_KEEPALIVE_S         (60)
-#define MQTT_QOS                 (1)
+#define MQTT_CLIENT_ID          "haq-trk-001"
+#define MQTT_PUB_TOPIC          "haq-trk-001/data"
+#define MQTT_TOPIC_COMMAND      "haq-trk-001/cmd"
+#define MQTT_KEEPALIVE_S        (60)
+#define MQTT_QOS                (1)
 
-#define SIM_READY_TIMEOUT_MS     (10000)
-#define SIM_READY_POLL_MS        (500)
-#define SIM_HARD_RESET_DELAY_MS  (2000)
+#define SIM_READY_TIMEOUT_MS    (10000)
+#define SIM_READY_POLL_MS       (500)
+#define SIM_HARD_RESET_DELAY_MS (2000)
 
-#define MQTT_MESSAGE_MAX_LEN     (512)
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+#define MQTT_MESSAGE_MAX_LEN (1024)
+#else
+#define MQTT_MESSAGE_MAX_LEN (512)
+#endif
 #define MQTT_INIT_TIMEOUT_MS     (15000)
 #define MQTT_PUBLISH_INTERVAL_MS (1000)
 #define MQTT_KEEPALIVE_MS        (MQTT_KEEPALIVE_S * 1000UL)
@@ -369,6 +373,41 @@ static bool sys_network_build_payload(sys_input_data_t *data)
     mqtt_payload_buffer[0] = '\0';
     return false;
   }
+
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  int dbg_written =
+    snprintf(mqtt_payload_buffer + written, MQTT_MESSAGE_MAX_LEN - written,
+             ","
+             "\"acc_rx\":%.3f,\"acc_ry\":%.3f,\"acc_rz\":%.3f,"
+             "\"acc_fx\":%.3f,\"acc_fy\":%.3f,\"acc_fz\":%.3f,"
+             "\"gyr_rx\":%.3f,\"gyr_ry\":%.3f,\"gyr_rz\":%.3f,"
+             "\"gyr_fx\":%.3f,\"gyr_fy\":%.3f,\"gyr_fz\":%.3f,"
+             "\"cmp_rx\":%.1f,\"cmp_ry\":%.1f,\"cmp_rz\":%.1f,"
+             "\"cmp_fx\":%.3f,\"cmp_fy\":%.3f,\"cmp_fz\":%.3f,"
+             "\"v_ins\":%.3f,\"v_gps\":%.3f,"
+             "\"d_ins\":%.2f,\"d_gps\":%.2f"
+             "}",
+             data->debug.acc_raw_x, data->debug.acc_raw_y, data->debug.acc_raw_z, data->debug.acc_filter_x,
+             data->debug.acc_filter_y, data->debug.acc_filter_z, data->debug.gyro_raw_x, data->debug.gyro_raw_y,
+             data->debug.gyro_raw_z, data->debug.gyro_filter_x, data->debug.gyro_filter_y, data->debug.gyro_filter_z,
+             data->debug.compass_raw_x, data->debug.compass_raw_y, data->debug.compass_raw_z,
+             data->debug.compass_filter_x, data->debug.compass_filter_y, data->debug.compass_filter_z,
+             data->debug.v_ins, data->debug.v_gps, data->debug.distance_ins, data->debug.distance_gps);
+
+  if (dbg_written < 0 || (written + dbg_written) >= (int) MQTT_MESSAGE_MAX_LEN)
+  {
+    LOG_WRN("Debug payload truncated");
+    mqtt_payload_buffer[0] = '\0';
+    return false;
+  }
+#else
+  int close_written = snprintf(mqtt_payload_buffer + written, MQTT_MESSAGE_MAX_LEN - written, "}");
+  if (close_written < 0 || (written + close_written) >= (int) MQTT_MESSAGE_MAX_LEN)
+  {
+    mqtt_payload_buffer[0] = '\0';
+    return false;
+  }
+#endif
 
   return true;
 }

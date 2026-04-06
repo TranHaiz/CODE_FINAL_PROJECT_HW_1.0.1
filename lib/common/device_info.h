@@ -18,27 +18,25 @@
 #include "device_config.h"
 
 /* Public defines ----------------------------------------------------- */
-/**
- * @brief  Enabble log to SD card
- *
-// #define CONFIG_SD_DEBUG_MODE
+#define DEVICE_NORMAL_MODE       (0)
+#define DEVICE_FUSION_DEBUG_MODE (1)
 
 /**
  * @brief  Server configuration
  */
-#define CONFIG_FIREBASE_SERVER (false)
-#define CONFIG_MQTT_SERVER     (true)
+#define CONFIG_FIREBASE_SERVER   (false)
+#define CONFIG_MQTT_SERVER       (true)
 
 /**
  * @brief  Screen rotation configuration
  */
-#define SCREEN_ROTATION_0      (0)
-#define SCREEN_ROTATION_90     (0)
-#define SCREEN_ROTATION_180    (0)
-#define SCREEN_ROTATION_270    (1)
+#define SCREEN_ROTATION_0        (0)
+#define SCREEN_ROTATION_90       (0)
+#define SCREEN_ROTATION_180      (0)
+#define SCREEN_ROTATION_270      (1)
 
-#define DEFAULT_DEVICE_NAME    "haq-trk-000"
-#define DEVICE_NAME_MAX_LEN    (32)
+#define DEFAULT_DEVICE_NAME      "haq-trk-000"
+#define DEVICE_NAME_MAX_LEN      (32)
 
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum

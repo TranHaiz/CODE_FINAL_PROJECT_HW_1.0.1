@@ -163,6 +163,9 @@ status_function_t sys_input_get_fusion_data(sys_fusion_data_t *data)
   data->heading_deg   = input_ctx.data.heading_deg;
   data->direction_str = input_ctx.data.direction_str;
   data->gps_position  = input_ctx.data.gps_position;
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  data->debug = input_ctx.data.debug;
+#endif
 
   return STATUS_OK;
 }
@@ -330,6 +333,9 @@ static status_function_t sys_input_process_active(void)
   input_ctx.data.heading_deg                       = fusion_data.heading_deg;
   input_ctx.data.direction_str                     = fusion_data.direction_str;
   input_ctx.data.gps_position                      = fusion_data.gps_position;
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  input_ctx.data.debug = fusion_data.debug;
+#endif
   g_sys_ui_data_status.is_fusion_data_ready_for_ui = true;
 
   // 2. Environmental sensors

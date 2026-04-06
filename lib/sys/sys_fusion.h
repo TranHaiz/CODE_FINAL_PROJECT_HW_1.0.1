@@ -19,6 +19,42 @@
 
 /* Public defines ----------------------------------------------------- */
 /* Public enumerate/structure ----------------------------------------- */
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+typedef struct
+{
+  // Accelerometer (g)
+  float acc_raw_x;
+  float acc_raw_y;
+  float acc_raw_z;
+  float acc_filter_x;
+  float acc_filter_y;
+  float acc_filter_z;
+
+  // Gyroscope (dps)
+  float gyro_raw_x;
+  float gyro_raw_y;
+  float gyro_raw_z;
+  float gyro_filter_x;
+  float gyro_filter_y;
+  float gyro_filter_z;
+
+  // Compass (raw counts / EMA-filtered counts)
+  float compass_raw_x;
+  float compass_raw_y;
+  float compass_raw_z;
+  float compass_filter_x;
+  float compass_filter_y;
+  float compass_filter_z;
+
+  // Velocity components (m/s)
+  float v_ins;
+  float v_gps;
+
+  // Distance accumulators (m)
+  float distance_ins;  // INS distance since last GPS update
+  float distance_gps;  // Last GPS step distance (haversine)
+} sys_fusion_debug_data_t;
+#endif  /* DEVICE_FUSION_DEBUG_MODE */
 
 /**
  * @brief Fusion output data structure
@@ -31,6 +67,9 @@ typedef struct
   float               heading_deg;
   const char         *direction_str;
   gps_position_type_t gps_position;
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  sys_fusion_debug_data_t debug;
+#endif
 } sys_fusion_data_t;
 
 /* Public macros ------------------------------------------------------ */

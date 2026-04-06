@@ -146,6 +146,24 @@ typedef struct
   bool is_offset_mag_ready;
 
   bool initialized;
+
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  // Debug snapshots — last raw readings and derived values
+  float debug_acc_raw_x;
+  float debug_acc_raw_y;
+  float debug_acc_raw_z;
+  float debug_gyro_raw_x;
+  float debug_gyro_raw_y;
+  float debug_gyro_raw_z;
+  float debug_gyro_ema_x;
+  float debug_gyro_ema_y;
+  float debug_gyro_ema_z;
+  bool  debug_gyro_ema_init;
+  float debug_compass_raw_x;
+  float debug_compass_raw_y;
+  float debug_compass_raw_z;
+  float debug_distance_gps;  // Last GPS step distance (haversine, m)
+#endif
 } sys_fusion_context_t;
 
 /* Private macros ----------------------------------------------------- */
@@ -274,6 +292,31 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   data->gps_position.latitude  = fusion_ctx.gps_data_buffer.latitude;
   data->gps_position.longitude = fusion_ctx.gps_data_buffer.longitude;
 
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  data->debug.acc_raw_x      = fusion_ctx.debug_acc_raw_x;
+  data->debug.acc_raw_y      = fusion_ctx.debug_acc_raw_y;
+  data->debug.acc_raw_z      = fusion_ctx.debug_acc_raw_z;
+  data->debug.acc_filter_x   = fusion_ctx.acc_ema_x;
+  data->debug.acc_filter_y   = fusion_ctx.acc_ema_y;
+  data->debug.acc_filter_z   = fusion_ctx.acc_ema_z;
+  data->debug.gyro_raw_x     = fusion_ctx.debug_gyro_raw_x;
+  data->debug.gyro_raw_y     = fusion_ctx.debug_gyro_raw_y;
+  data->debug.gyro_raw_z     = fusion_ctx.debug_gyro_raw_z;
+  data->debug.gyro_filter_x  = fusion_ctx.debug_gyro_ema_x;
+  data->debug.gyro_filter_y  = fusion_ctx.debug_gyro_ema_y;
+  data->debug.gyro_filter_z  = fusion_ctx.debug_gyro_ema_z;
+  data->debug.compass_raw_x    = fusion_ctx.debug_compass_raw_x;
+  data->debug.compass_raw_y    = fusion_ctx.debug_compass_raw_y;
+  data->debug.compass_raw_z    = fusion_ctx.debug_compass_raw_z;
+  data->debug.compass_filter_x = fusion_ctx.compass_ema_x;
+  data->debug.compass_filter_y = fusion_ctx.compass_ema_y;
+  data->debug.compass_filter_z = fusion_ctx.compass_ema_z;
+  data->debug.v_ins            = fusion_ctx.velocity_ins;
+  data->debug.v_gps            = fusion_ctx.velocity_gps;
+  data->debug.distance_ins     = fusion_ctx.distance_ins;
+  data->debug.distance_gps     = fusion_ctx.debug_distance_gps;
+#endif
+
   fusion_ctx.last_update_us            = current_time_us;
   fusion_ctx.is_new_gps_data_available = false;
 
@@ -321,6 +364,29 @@ static void sys_fusion_update_ins_velocity(float dt)
   bsp_acc_raw_data_t imu = { 0 };
   if (bsp_acc_get_raw_data(&imu) != STATUS_OK)
     return;
+
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  fusion_ctx.debug_acc_raw_x  = imu.acc_x;
+  fusion_ctx.debug_acc_raw_y  = imu.acc_y;
+  fusion_ctx.debug_acc_raw_z  = imu.acc_z;
+  fusion_ctx.debug_gyro_raw_x = imu.gyro_x;
+  fusion_ctx.debug_gyro_raw_y = imu.gyro_y;
+  fusion_ctx.debug_gyro_raw_z = imu.gyro_z;
+
+  if (!fusion_ctx.debug_gyro_ema_init)
+  {
+    fusion_ctx.debug_gyro_ema_x    = imu.gyro_x;
+    fusion_ctx.debug_gyro_ema_y    = imu.gyro_y;
+    fusion_ctx.debug_gyro_ema_z    = imu.gyro_z;
+    fusion_ctx.debug_gyro_ema_init = true;
+  }
+  else
+  {
+    fusion_ctx.debug_gyro_ema_x = ACC_EMA_ALPHA * imu.gyro_x + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_x;
+    fusion_ctx.debug_gyro_ema_y = ACC_EMA_ALPHA * imu.gyro_y + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_y;
+    fusion_ctx.debug_gyro_ema_z = ACC_EMA_ALPHA * imu.gyro_z + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_z;
+  }
+#endif
 
   // 1. Acc EMA filter - 3 axes
   if (!fusion_ctx.acc_ema_init)
@@ -453,6 +519,10 @@ static void sys_fusion_update_gps_data(void)
     if (fusion_ctx.has_last_gps_position)
     {
       float distance_gps = sys_fusion_haversine_m(fusion_ctx.last_valid_lat, fusion_ctx.last_valid_lon, lat, lon);
+
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+      fusion_ctx.debug_distance_gps = distance_gps;
+#endif
 
       // GPS reliability check (Chiang 2013):
       // z_r = |d_INS - d_GPS|; reject GPS if residual exceeds threshold
@@ -640,6 +710,12 @@ static void sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms)
     LOG_ERR("Read compass fail");
     return;
   }
+
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  fusion_ctx.debug_compass_raw_x = (float) raw_data.raw_x;
+  fusion_ctx.debug_compass_raw_y = (float) raw_data.raw_y;
+  fusion_ctx.debug_compass_raw_z = (float) raw_data.raw_z;
+#endif
 
   if (!fusion_ctx.compass_filter_init)
   {
