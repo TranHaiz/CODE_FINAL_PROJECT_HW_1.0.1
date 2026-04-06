@@ -33,9 +33,9 @@
  * @brief  Screen rotation configuration
  */
 #define SCREEN_ROTATION_0      (0)
-#define SCREEN_ROTATION_90     (1)
+#define SCREEN_ROTATION_90     (0)
 #define SCREEN_ROTATION_180    (0)
-#define SCREEN_ROTATION_270    (0)
+#define SCREEN_ROTATION_270    (1)
 
 #define DEFAULT_DEVICE_NAME    "haq-trk-000"
 #define DEVICE_NAME_MAX_LEN    (32)

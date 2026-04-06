@@ -29,7 +29,7 @@ LOG_MODULE_REGISTER(bsp_sim, LOG_LEVEL_INFO)
 #define MQTT_SUB_QOS         (2)
 #define WAIT_MS_AFTER_REBOOT (500)
 
-#define MQTT_BROKER_HOST     "test.mosquitto.org"
+#define MQTT_BROKER_HOST     "broker.emqx.io"
 #define MQTT_TLS_ENABLED     (false)
 
 #if (MQTT_TLS_ENABLED == true)
