@@ -24,8 +24,11 @@ device_info_t g_device_info;
 /* Function definitions ----------------------------------------------- */
 void device_info_init(void)
 {
+  char buffer[MQTT_MAX_TOPIC_LEN];
   g_device_info.state = DEVICE_STATE_LOCKED;
   strncpy(g_device_info.device_name, DEFAULT_DEVICE_NAME, DEVICE_NAME_MAX_LEN);
+  snprintf(g_device_info.mqtt_cmd_topic, sizeof(g_device_info.mqtt_cmd_topic), "%s/cmd", g_device_info.device_name);
+  snprintf(g_device_info.mqtt_data_topic, sizeof(g_device_info.mqtt_data_topic), "%s/data", g_device_info.device_name);
 }
 
 /* Private definitions ----------------------------------------------- */

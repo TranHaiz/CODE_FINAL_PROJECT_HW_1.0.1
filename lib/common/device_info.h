@@ -34,6 +34,8 @@
 #define CONFIG_FIREBASE_SERVER   (false)
 #define CONFIG_MQTT_SERVER       (true)
 
+#define MQTT_MAX_TOPIC_LEN       (64)
+
 #define SCREEN_SKIP_LOCK_SCREEN  (1)
 #define SCREEN_ROTATION_0        (0)
 #define SCREEN_ROTATION_90       (0)
@@ -56,6 +58,8 @@ typedef struct
 {
   device_state_t state;
   char           device_name[DEVICE_NAME_MAX_LEN];
+  char           mqtt_cmd_topic[MQTT_MAX_TOPIC_LEN];
+  char           mqtt_data_topic[MQTT_MAX_TOPIC_LEN];
 } device_info_t;
 
 /* Public macros ------------------------------------------------------ */

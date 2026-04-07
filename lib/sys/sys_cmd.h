@@ -27,6 +27,7 @@ typedef enum
   CMD_LOCK_DEVICE = 0,
   CMD_UNLOCK_DEVICE,
   CMD_SET_TIME,
+  CMD_SET_DEVICE_ID,
   CMD_MAX
 } sys_command_id_t;
 

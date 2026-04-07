@@ -22,9 +22,6 @@
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
-#define MQTT_CLIENT_ID          "haq-trk-001"
-#define MQTT_PUB_TOPIC          "haq-trk-001/data"
-#define MQTT_TOPIC_COMMAND      "haq-trk-001/cmd"
 #define MQTT_KEEPALIVE_S        (60)
 #define MQTT_QOS                (1)
 
@@ -221,7 +218,7 @@ static void sys_network_run_mqtt_init(void)
     return;
   }
 
-  if (bsp_sim_mqtt_sub(MQTT_TOPIC_COMMAND, sys_network_mqtt_message_cb) != STATUS_OK)
+  if (bsp_sim_mqtt_sub(g_device_info.mqtt_cmd_topic, sys_network_mqtt_message_cb) != STATUS_OK)
   {
     LOG_WRN("MQTT subscribe failed");
     sys_network_change_state(NETWORK_STATE_ERROR);
@@ -250,7 +247,7 @@ static void sys_network_run_online(void)
       return;
     }
     mqtt_message_t msg = {
-      .topic   = MQTT_PUB_TOPIC,
+      .topic   = g_device_info.mqtt_data_topic,
       .payload = mqtt_payload_buffer,
     };
     if (bsp_sim_mqtt_pub(&msg) != STATUS_OK)

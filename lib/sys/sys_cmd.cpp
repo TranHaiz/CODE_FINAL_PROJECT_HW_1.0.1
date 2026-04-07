@@ -36,6 +36,7 @@ static status_function_t sys_cmd_parse_and_execute(const char *input);
 static void sys_cmd_lock_device_handler(void);
 static void sys_cmd_unlock_device_handler(void);
 static void sys_cmd_set_time_handler(void);
+static void sys_cmd_set_device_id_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -48,7 +49,8 @@ char g_cmd_input_buffer[CMD_INPUT_MAX_LEN];
 static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("LOCK",      sys_cmd_lock_device_handler),
   INFO("UNLOCK",    sys_cmd_unlock_device_handler),
-  INFO("SET_TIME",  sys_cmd_set_time_handler)
+  INFO("SET_TIME",  sys_cmd_set_time_handler),
+  INFO("SET_DEVICE_ID",  sys_cmd_set_device_id_handler),
 };
 #undef INFO
 // clang-format on
@@ -72,9 +74,10 @@ void sys_cmd_process()
 /* Private definitions ----------------------------------------------- */
 static status_function_t sys_cmd_parse_and_execute(const char *input)
 {
+  LOG_DBG("Processing command: %s", input);
   for (int i = 0; i < CMD_MAX; ++i)
   {
-    if (strcmp(input, CMD_INFO[i].command) == 0)
+    if (strncmp(input, CMD_INFO[i].command, strlen(CMD_INFO[i].command)) == 0)
     {
       if (CMD_INFO[i].handler)
       {
@@ -174,6 +177,29 @@ static void sys_cmd_set_time_handler(void)
   {
     LOG_WRN("Invalid format SET_TIME");
   }
+}
+
+static void sys_cmd_set_device_id_handler(void)
+{
+  const char *cmd    = g_cmd_input_buffer;
+  const char *id_str = strchr(cmd, '=');
+  char        name_buffer[DEVICE_NAME_MAX_LEN];
+
+  if (!id_str || strlen(id_str + 1) == 0)
+  {
+    LOG_WRN("SET_DEVICE_ID: Invalid format");
+    return;
+  }
+  strncat(name_buffer, "haq-trk-", sizeof(name_buffer) - strlen(name_buffer) - 1);
+  strncat(name_buffer, id_str + 1, sizeof(name_buffer) - strlen(name_buffer) - 1);
+
+  // Set device name and MQTT topics
+  strncpy(g_device_info.device_name, name_buffer, sizeof(g_device_info.device_name) - 1);
+  g_device_info.device_name[sizeof(g_device_info.device_name) - 1] = '\0';
+  snprintf(g_device_info.mqtt_cmd_topic, sizeof(g_device_info.mqtt_cmd_topic), "%s/cmd", g_device_info.device_name);
+  snprintf(g_device_info.mqtt_data_topic, sizeof(g_device_info.mqtt_data_topic), "%s/data", g_device_info.device_name);
+  LOG_DBG("Device ID set to: %s, cmd_topic=%s, data_topic=%s", g_device_info.device_name, g_device_info.mqtt_cmd_topic,
+          g_device_info.mqtt_data_topic);
 }
 
 /* End of file -------------------------------------------------------- */

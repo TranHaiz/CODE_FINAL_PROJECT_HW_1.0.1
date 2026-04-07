@@ -565,11 +565,11 @@ bsp_sim_parse_raw_data(uint8_t *source, uint16_t source_len, uint8_t *dest, uint
 #if (CONFIG_MQTT_SERVER == true)
 static void bsp_sim_build_client_id(char *buf, size_t buf_size)
 {
-  const char *dev_id = "1";
-  if (dev_id == NULL || dev_id[0] == '\0')
+  const char *dev_name = g_device_info.device_name;
+  if (dev_name == NULL || dev_name[0] == '\0')
     snprintf(buf, buf_size, "haq-trk-unknown");
   else
-    snprintf(buf, buf_size, "haq-trk-%.16s", dev_id);
+    snprintf(buf, buf_size, "%s", dev_name);
 }
 #endif
 
