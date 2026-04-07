@@ -213,6 +213,10 @@ void sys_fusion_init(void)
       fusion_ctx.pitch_rad = atan2f(-init_acc.acc_x, hypotf(init_acc.acc_y, init_acc.acc_z));
     }
   }
+  else
+  {
+    LOG_ERR("ACC init failed");
+  }
 
   LOG_DBG("Init GPS");
   if (bsp_gps_init(sys_fusion_gps_callback) == STATUS_OK)
@@ -220,12 +224,21 @@ void sys_fusion_init(void)
     fusion_ctx.gps_ready = true;
     LOG_DBG("GPS OK");
   }
+  else
+  {
+    LOG_ERR("GPS init failed");
+  }
+
 
   LOG_DBG("Init Compass");
   if (bsp_compass_init() == STATUS_OK)
   {
     fusion_ctx.compass_ready = true;
     LOG_DBG("Compass OK");
+  }
+  else
+  {
+    LOG_ERR("Compass init failed");
   }
 
   LOG_DBG("Calib acc offset. Device must be stationary");
