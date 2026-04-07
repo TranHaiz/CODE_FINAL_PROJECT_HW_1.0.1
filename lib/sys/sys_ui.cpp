@@ -17,6 +17,7 @@
 #include "log_service.h"
 #include "os_lib.h"
 #include "sys_input.h"
+#include "sys_manager.h"
 
 #include <math.h>
 #include <string.h>
@@ -1604,7 +1605,7 @@ static void sys_ui_process_locked(void)
 static void sys_ui_lock_screen_cb_debug(lv_event_t *event)
 {
   (void) event;
-  sys_ui_change_screen(SYS_UI_VIEW_MAIN);
+  sys_manager_write_event(SYS_MANAGER_EVT_UNLOCKED);
 }
 #endif
 
