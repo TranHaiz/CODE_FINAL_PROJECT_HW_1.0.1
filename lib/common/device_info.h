@@ -18,6 +18,13 @@
 #include "device_config.h"
 
 /* Public defines ----------------------------------------------------- */
+
+/**
+ * @brief  Device operation modes
+ * @note 0 - deactivated
+ *       1 - normal mode
+ */
+
 #define DEVICE_NORMAL_MODE       (0)
 #define DEVICE_FUSION_DEBUG_MODE (1)
 
@@ -27,9 +34,7 @@
 #define CONFIG_FIREBASE_SERVER   (false)
 #define CONFIG_MQTT_SERVER       (true)
 
-/**
- * @brief  Screen rotation configuration
- */
+#define SCREEN_SKIP_LOCK_SCREEN  (1)
 #define SCREEN_ROTATION_0        (0)
 #define SCREEN_ROTATION_90       (0)
 #define SCREEN_ROTATION_180      (0)

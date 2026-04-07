@@ -115,7 +115,7 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_TEMP_BTN_GAP           (10)
 
 // Lock screen
-#define SYS_UI_QR_PATH                "/img/xb.bin"
+#define SYS_UI_QR_PATH                "/img/qr.bin"
 #define SYS_UI_QR_LABEL               "SCAN TO UNLOCK"
 #define SYS_UI_QR_LABEL_X             (80)
 #define SYS_UI_QR_LABEL_Y             (20)
@@ -316,6 +316,9 @@ static void sys_ui_out_screen_cb_back_btn(lv_event_t *event);
 // Lock screen
 static void sys_ui_lock_screen_create(void);
 static void sys_ui_lock_screen_draw(void);
+#if SCREEN_SKIP_LOCK_SCREEN
+static void sys_ui_lock_screen_cb_debug(lv_event_t *event);
+#endif
 // Time history screen
 static void sys_ui_time_screen_create(void);
 static void sys_ui_time_screen_draw(void);
@@ -1481,6 +1484,14 @@ static void sys_ui_lock_screen_create(void)
   ui_ctx.widgets.device_id_label =
     sys_ui_widget_create_label(ui_ctx.widgets.lock_screen, SYS_UI_DEVICE_ID_LABEL_X, SYS_UI_DEVICE_ID_LABEL_Y, buf,
                                SYS_UI_COLOR_TEXT, &lv_font_montserrat_10);
+
+#if SCREEN_SKIP_LOCK_SCREEN
+  if (ui_ctx.widgets.lock_qr_img != nullptr)
+  {
+    lv_obj_add_flag(ui_ctx.widgets.lock_qr_img, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(ui_ctx.widgets.lock_qr_img, sys_ui_lock_screen_cb_debug, LV_EVENT_CLICKED, nullptr);
+  }
+#endif
 }
 
 static void sys_ui_lock_screen_draw(void)
@@ -1588,5 +1599,13 @@ static void sys_ui_process_locked(void)
 {
   // Do nothing, just show the lock screen
 }
+
+#if SCREEN_SKIP_LOCK_SCREEN
+static void sys_ui_lock_screen_cb_debug(lv_event_t *event)
+{
+  (void) event;
+  sys_ui_change_screen(SYS_UI_VIEW_MAIN);
+}
+#endif
 
 /* End of file -------------------------------------------------------- */
