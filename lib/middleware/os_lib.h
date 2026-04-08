@@ -105,6 +105,9 @@
     }                                         \
   } while (0)
 
+#define OS_MUTEX_LOCK(name)   xSemaphoreTake(name##_mutex, portMAX_DELAY)
+#define OS_MUTEX_UNLOCK(name) xSemaphoreGive(name##_mutex)
+
 #define OS_MUTEX_ACQUIRE(handle, timeout_ms) \
   xSemaphoreTake((handle), (timeout_ms == portMAX_DELAY) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms))
 
