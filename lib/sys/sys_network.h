@@ -36,9 +36,22 @@ void sys_network_init(void);
 /**
  * @brief Process the network state machine. Should be called periodically.
  *
+ * @param[in] param  Unused.
+ *
  * @return none
  */
-void sys_network_process(void);
+void sys_network_process(void *param);
+
+/**
+ * @brief Data task entry point. Register as a FreeRTOS task.
+ *        Pulls telemetry from sys_input and stores into cbuffer.
+ *        If cbuffer usage exceeds 80%, flushes data to SD.
+ *
+ * @param[in] param  Unused.
+ *
+ * @return none
+ */
+void sys_network_data_task(void *param);
 
 /**
  * @brief Trigger a network wakeup (e.g. after device unlock)

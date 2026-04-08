@@ -32,7 +32,7 @@
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
 
 #define SYS_INPUT_UPDATE_RATE_MS   (20)
-#define SYS_NETWORK_UPDATE_RATE_MS (500)
+#define SYS_NETWORK_UPDATE_RATE_MS (100)
 #define SYS_UI_UPDATE_RATE_MS      (10)
 #define SYS_LOG_UPDATE_RATE_MS     (500)
 
@@ -45,6 +45,7 @@ sys_input_data_t  g_input_data;
 
 OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 3, 4096);
 OS_THREAD_DECLARE(sys_network_thread, tskIDLE_PRIORITY + 2, 8192);
+OS_THREAD_DECLARE(network_data_thread, tskIDLE_PRIORITY + 3, 6144);
 OS_THREAD_DECLARE(sys_ui_thread, tskIDLE_PRIORITY + 4, 16384);
 OS_THREAD_DECLARE(sys_log_thread, tskIDLE_PRIORITY + 1, 4096);
 OS_THREAD_DECLARE(sys_cmd_thread, tskIDLE_PRIORITY + 5, 4096);
@@ -52,7 +53,6 @@ OS_THREAD_DECLARE(sys_manager_thread, tskIDLE_PRIORITY + 5, 4096);
 
 /* Private function prototypes ---------------------------------------- */
 void sys_input_thread_func(void *param);
-void sys_network_thread_func(void *param);
 void sys_ui_thread_func(void *param);
 void sys_log_thread_func(void *param);
 void sys_cmd_thread_func(void *param);
@@ -69,11 +69,13 @@ void setup()
   bsp_sdcard_init();
   delay(1000);
   Serial.println("START");
+  sys_network_init();
   delay(1000);
   OS_THREAD_CREATE(sys_manager_thread, sys_manager_thread_func);
   OS_THREAD_CREATE(sys_cmd_thread, sys_cmd_thread_func);
   OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
-  OS_THREAD_CREATE(sys_network_thread, sys_network_thread_func);
+  OS_THREAD_CREATE(sys_network_thread, sys_network_process);
+  OS_THREAD_CREATE(network_data_thread, sys_network_data_task);
   OS_THREAD_CREATE(sys_ui_thread, sys_ui_thread_func);
   OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
 }
@@ -104,23 +106,11 @@ void sys_input_thread_func(void *param)
       // Get current data
       if (sys_input_get_data(&g_input_data) == STATUS_OK)
       {
-        is_data_network_ready   = true;
-        is_ui_simple_data_ready = true;
+        is_data_network_ready = true;
       }
     }
 
     OS_DELAY_MS(SYS_INPUT_UPDATE_RATE_MS);
-  }
-}
-
-void sys_network_thread_func(void *param)
-{
-  sys_network_init();
-
-  while (true)
-  {
-    sys_network_process();
-    OS_DELAY_MS(SYS_NETWORK_UPDATE_RATE_MS);
   }
 }
 
