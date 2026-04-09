@@ -22,10 +22,10 @@
 #include <math.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_WARN)
+LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_INFO)
 
-// #define DEMO_VEHICLE (1)
-#define DEMO_WALKING                (1)
+#define DEMO_VEHICLE                (true)
+#define DEMO_WALKING                (false)
 
 // Accelerometer parameters
 #define ACC_EMA_ALPHA               (0.3f)   // Per-axis EMA before body→nav rotation
@@ -41,7 +41,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_WARN)
 // Higher = faster GPS tracking; lower = smoother INS-dominant output
 #define CF_WC                       (1.0f)
 
-#if defined(DEMO_VEHICLE)
+#if (DEMO_VEHICLE)
 #define ZUPT_ACC_THRESHOLD          (0.03f)
 #define ZUPT_TIME_THRESHOLD_MS      (1000)
 #define INS_DECAY_NORMAL            (0.9998f)  // Very slow decay while riding
@@ -51,7 +51,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_WARN)
 #define GPS_ANCHOR_RATE             (0.7f)     // Strong GPS anchor outdoors
 #define GPS_RELIABILITY_THRESHOLD_M (20.0f)    // Max |d_INS - d_GPS| before GPS rejected
 
-#elif defined(DEMO_WALKING)
+#elif (DEMO_WALKING)
 #define ZUPT_ACC_THRESHOLD          (0.015f)
 #define ZUPT_TIME_THRESHOLD_MS      (1500)
 #define INS_DECAY_NORMAL            (0.9995f)  // Slow decay while walking
@@ -229,7 +229,6 @@ void sys_fusion_init(void)
     LOG_ERR("GPS init failed");
   }
 
-
   LOG_DBG("Init Compass");
   if (bsp_compass_init() == STATUS_OK)
   {
@@ -306,18 +305,18 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   data->gps_position.longitude = fusion_ctx.gps_data_buffer.longitude;
 
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
-  data->debug.acc_raw_x      = fusion_ctx.debug_acc_raw_x;
-  data->debug.acc_raw_y      = fusion_ctx.debug_acc_raw_y;
-  data->debug.acc_raw_z      = fusion_ctx.debug_acc_raw_z;
-  data->debug.acc_filter_x   = fusion_ctx.acc_ema_x;
-  data->debug.acc_filter_y   = fusion_ctx.acc_ema_y;
-  data->debug.acc_filter_z   = fusion_ctx.acc_ema_z;
-  data->debug.gyro_raw_x     = fusion_ctx.debug_gyro_raw_x;
-  data->debug.gyro_raw_y     = fusion_ctx.debug_gyro_raw_y;
-  data->debug.gyro_raw_z     = fusion_ctx.debug_gyro_raw_z;
-  data->debug.gyro_filter_x  = fusion_ctx.debug_gyro_ema_x;
-  data->debug.gyro_filter_y  = fusion_ctx.debug_gyro_ema_y;
-  data->debug.gyro_filter_z  = fusion_ctx.debug_gyro_ema_z;
+  data->debug.acc_raw_x        = fusion_ctx.debug_acc_raw_x;
+  data->debug.acc_raw_y        = fusion_ctx.debug_acc_raw_y;
+  data->debug.acc_raw_z        = fusion_ctx.debug_acc_raw_z;
+  data->debug.acc_filter_x     = fusion_ctx.acc_ema_x;
+  data->debug.acc_filter_y     = fusion_ctx.acc_ema_y;
+  data->debug.acc_filter_z     = fusion_ctx.acc_ema_z;
+  data->debug.gyro_raw_x       = fusion_ctx.debug_gyro_raw_x;
+  data->debug.gyro_raw_y       = fusion_ctx.debug_gyro_raw_y;
+  data->debug.gyro_raw_z       = fusion_ctx.debug_gyro_raw_z;
+  data->debug.gyro_filter_x    = fusion_ctx.debug_gyro_ema_x;
+  data->debug.gyro_filter_y    = fusion_ctx.debug_gyro_ema_y;
+  data->debug.gyro_filter_z    = fusion_ctx.debug_gyro_ema_z;
   data->debug.compass_raw_x    = fusion_ctx.debug_compass_raw_x;
   data->debug.compass_raw_y    = fusion_ctx.debug_compass_raw_y;
   data->debug.compass_raw_z    = fusion_ctx.debug_compass_raw_z;
@@ -565,6 +564,7 @@ static void sys_fusion_update_gps_data(void)
     fusion_ctx.last_valid_lon        = lon;
     fusion_ctx.has_last_gps_position = true;
   }
+  LOG_DBG("Position: (%.6f, %.6f)", fusion_ctx.gps_data_buffer.latitude, fusion_ctx.gps_data_buffer.longitude);
 }
 
 static void sys_fusion_update_gps_state(size_t current_ms)
