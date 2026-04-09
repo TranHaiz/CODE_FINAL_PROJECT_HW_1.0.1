@@ -22,7 +22,7 @@
 #include <math.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_INFO)
+LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_WARN)
 
 #define DEMO_VEHICLE                (true)
 #define DEMO_WALKING                (false)
@@ -33,9 +33,10 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_INFO)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
 
 // Attitude complementary filter (gyro + accelerometer)
-// ATTITUDE_GYRO_WEIGHT: fraction from gyro integration each step
-// 0.98 = mostly gyro dynamics, 2% accelerometer drift-correction per step
-#define ATTITUDE_GYRO_WEIGHT        (0.98f)
+#define ATTITUDE_GYRO_WEIGHT        (0.95f)
+#define GYRO_BIAS_CALIB_SAMPLES     (200)
+#define GYRO_BIAS_ALPHA             (0.01f)
+#define ACC_FORWARD_MAX_MS2         (6.0f)
 
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 // Higher = faster GPS tracking; lower = smoother INS-dominant output
@@ -44,12 +45,12 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_INFO)
 #if (DEMO_VEHICLE)
 #define ZUPT_ACC_THRESHOLD          (0.03f)
 #define ZUPT_TIME_THRESHOLD_MS      (1000)
-#define INS_DECAY_NORMAL            (0.9998f)  // Very slow decay while riding
-#define INS_DECAY_STOPPING          (0.94f)    // Fast decay when stopped
-#define INS_DECAY_GPS_LOST          (0.97f)    // Medium decay during GPS fade-out
-#define GPS_SPEED_MIN_MS            (0.6f)     // 2.2 km/h
-#define GPS_ANCHOR_RATE             (0.7f)     // Strong GPS anchor outdoors
-#define GPS_RELIABILITY_THRESHOLD_M (20.0f)    // Max |d_INS - d_GPS| before GPS rejected
+#define INS_DECAY_NORMAL            (0.9990f)
+#define INS_DECAY_STOPPING          (0.94f)
+#define INS_DECAY_GPS_LOST          (0.97f)
+#define GPS_SPEED_MIN_MS            (0.6f)
+#define GPS_ANCHOR_RATE             (0.7f)
+#define GPS_RELIABILITY_THRESHOLD_M (20.0f)
 
 #elif (DEMO_WALKING)
 #define ZUPT_ACC_THRESHOLD          (0.015f)
@@ -105,6 +106,7 @@ typedef struct
   // GPS reliability (Chiang 2013)
   float distance_ins;  // INS-accumulated distance between GPS updates
   bool  gps_reliable;
+  bool  is_new_gps_fix_this_cycle;
 
   // INS
   size_t last_update_us;
@@ -125,6 +127,10 @@ typedef struct
   float roll_rad;
   float pitch_rad;
   // yaw is fusion_ctx.heading_deg (from compass, updated in sys_fusion_read_compass)
+
+  float gyro_bias_x;  // rad/s
+  float gyro_bias_y;  // rad/s
+  float gyro_bias_z;  // rad/s
 
   // ZUPT
   bool     is_stationary;
@@ -176,6 +182,7 @@ static sys_fusion_context_t fusion_ctx = { 0 };
 /* Private function prototypes ---------------------------------------- */
 static float       sys_fusion_calculate_magnitude(float x, float y, float z);
 static void        sys_fusion_calculate_offset_mag(void);
+static void        sys_fusion_calibrate_gyro_bias(void);
 static void        sys_fusion_update_ins_velocity(float dt);
 static void        sys_fusion_update_gps_data(void);
 static void        sys_fusion_update_gps_state(size_t current_ms);
@@ -244,6 +251,7 @@ void sys_fusion_init(void)
   if (fusion_ctx.acc_ready)
   {
     sys_fusion_calculate_offset_mag();
+    sys_fusion_calibrate_gyro_bias();
   }
 
   fusion_ctx.initialized = true;
@@ -259,6 +267,8 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   float  dt = (fusion_ctx.last_update_us == 0) ? 0.02f : (current_time_us - fusion_ctx.last_update_us) / US_TO_S;
   if (dt > 0.1f)  // Sample rates (50-100ms)
     dt = 0.1f;
+
+  fusion_ctx.is_new_gps_fix_this_cycle = false;
 
   // 1. Compass, sample rates: COMPASS_UPDATE_MS
   sys_fusion_read_compass(data, current_time_ms);
@@ -355,22 +365,39 @@ static void sys_fusion_calculate_offset_mag(void)
   return;
 }
 
+static void sys_fusion_calibrate_gyro_bias(void)
+{
+  float    sum_x = 0.0f, sum_y = 0.0f, sum_z = 0.0f;
+  uint16_t valid = 0;
+
+  for (uint16_t i = 0; i < GYRO_BIAS_CALIB_SAMPLES; i++)
+  {
+    bsp_acc_raw_data_t d = { 0 };
+    if (bsp_acc_get_raw_data(&d) == STATUS_OK)
+    {
+      sum_x += d.gyro_x * DEG_TO_RAD;
+      sum_y += d.gyro_y * DEG_TO_RAD;
+      sum_z += d.gyro_z * DEG_TO_RAD;
+      valid++;
+    }
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
+
+  if (valid > 0)
+  {
+    fusion_ctx.gyro_bias_x = sum_x / (float) valid;
+    fusion_ctx.gyro_bias_y = sum_y / (float) valid;
+    fusion_ctx.gyro_bias_z = sum_z / (float) valid;
+    LOG_INF("[FUSION] Gyro bias: x=%.4f y=%.4f z=%.4f rad/s", fusion_ctx.gyro_bias_x, fusion_ctx.gyro_bias_y,
+            fusion_ctx.gyro_bias_z);
+  }
+}
+
 static float sys_fusion_calculate_magnitude(float x, float y, float z)
 {
   return sqrtf(x * x + y * y + z * z);
 }
 
-/**
- * @brief Update INS velocity from IMU data.
- *
- * Steps:
- *   1. Per-axis EMA filter on acc (preserves direction for rotation)
- *   2. Attitude update — complementary filter: gyro integration + acc correction
- *   3. Body → Navigation frame rotation (ZYX Euler, yaw from cached compass)
- *   4. Project nav-frame acc onto forward (heading) direction
- *   5. INS velocity integration with threshold dead-band and decay
- *   6. Accumulate INS distance for GPS reliability check (Chiang 2013)
- */
 static void sys_fusion_update_ins_velocity(float dt)
 {
   bsp_acc_raw_data_t imu = { 0 };
@@ -419,17 +446,25 @@ static void sys_fusion_update_ins_velocity(float dt)
   float acc_y = fusion_ctx.acc_ema_y;
   float acc_z = fusion_ctx.acc_ema_z;
 
-  // 2. Update attittude: rool, pitch
+  // 2. Update attitude: roll, pitch
   float roll_acc  = atan2f(acc_y, acc_z);
   float pitch_acc = atan2f(-acc_x, hypotf(acc_y, acc_z));
 
-  float gyro_x_rads = imu.gyro_x * DEG_TO_RAD;
-  float gyro_y_rads = imu.gyro_y * DEG_TO_RAD;
+  // FIX INS-1: subtract startup-calibrated bias before integrating
+  float gyro_x_rads = (imu.gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x;
+  float gyro_y_rads = (imu.gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y;
 
   fusion_ctx.roll_rad =
     ATTITUDE_GYRO_WEIGHT * (fusion_ctx.roll_rad + gyro_x_rads * dt) + (1.0f - ATTITUDE_GYRO_WEIGHT) * roll_acc;
   fusion_ctx.pitch_rad =
     ATTITUDE_GYRO_WEIGHT * (fusion_ctx.pitch_rad + gyro_y_rads * dt) + (1.0f - ATTITUDE_GYRO_WEIGHT) * pitch_acc;
+
+  if (fusion_ctx.is_stationary)
+  {
+    fusion_ctx.gyro_bias_x += GYRO_BIAS_ALPHA * ((imu.gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x);
+    fusion_ctx.gyro_bias_y += GYRO_BIAS_ALPHA * ((imu.gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y);
+    fusion_ctx.gyro_bias_z += GYRO_BIAS_ALPHA * ((imu.gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z);
+  }
 
   // 3. Body fram -> Navigation frame rotation (ZYX Euler, yaw from compass)
   float roll  = fusion_ctx.roll_rad;
@@ -454,14 +489,15 @@ static void sys_fusion_update_ins_velocity(float dt)
   // acc_d (vertical): acc_d = -sin_pitch*abx + sin_roll*cos_pitch*aby + cos_roll*cos_pitch*abz - GRAVITY_MS2 (not
   // needed here)
 
-  // 4. Heading foward
+  // 4. Forward projection onto heading direction
   float acc_forward      = acc_north * cos_yaw + acc_east * sin_yaw;
   float mag_g            = hypotf(hypotf(acc_x, acc_y), acc_z);
   fusion_ctx.acc_raw     = mag_g - fusion_ctx.offset_magnitude;
   fusion_ctx.acc_forward = acc_forward;
+  bool gravity_leak      = (fabsf(acc_forward) > ACC_FORWARD_MAX_MS2) && (fabsf(mag_g - 1.0f) < 0.25f);
 
   // 5. INS velocity integration
-  if (fabsf(acc_forward) > ACC_THRESHOLD_MS2)
+  if (!gravity_leak && fabsf(acc_forward) > ACC_THRESHOLD_MS2)
   {
     fusion_ctx.velocity_ins += acc_forward * dt;
   }
@@ -519,6 +555,7 @@ static void sys_fusion_update_gps_data(void)
     fusion_ctx.velocity_gps = GPS_EMA_ALPHA * raw_speed + (1.0f - GPS_EMA_ALPHA) * fusion_ctx.velocity_gps;
     fusion_ctx.velocity_ins =
       (1.0f - GPS_ANCHOR_RATE) * fusion_ctx.velocity_ins + GPS_ANCHOR_RATE * fusion_ctx.velocity_gps;
+    fusion_ctx.is_new_gps_fix_this_cycle = true;  // FIX: mark fresh GPS fix for CF
   }
 
   fusion_ctx.last_gps_ms = OS_GET_TICK();
@@ -564,7 +601,6 @@ static void sys_fusion_update_gps_data(void)
     fusion_ctx.last_valid_lon        = lon;
     fusion_ctx.has_last_gps_position = true;
   }
-  LOG_DBG("Position: (%.6f, %.6f)", fusion_ctx.gps_data_buffer.latitude, fusion_ctx.gps_data_buffer.longitude);
 }
 
 static void sys_fusion_update_gps_state(size_t current_ms)
@@ -637,32 +673,41 @@ static void sys_fusion_detect_zupt(float accel_ms2, float dt)
   }
 }
 
-/**
- * @brief Compute final output velocity using complementary filter (Zhao 2020).
- *
- * v̂(k) = γ·v̂(k-1) + α·v_ins(k) + β·v_gps(k)
- *
- * Where:
- *   γ = 1 / (1 + wc·dt)          — memory weight
- *   α = dt / (1 + wc·dt)         — INS weight
- *   β = wc·dt / (1 + wc·dt)      — GPS weight
- *
- * GPS velocity is only used when the GPS state is ACTIVE and the most recent
- * GPS fix passed the reliability check (Chiang 2013 residual test).
- */
 static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt)
 {
-  // Only trust GPS when active and reliability check passed
-  float v_gps_eff = 0.0f;
-  if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.gps_reliable)
-    v_gps_eff = fusion_ctx.velocity_gps;
+  // GPS branch: only inject when a fresh fix arrived this cycle
+  bool use_gps =
+    fusion_ctx.is_new_gps_fix_this_cycle && (fusion_ctx.gps_state == GPS_STATE_ACTIVE) && fusion_ctx.gps_reliable;
+  float v_gps_eff = use_gps ? fusion_ctx.velocity_gps : 0.0f;
 
-  float denom = 1.0f + CF_WC * dt;
-  float gamma = 1.0f / denom;
-  float alpha = dt / denom;
-  float beta  = CF_WC * dt / denom;
+  // dt_gps: time since last GPS fix (used to scale GPS weight correctly)
+  // Falls back to dt when no GPS so the expression stays well-formed.
+  float dt_gps = dt;
+  if (use_gps && fusion_ctx.last_gps_ms > 0)
+  {
+    size_t now_ms  = OS_GET_TICK();
+    float  elapsed = (now_ms - fusion_ctx.last_gps_ms) / 1000.0f;
+    // Clamp to [dt, 1.0s] — reject absurd values
+    if (elapsed > dt && elapsed < 1.0f)
+      dt_gps = elapsed;
+  }
 
-  fusion_ctx.velocity_out = gamma * fusion_ctx.velocity_out + alpha * fusion_ctx.velocity_ins + beta * v_gps_eff;
+  // Memory + INS weights use dt_fusion (every cycle)
+  float denom_ins = 1.0f + CF_WC * dt;
+  float gamma     = 1.0f / denom_ins;
+  float alpha     = dt / denom_ins;
+
+  // GPS weight uses dt_gps — proportional to the GPS update interval
+  // so total GPS energy per unit time stays constant regardless of rate.
+  float beta = use_gps ? (CF_WC * dt_gps / (1.0f + CF_WC * dt_gps)) : 0.0f;
+
+  // When GPS fires, reduce memory weight to preserve unity gain:
+  // gamma_adj + alpha + beta = 1
+  float gamma_adj = use_gps ? (1.0f - alpha - beta) : gamma;
+  if (gamma_adj < 0.0f)
+    gamma_adj = 0.0f;
+
+  fusion_ctx.velocity_out = gamma_adj * fusion_ctx.velocity_out + alpha * fusion_ctx.velocity_ins + beta * v_gps_eff;
 
   if (fusion_ctx.velocity_out < 0.0f)
     fusion_ctx.velocity_out = 0.0f;
@@ -695,16 +740,6 @@ static const char *sys_fusion_deg_to_direction_str(float deg)
   return s_direction_strings[index];
 }
 
-/**
- * @brief Read compass and update heading_deg / direction_str.
- *
- * Rate-limited to COMPASS_UPDATE_MS. Always copies the cached heading into
- * data at the top so callers always get a valid (possibly slightly stale) value.
- *
- * NOTE: This function must NOT be called from sys_fusion_update_ins_velocity.
- * The yaw used for body→nav rotation reads fusion_ctx.heading_deg directly,
- * avoiding double-consumption of the rate-limit window.
- */
 static void sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms)
 {
   // Always return the latest known heading, even when skipping this cycle
