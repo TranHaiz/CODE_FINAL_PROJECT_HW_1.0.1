@@ -38,29 +38,28 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_INFO)
 #endif
 
 // Timming
-#define OFFLINE_POLL_MS               (100)
-#define ONLINE_FAST_POLL_MS           (50)
-#define ONLINE_POLL_MS                (500)
-#define NETWORK_DATA_TASK_POLLMS      (1000)
-#define SIM_READY_TIMEOUT_MS          (10000)
-#define SIM_HARD_RESET_DELAY_MS       (2000)
-#define MQTT_INIT_TIMEOUT_MS          (15000)
+#define OFFLINE_POLL_MS            (100)
+#define ONLINE_FAST_POLL_MS        (50)
+#define ONLINE_POLL_MS             (500)
+#define NETWORK_DATA_TASK_POLL_MS  (700)
+#define SIM_READY_TIMEOUT_MS       (10000)
+#define SIM_HARD_RESET_DELAY_MS    (2000)
+#define MQTT_INIT_TIMEOUT_MS       (15000)
 
 // Retry, backoff, and reset
-#define BACKOFF_BASE_MS               (2000)
-#define BACKOFF_MAX_MS                (32000)
-#define RETRY_MAX_BEFORE_RESET        (3)
+#define BACKOFF_BASE_MS            (2000)
+#define BACKOFF_MAX_MS             (32000)
+#define RETRY_MAX_BEFORE_RESET     (3)
 
-// Cbuffer and SD
-#define NETWORK_CBUFF_COUNT           (50)
-#define NETWORK_BYTES                 (NETWORK_CBUFF_COUNT * sizeof(sys_input_data_t))
-#define NETWORK_CBUFF_FLUSH_THRESHOLD (80)
-#define NETWORK_PUBLISH_BATCH         (4)
-#define CBUFFER_FAST_MSG_THRESHOLD    (2)
-#define CBUFFER_CBUFFER_MSG_THRESHOLD (40)
-#define SD_OFFLINE_DIR                "/buff"
-#define SD_OFFLINE_LOG_PATH           "/buff/offline_log.csv"
-#define SD_CSV_LINE_MAX_LEN           (256)
+#define NETWORK_CBUFF_SLOT_SIZE    (MQTT_MESSAGE_MAX_LEN)
+#define NETWORK_CBUFF_COUNT        (20)
+#define NETWORK_BYTES              (NETWORK_CBUFF_COUNT * NETWORK_CBUFF_SLOT_SIZE)
+#define NETWORK_CBUFF_FLUSH_THRESH (80)
+#define CBUFFER_FAST_MSG_THRESHOLD (2)
+
+#define SD_OFFLINE_DIR             "/buff"
+#define SD_OFFLINE_LOG_PATH        "/buff/offline_log.json"
+#define SD_JSON_LINE_MAX_LEN       (MQTT_MESSAGE_MAX_LEN + 2)  // 1 line JSON + <CRLF>
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
@@ -89,30 +88,27 @@ typedef struct
   bool is_sys_network_init;
   bool sim_ready;
   bool mqtt_ready;
-  bool cbuffer_sending;
   bool is_data_sd_pending;
-  bool mqtt_last_payload_valid;
 
-  char             sd_csv_line[SD_CSV_LINE_MAX_LEN];
-  cbuffer_t        cbuffer;
-  sys_input_data_t data_input_buffer;
-
+  cbuffer_t cbuffer;
 } net_ctx_t;
 
 /* Private macros ----------------------------------------------------- */
 #define COUNT_MS(since_ms) ((size_t) (OS_GET_TICK() - (since_ms)))
 
 /* Public variables --------------------------------------------------- */
-bool is_data_network_ready = false;
+volatile bool is_data_network_ready = false;
 
 /* Private variables -------------------------------------------------- */
 static net_ctx_t network_ctx;
+static uint8_t   network_buffer[NETWORK_BYTES];
+static char      s_pub_slot[NETWORK_CBUFF_SLOT_SIZE];
+static bool      s_pub_slot_valid = false;
 
-static char    mqtt_payload_buffer[MQTT_MESSAGE_MAX_LEN];
-static char    mqtt_last_payload[MQTT_MESSAGE_MAX_LEN];
-static uint8_t network_buffer[NETWORK_BYTES];
+/* Shared scratch buffer for SD line read */
+static char s_sd_line[SD_JSON_LINE_MAX_LEN];
 
-OS_MUTEX_DEFINE_STATIC(s_telem_mutex);
+OS_MUTEX_DEFINE_STATIC(network_mutex);
 OS_SEM_DEFINE_STATIC(sys_network_wakeup_sem);
 
 /* Private function prototypes ---------------------------------------- */
@@ -129,7 +125,7 @@ static void sys_network_run_sim_hard_reset(void);
 static void sys_network_process_idle(void);
 static void sys_network_process_active(void);
 
-static bool sys_network_build_payload(sys_input_data_t *data);
+static bool sys_network_build_payload(sys_input_data_t *data, char *buf, size_t buf_len);
 static void sys_network_mqtt_message_cb(const char *topic, const uint8_t *data, size_t len);
 
 static void              sys_network_publish_online(void);
@@ -139,7 +135,7 @@ static bool              sys_network_check_pending(void);
 static bool              sys_network_need_push_sd(void);
 static bool              sys_network_need_fast_poll(void);
 static status_function_t sys_network_prepare_sd_card(void);
-static status_function_t sys_network_push_cbuffer(const sys_input_data_t *data);
+static status_function_t sys_network_push_cbuffer(const char *payload);
 
 /* Function definitions ----------------------------------------------- */
 void sys_network_init(void)
@@ -151,18 +147,17 @@ void sys_network_init(void)
   network_ctx.prev_state = NETWORK_STATE_SIM_INIT;
 
   OS_SEM_CREATE(sys_network_wakeup_sem);
-  OS_MUTEX_CREATE(s_telem_mutex);
+  OS_MUTEX_CREATE(network_mutex);
 
   cb_init(&network_ctx.cbuffer, network_buffer, NETWORK_BYTES);
 
   (void) sys_network_prepare_sd_card();
 
-  network_ctx.is_data_sd_pending      = sys_network_check_pending();
-  network_ctx.network_sd_offset       = 0;
-  network_ctx.mqtt_last_payload_valid = false;
+  network_ctx.is_data_sd_pending = sys_network_check_pending();
+  network_ctx.network_sd_offset  = 0;
   if (network_ctx.is_data_sd_pending)
   {
-    LOG_DBG("Offline log found on SD — will drain after reconnect");
+    LOG_INF("Offline log found on SD — will drain after reconnect");
   }
 
   network_ctx.is_sys_network_init = true;
@@ -201,7 +196,7 @@ void sys_network_data_task(void *param)
   {
     if (!network_ctx.is_sys_network_init)
     {
-      OS_DELAY_MS(NETWORK_DATA_TASK_POLLMS);
+      OS_DELAY_MS(NETWORK_DATA_TASK_POLL_MS);
       continue;
     }
 
@@ -212,7 +207,11 @@ void sys_network_data_task(void *param)
       sys_input_data_t input_data;
       if (sys_input_get_data(&input_data) == STATUS_OK)
       {
-        sys_network_push_cbuffer(&input_data);
+        char payload[NETWORK_CBUFF_SLOT_SIZE];
+        if (sys_network_build_payload(&input_data, payload, sizeof(payload)))
+        {
+          sys_network_push_cbuffer(payload);
+        }
       }
     }
 
@@ -221,7 +220,7 @@ void sys_network_data_task(void *param)
       sys_network_flush_cbuff_to_sd();
     }
 
-    OS_DELAY_MS(NETWORK_DATA_TASK_POLLMS);
+    OS_DELAY_MS(NETWORK_DATA_TASK_POLL_MS);
   }
 }
 
@@ -230,12 +229,17 @@ static void sys_network_change_state(net_state_t new_state)
 {
   LOG_DBG("net: %d → %d  (retry=%d)", network_ctx.state, new_state, network_ctx.retry_count);
 
+  /* Discard in-flight publish slot when leaving ONLINE */
+  if (network_ctx.state == NETWORK_STATE_ONLINE && new_state != NETWORK_STATE_ONLINE)
+  {
+    s_pub_slot_valid = false;
+  }
+
   network_ctx.prev_state     = network_ctx.state;
   network_ctx.state          = new_state;
   network_ctx.state_enter_ms = OS_GET_TICK();
-
-  network_ctx.last_poll_ms = 0;
-  network_ctx.last_log_ms  = 0;
+  network_ctx.last_poll_ms   = 0;
+  network_ctx.last_log_ms    = 0;
 }
 
 static size_t sys_network_backoff(uint8_t retry)
@@ -284,7 +288,7 @@ static void sys_network_run_sim_wait_ready(void)
   }
   else
   {
-    LOG_WRN("SIM, network not ready yet (%d / %d ms)", COUNT_MS(network_ctx.state_enter_ms), SIM_READY_TIMEOUT_MS);
+    LOG_WRN("SIM not ready yet (%d / %d ms)", COUNT_MS(network_ctx.state_enter_ms), SIM_READY_TIMEOUT_MS);
   }
 }
 
@@ -316,7 +320,7 @@ static void sys_network_run_mqtt_init(void)
     return;
   }
 
-  LOG_DBG("MQTT connected");
+  LOG_INF("MQTT connected");
   network_ctx.mqtt_ready        = true;
   network_ctx.retry_count       = 0;
   network_ctx.last_publish_ms   = OS_GET_TICK();
@@ -327,21 +331,26 @@ static void sys_network_run_mqtt_init(void)
 
 static void sys_network_run_online(void)
 {
-  // 1. Check SD card first
-  if (network_ctx.is_data_sd_pending)
+  /* Keepalive — always checked regardless of SD or cbuffer state */
+  if (COUNT_MS(network_ctx.last_keepalive_ms) >= MQTT_KEEPALIVE_MS)
   {
-    status_function_t res = sys_network_push_sd_to_mqtt();
-    if ((res == STATUS_OK) || (res == STATUS_ERROR))
+    if (!bsp_sim_is_ready())
     {
+      LOG_WRN("Keepalive: SIM or network lost");
+      sys_network_change_state(NETWORK_STATE_ERROR);
       return;
     }
-    else
-    {
-      // Keep going
-    }
+    LOG_DBG("Keepalive OK");
+    network_ctx.last_keepalive_ms = OS_GET_TICK();
   }
 
-  // 2. Publish new data in cbuffer if available
+  /* Drain SD first to preserve timestamp order */
+  if (network_ctx.is_data_sd_pending)
+  {
+    sys_network_push_sd_to_mqtt();
+    return;
+  }
+
   sys_network_publish_online();
 }
 
@@ -352,10 +361,9 @@ static void sys_network_run_error_backoff(void)
 
   if (elapsed < backoff)
   {
-    // Progress log every 5 s to avoid log spam
     if (COUNT_MS(network_ctx.last_log_ms) >= 5000)
     {
-      LOG_DBG("Error SIM");
+      LOG_DBG("Error backoff — waiting %u ms (elapsed %u ms)", (unsigned) backoff, (unsigned) elapsed);
       network_ctx.last_log_ms = OS_GET_TICK();
     }
     return;
@@ -365,13 +373,13 @@ static void sys_network_run_error_backoff(void)
 
   if (network_ctx.retry_count >= RETRY_MAX_BEFORE_RESET)
   {
-    LOG_WRN("Before %d retries — performing hard SIM reset", network_ctx.retry_count);
+    LOG_WRN("Max retries (%d) — performing hard SIM reset", network_ctx.retry_count);
     network_ctx.retry_count = 0;
     sys_network_change_state(NETWORK_STATE_SIM_RESET);
   }
   else
   {
-    LOG_DBG("Backoff complete — soft retry %d", network_ctx.retry_count);
+    LOG_DBG("Soft retry %d", network_ctx.retry_count);
     sys_network_change_state(NETWORK_STATE_SIM_WAIT_READY);
   }
 }
@@ -380,7 +388,7 @@ static void sys_network_run_sim_hard_reset(void)
 {
   if (COUNT_MS(network_ctx.state_enter_ms) < 10)
   {
-    // TODO: Hardware reset by mosfet power control
+    /* TODO: Hardware reset via MOSFET power control */
   }
 
   if (COUNT_MS(network_ctx.state_enter_ms) < SIM_HARD_RESET_DELAY_MS)
@@ -393,23 +401,24 @@ static void sys_network_run_sim_hard_reset(void)
 
 static void sys_network_mqtt_message_cb(const char *topic, const uint8_t *data, size_t len)
 {
-  LOG_DBG("MQTT rx [%s]: %d bytes, %s", topic, (int) len, (const char *) data);
-  memset(g_cmd_input_buffer, 0, CMD_INPUT_MAX_LEN);
-  if ((data == NULL) || (len >= CMD_INPUT_MAX_LEN))
+  LOG_DBG("MQTT rx [%s]: %d bytes", topic, (int) len);
+  if ((data == NULL) || (len == 0) || (len >= CMD_INPUT_MAX_LEN))
   {
     LOG_WRN("Invalid command payload: %d bytes", (int) len);
     return;
   }
 
+  memset(g_cmd_input_buffer, 0, CMD_INPUT_MAX_LEN);
   strncpy(g_cmd_input_buffer, (const char *) data, len);
   OS_SEM_GIVE(sys_cmd_req_sem);
 }
 
-static bool sys_network_build_payload(sys_input_data_t *data)
+/* Build JSON payload into caller-supplied buffer.
+ * Returns true on success, false if truncated. */
+static bool sys_network_build_payload(sys_input_data_t *data, char *buf, size_t buf_len)
 {
-  if (data == NULL)
+  if (data == NULL || buf == NULL || buf_len == 0)
   {
-    mqtt_payload_buffer[0] = '\0';
     return false;
   }
 
@@ -418,34 +427,33 @@ static bool sys_network_build_payload(sys_input_data_t *data)
   bsp_rtc_get(&now);
 
   int written =
-    snprintf(mqtt_payload_buffer, MQTT_MESSAGE_MAX_LEN,
+    snprintf(buf, buf_len,
              "{"
              "\"battery\":%.1f,"
-             "\"time\":[%d/%d/%d-%d:%d:%d],"
+             "\"time\":\"%d/%02d/%02d-%02d:%02d:%02d\","
              "\"velocity_ms\":%.2f,"
              "\"velocity_kmh\":%.2f,"
              "\"distance_m\":%.1f,"
              "\"direction\":\"%.1f %s\","
-             "\"position\":(%.6f,%.6f),"
+             "\"position\":[%.6f,%.6f],"
              "\"dust\":%.1f,"
              "\"temp\":%.1f,"
-             "\"hum\":%.1f"
-             "}",
+             "\"hum\":%.1f",
              data->battery_level, now.year, now.month, now.date, now.hour, now.minute, now.second, data->velocity_ms,
              data->velocity_kmh, data->distance_m, data->heading_deg,
              (data->direction_str != NULL) ? data->direction_str : "?", data->gps_position.latitude,
              data->gps_position.longitude, data->dust_value, data->temp_hum.temperature, data->temp_hum.humidity);
 
-  if (written < 0 || written >= (int) MQTT_MESSAGE_MAX_LEN)
+  if (written < 0 || written >= (int) buf_len)
   {
-    LOG_WRN("Payload truncated: need %d bytes, buffer only %d", written, MQTT_MESSAGE_MAX_LEN);
-    mqtt_payload_buffer[0] = '\0';
+    LOG_WRN("Payload truncated: need %d, buf %u", written, (unsigned) buf_len);
+    buf[0] = '\0';
     return false;
   }
 
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
   int dbg_written =
-    snprintf(mqtt_payload_buffer + written, MQTT_MESSAGE_MAX_LEN - written,
+    snprintf(buf + written, buf_len - written,
              ","
              "\"acc_rx\":%.3f,\"acc_ry\":%.3f,\"acc_rz\":%.3f,"
              "\"acc_fx\":%.3f,\"acc_fy\":%.3f,\"acc_fz\":%.3f,"
@@ -463,28 +471,27 @@ static bool sys_network_build_payload(sys_input_data_t *data)
              data->debug.compass_filter_x, data->debug.compass_filter_y, data->debug.compass_filter_z,
              data->debug.v_ins, data->debug.v_gps, data->debug.distance_ins, data->debug.distance_gps);
 
-  if (dbg_written < 0 || (written + dbg_written) >= (int) MQTT_MESSAGE_MAX_LEN)
+  if (dbg_written < 0 || (written + dbg_written) >= (int) buf_len)
   {
     LOG_WRN("Debug payload truncated");
-    mqtt_payload_buffer[0] = '\0';
+    buf[0] = '\0';
     return false;
   }
 #else
-  int close_written = snprintf(mqtt_payload_buffer + written, MQTT_MESSAGE_MAX_LEN - written, "}");
-  if (close_written < 0 || (written + close_written) >= (int) MQTT_MESSAGE_MAX_LEN)
+  int close_written = snprintf(buf + written, buf_len - written, "}");
+  if (close_written < 0 || (written + close_written) >= (int) buf_len)
   {
-    mqtt_payload_buffer[0] = '\0';
+    buf[0] = '\0';
     return false;
   }
 #endif
 
-  LOG_DBG("MQTT payload: %s", mqtt_payload_buffer);
+  LOG_DBG("Payload built: %s", buf);
   return true;
 }
 
 static void sys_network_process_idle(void)
 {
-  // TODO: Enter low-power mode, deinit SIM, etc.
   if (network_ctx.mqtt_ready || network_ctx.sim_ready)
   {
     bsp_sim_mqtt_deinit();
@@ -492,7 +499,9 @@ static void sys_network_process_idle(void)
     network_ctx.mqtt_ready = false;
   }
   if (network_ctx.state != NETWORK_STATE_SIM_INIT)
+  {
     sys_network_change_state(NETWORK_STATE_SIM_INIT);
+  }
 
   OS_SEM_TAKE(sys_network_wakeup_sem, OS_MAX_DELAY);
 }
@@ -501,38 +510,20 @@ static void sys_network_process_active(void)
 {
   switch (network_ctx.state)
   {
-  case NETWORK_STATE_SIM_INIT:
-  {
-    sys_network_run_sim_init();
-    break;
-  }
-  case NETWORK_STATE_SIM_WAIT_READY:
-  {
-    sys_network_run_sim_wait_ready();
-    break;
-  }
-  case NETWORK_STATE_MQTT_INIT:
-  {
-    sys_network_run_mqtt_init();
-    break;
-  }
+  case NETWORK_STATE_SIM_INIT: sys_network_run_sim_init(); break;
+  case NETWORK_STATE_SIM_WAIT_READY: sys_network_run_sim_wait_ready(); break;
+  case NETWORK_STATE_MQTT_INIT: sys_network_run_mqtt_init(); break;
   case NETWORK_STATE_ONLINE:
   {
     if (g_device_info.state != DEVICE_STATE_ACTIVE)
+    {
       return;
+    }
     sys_network_run_online();
     break;
   }
-  case NETWORK_STATE_ERROR:
-  {
-    sys_network_run_error_backoff();
-    break;
-  }
-  case NETWORK_STATE_SIM_RESET:
-  {
-    sys_network_run_sim_hard_reset();
-    break;
-  }
+  case NETWORK_STATE_ERROR: sys_network_run_error_backoff(); break;
+  case NETWORK_STATE_SIM_RESET: sys_network_run_sim_hard_reset(); break;
   default:
   {
     LOG_ERR("Unknown state %d — resetting", network_ctx.state);
@@ -557,101 +548,59 @@ static void sys_network_process_active(void)
   }
 }
 
-static bool sys_network_need_fast_poll(void)
-{
-  if (network_ctx.is_data_sd_pending)
-  {
-    return true;
-  }
+/* -------------------------------------------------------------------- */
+/* Publish helpers                                                        */
+/* -------------------------------------------------------------------- */
 
-  OS_MUTEX_LOCK(s_telem_mutex);
-  size_t available = cb_data_count(&network_ctx.cbuffer);
-  OS_MUTEX_UNLOCK(s_telem_mutex);
-
-  return (available > (CBUFFER_FAST_MSG_THRESHOLD * sizeof(sys_input_data_t)));
-}
-
-static bool sys_network_need_push_sd(void)
-{
-  if (network_ctx.is_data_sd_pending)
-  {
-    return true;
-  }
-
-  OS_MUTEX_LOCK(s_telem_mutex);
-  size_t available = cb_data_count(&network_ctx.cbuffer);
-  OS_MUTEX_UNLOCK(s_telem_mutex);
-
-  return (available > (CBUFFER_CBUFFER_MSG_THRESHOLD * sizeof(sys_input_data_t)));
-}
-
+/* Pop one JSON slot from cbuffer and publish to MQTT.
+ * On fail: keep in-flight slot for next retry, transition to ERROR. */
 static void sys_network_publish_online(void)
 {
-  if (!network_ctx.cbuffer_sending)
+  if (!s_pub_slot_valid)
   {
-    OS_MUTEX_LOCK(s_telem_mutex);
+    OS_MUTEX_LOCK(network_mutex);
     size_t available = cb_data_count(&network_ctx.cbuffer);
-    OS_MUTEX_UNLOCK(s_telem_mutex);
-
-    if (available < sizeof(sys_input_data_t))
+    if (available < NETWORK_CBUFF_SLOT_SIZE)
     {
+      OS_MUTEX_UNLOCK(network_mutex);
       return;
     }
+    size_t read = cb_read(&network_ctx.cbuffer, s_pub_slot, NETWORK_CBUFF_SLOT_SIZE);
+    OS_MUTEX_UNLOCK(network_mutex);
 
-    OS_MUTEX_LOCK(s_telem_mutex);
-    size_t read = cb_read(&network_ctx.cbuffer, &network_ctx.data_input_buffer, sizeof(sys_input_data_t));
-    OS_MUTEX_UNLOCK(s_telem_mutex);
-
-    if (read != sizeof(sys_input_data_t))
+    if (read != NETWORK_CBUFF_SLOT_SIZE)
     {
-      LOG_WRN("Partial cbuffer read (%lu bytes) — discarding", read);
+      LOG_WRN("Partial cbuffer read (%u bytes) — discarding", (unsigned) read);
       return;
     }
-
-    network_ctx.cbuffer_sending = true;
-  }
-
-  if (!sys_network_build_payload(&network_ctx.data_input_buffer))
-  {
-    LOG_WRN("Payload build failed — record discarded");
-    network_ctx.cbuffer_sending = false;
-    return;
+    s_pub_slot_valid = true;
   }
 
   mqtt_message_t msg = {
     .topic   = g_device_info.mqtt_data_topic,
-    .payload = mqtt_payload_buffer,
+    .payload = s_pub_slot,
   };
-
-  if (network_ctx.mqtt_last_payload_valid && (strcmp(mqtt_payload_buffer, mqtt_last_payload) == 0))
-  {
-    network_ctx.cbuffer_sending = false;
-    network_ctx.last_publish_ms = OS_GET_TICK();
-    return;
-  }
 
   if (bsp_sim_mqtt_pub(&msg) != STATUS_OK)
   {
-    LOG_WRN("Publish failed — keep in-flight record for next retry");
+    LOG_WRN("Publish failed — keeping in-flight slot for next retry");
     sys_network_change_state(NETWORK_STATE_ERROR);
     return;
   }
 
-  strncpy(mqtt_last_payload, mqtt_payload_buffer, sizeof(mqtt_last_payload) - 1);
-  mqtt_last_payload[sizeof(mqtt_last_payload) - 1] = '\0';
-  network_ctx.mqtt_last_payload_valid              = true;
-
-  network_ctx.cbuffer_sending = false;
+  s_pub_slot_valid            = false;
   network_ctx.last_publish_ms = OS_GET_TICK();
 }
 
+/* Flush cbuffer to SD offline log (append, one JSON per line).
+ * Called only when offline and cbuffer usage >= threshold. */
 static void sys_network_flush_cbuff_to_sd(void)
 {
-  OS_MUTEX_LOCK(s_telem_mutex);
+  OS_MUTEX_LOCK(network_mutex);
   size_t available = cb_data_count(&network_ctx.cbuffer);
-  OS_MUTEX_UNLOCK(s_telem_mutex);
+  OS_MUTEX_UNLOCK(network_mutex);
 
-  if (available < sizeof(sys_input_data_t))
+  if (available < NETWORK_CBUFF_SLOT_SIZE)
   {
     return;
   }
@@ -679,45 +628,33 @@ static void sys_network_flush_cbuff_to_sd(void)
 
   while (1)
   {
-    OS_MUTEX_LOCK(s_telem_mutex);
-    size_t available = cb_data_count(&network_ctx.cbuffer);
-    OS_MUTEX_UNLOCK(s_telem_mutex);
+    char slot[NETWORK_CBUFF_SLOT_SIZE];
 
-    if (available < sizeof(sys_input_data_t))
+    OS_MUTEX_LOCK(network_mutex);
+    size_t avail = cb_data_count(&network_ctx.cbuffer);
+    if (avail < NETWORK_CBUFF_SLOT_SIZE)
+    {
+      OS_MUTEX_UNLOCK(network_mutex);
+      break;
+    }
+    size_t read = cb_read(&network_ctx.cbuffer, slot, NETWORK_CBUFF_SLOT_SIZE);
+    OS_MUTEX_UNLOCK(network_mutex);
+
+    if (read != NETWORK_CBUFF_SLOT_SIZE)
     {
       break;
     }
 
-    OS_MUTEX_LOCK(s_telem_mutex);
-    size_t read = cb_read(&network_ctx.cbuffer, &network_ctx.data_input_buffer, sizeof(sys_input_data_t));
-    OS_MUTEX_UNLOCK(s_telem_mutex);
-
-    if (read != sizeof(sys_input_data_t))
-    {
-      break;
-    }
-
-    int len = snprintf(
-      network_ctx.sd_csv_line, sizeof(network_ctx.sd_csv_line),
-      "%lu,%.3f,%.2f,%.1f,%.1f,%s,%.6f,%.6f,%.1f,%.1f,%.1f,%.1f\n", network_ctx.data_input_buffer.timestamp_ms,
-      network_ctx.data_input_buffer.velocity_ms, network_ctx.data_input_buffer.velocity_kmh,
-      network_ctx.data_input_buffer.distance_m, network_ctx.data_input_buffer.heading_deg,
-      (network_ctx.data_input_buffer.direction_str != NULL) ? network_ctx.data_input_buffer.direction_str : "?",
-      network_ctx.data_input_buffer.gps_position.latitude, network_ctx.data_input_buffer.gps_position.longitude,
-      network_ctx.data_input_buffer.dust_value, network_ctx.data_input_buffer.temp_hum.temperature,
-      network_ctx.data_input_buffer.temp_hum.humidity, network_ctx.data_input_buffer.battery_level);
-
-    if (len <= 0 || len >= (int) sizeof(network_ctx.sd_csv_line))
-    {
-      LOG_WRN("CSV line truncated — skipping record");
-      continue;
-    }
+    /* Append newline so each record is on its own line */
+    size_t json_len    = strnlen(slot, NETWORK_CBUFF_SLOT_SIZE);
+    slot[json_len]     = '\n';
+    slot[json_len + 1] = '\0';
 
     size_t written_len = 0;
-    bsp_sdcard_write(&f, (const uint8_t *) network_ctx.sd_csv_line, (size_t) len, &written_len);
-    if (written_len != (size_t) len)
+    bsp_sdcard_write(&f, (const uint8_t *) slot, json_len + 1, &written_len);
+    if (written_len != json_len + 1)
     {
-      LOG_WRN("SD write incomplete (%u / %d bytes)", (unsigned) written_len, len);
+      LOG_WRN("SD write incomplete (%u / %u bytes)", (unsigned) written_len, (unsigned) (json_len + 1));
     }
 
     flushed++;
@@ -727,10 +664,14 @@ static void sys_network_flush_cbuff_to_sd(void)
 
   if (flushed > 0)
   {
+    LOG_INF("Flushed %u records to SD", (unsigned) flushed);
     network_ctx.is_data_sd_pending = true;
   }
 }
 
+/* Read one JSON line from SD and publish to MQTT.
+ * Uses offset to resume without rewriting the file.
+ * Deletes file when fully drained. */
 static status_function_t sys_network_push_sd_to_mqtt(void)
 {
   if (bsp_sdcard_is_mounted() != STATUS_OK)
@@ -762,125 +703,124 @@ static status_function_t sys_network_push_sd_to_mqtt(void)
     bsp_sdcard_delete(SD_OFFLINE_LOG_PATH);
     network_ctx.is_data_sd_pending = false;
     network_ctx.network_sd_offset  = 0;
+    LOG_INF("Offline log fully drained and deleted");
     return STATUS_OK;
   }
 
   if (bsp_sdcard_seek(&file_handle, network_ctx.network_sd_offset) != STATUS_OK)
   {
-    LOG_ERR("Cannot seek offline log offset=%u", (unsigned) network_ctx.network_sd_offset);
+    LOG_ERR("Cannot seek to offset %u", (unsigned) network_ctx.network_sd_offset);
     bsp_sdcard_close(&file_handle);
     return STATUS_BUSY;
   }
 
-  size_t  offset_next_line = 0;
-  uint8_t char_buff;
+  /* Read one newline-terminated JSON line */
   size_t  line_len = 0;
-  size_t  rd       = 0;
-  while (line_len < sizeof(network_ctx.sd_csv_line) - 1)
+  uint8_t ch;
+  size_t  rd = 0;
+
+  while (line_len < sizeof(s_sd_line) - 1)
   {
-    if (bsp_sdcard_read(&file_handle, &char_buff, 1, &rd) != STATUS_OK || rd == 0)
+    if (bsp_sdcard_read(&file_handle, &ch, 1, &rd) != STATUS_OK || rd == 0)
     {
       break;
     }
-
-    network_ctx.sd_csv_line[line_len++] = (char) char_buff;
-    if (char_buff == '\n')
+    if (ch == '\n')
     {
       break;
     }
-  }
-
-  if (line_len == 0)
-  {
-    bsp_sdcard_close(&file_handle);
-    return STATUS_BUSY;
-  }
-
-  network_ctx.sd_csv_line[line_len] = '\0';
-  static char dir_buf[8]            = { 0 };
-  int         parsed                = sscanf(
-    network_ctx.sd_csv_line, "%lu,%f,%f,%f,%f,%7[^,],%f,%f,%f,%f,%f,%f", &network_ctx.data_input_buffer.timestamp_ms,
-    &network_ctx.data_input_buffer.velocity_ms, &network_ctx.data_input_buffer.velocity_kmh,
-    &network_ctx.data_input_buffer.distance_m, &network_ctx.data_input_buffer.heading_deg, dir_buf,
-    &network_ctx.data_input_buffer.gps_position.latitude, &network_ctx.data_input_buffer.gps_position.longitude,
-    &network_ctx.data_input_buffer.dust_value, &network_ctx.data_input_buffer.temp_hum.temperature,
-    &network_ctx.data_input_buffer.temp_hum.humidity, &network_ctx.data_input_buffer.battery_level);
-
-  if (parsed < 12)
-  {
-    LOG_WRN("Malformed CSV line (parsed %d/12) — dropping one line", parsed);
-    offset_next_line = line_len;
-  }
-  else
-  {
-    network_ctx.data_input_buffer.direction_str = dir_buf;
-
-    if (!sys_network_build_payload(&network_ctx.data_input_buffer))
-    {
-      LOG_WRN("Payload build failed for SD record — keeping line for retry");
-      bsp_sdcard_close(&file_handle);
-      return STATUS_BUSY;
-    }
-
-    mqtt_message_t msg = {
-      .topic   = g_device_info.mqtt_data_topic,
-      .payload = mqtt_payload_buffer,
-    };
-
-    if (network_ctx.mqtt_last_payload_valid && (strcmp(mqtt_payload_buffer, mqtt_last_payload) == 0))
-    {
-      LOG_DBG("Skip duplicate SD payload");
-      offset_next_line = line_len;
-      bsp_sdcard_close(&file_handle);
-      goto _NET_LINE;
-    }
-
-    bool publish_ok = false;
-    for (uint8_t attempt = 0; attempt < MQTT_PUBLISH_RETRY; attempt++)
-    {
-      if (bsp_sim_mqtt_pub(&msg) == STATUS_OK)
-      {
-        publish_ok = true;
-        break;
-      }
-    }
-
-    if (!publish_ok)
-    {
-      LOG_WRN("Failed to publish SD record after %d attempts — keeping line for retry", MQTT_PUBLISH_RETRY);
-      bsp_sdcard_close(&file_handle);
-      return STATUS_ERROR;
-    }
-
-    strncpy(mqtt_last_payload, mqtt_payload_buffer, sizeof(mqtt_last_payload) - 1);
-    mqtt_last_payload[sizeof(mqtt_last_payload) - 1] = '\0';
-    network_ctx.mqtt_last_payload_valid              = true;
-
-    offset_next_line = line_len;
+    s_sd_line[line_len++] = (char) ch;
   }
 
   bsp_sdcard_close(&file_handle);
-_NET_LINE:
-  if (offset_next_line == 0)
+
+  if (line_len == 0)
   {
+    /* Empty line or EOF — advance past it */
+    network_ctx.network_sd_offset++;
     return STATUS_BUSY;
   }
 
-  network_ctx.network_sd_offset += offset_next_line;
-  network_ctx.is_data_sd_pending = true;
+  s_sd_line[line_len] = '\0';
+
+  mqtt_message_t msg = {
+    .topic   = g_device_info.mqtt_data_topic,
+    .payload = s_sd_line,
+  };
+
+  bool publish_ok = false;
+  for (uint8_t attempt = 0; attempt < MQTT_PUBLISH_RETRY; attempt++)
+  {
+    if (bsp_sim_mqtt_pub(&msg) == STATUS_OK)
+    {
+      publish_ok = true;
+      break;
+    }
+    if (attempt + 1 < MQTT_PUBLISH_RETRY)
+    {
+      OS_DELAY_MS(MQTT_PUBLISH_RETRY_DELAY_MS);
+    }
+  }
+
+  if (!publish_ok)
+  {
+    LOG_WRN("Failed to publish SD record after %d attempts — will retry", MQTT_PUBLISH_RETRY);
+    return STATUS_ERROR;
+  }
+
+  /* Advance offset past the line + newline character */
+  network_ctx.network_sd_offset += line_len + 1;
+
   if (network_ctx.network_sd_offset >= total_size)
   {
     bsp_sdcard_delete(SD_OFFLINE_LOG_PATH);
     network_ctx.is_data_sd_pending = false;
     network_ctx.network_sd_offset  = 0;
-    LOG_DBG("Offline log fully drained and deleted");
-  }
-  else
-  {
-    network_ctx.is_data_sd_pending = true;
+    LOG_INF("Offline log fully drained and deleted");
   }
 
   return STATUS_OK;
+}
+
+/* -------------------------------------------------------------------- */
+/* Helpers                                                                */
+/* -------------------------------------------------------------------- */
+
+static bool sys_network_need_fast_poll(void)
+{
+  if (network_ctx.is_data_sd_pending)
+  {
+    return true;
+  }
+
+  OS_MUTEX_LOCK(network_mutex);
+  size_t available = cb_data_count(&network_ctx.cbuffer);
+  OS_MUTEX_UNLOCK(network_mutex);
+
+  return (available >= (CBUFFER_FAST_MSG_THRESHOLD * NETWORK_CBUFF_SLOT_SIZE));
+}
+
+static bool sys_network_need_push_sd(void)
+{
+  /* Never flush to SD while online — publish task drains cbuffer directly */
+  if (network_ctx.state == NETWORK_STATE_ONLINE)
+  {
+    return false;
+  }
+
+  if (network_ctx.cbuffer.size <= 1)
+  {
+    return false;
+  }
+
+  OS_MUTEX_LOCK(network_mutex);
+  size_t available = cb_data_count(&network_ctx.cbuffer);
+  OS_MUTEX_UNLOCK(network_mutex);
+
+  size_t total_bytes  = network_ctx.cbuffer.size - 1;
+  size_t used_percent = (available * 100) / total_bytes;
+
+  return (used_percent >= NETWORK_CBUFF_FLUSH_THRESH);
 }
 
 static bool sys_network_check_pending(void)
@@ -908,8 +848,6 @@ static bool sys_network_check_pending(void)
 
 static status_function_t sys_network_prepare_sd_card(void)
 {
-  bsp_sdcard_file_t file_handle;
-
   if (bsp_sdcard_is_mounted() != STATUS_OK)
   {
     return STATUS_ERROR;
@@ -920,6 +858,7 @@ static status_function_t sys_network_prepare_sd_card(void)
     return STATUS_OK;
   }
 
+  bsp_sdcard_file_t file_handle;
   if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, BSP_SDCARD_MODE_APPEND, &file_handle) == STATUS_OK)
   {
     bsp_sdcard_close(&file_handle);
@@ -929,20 +868,27 @@ static status_function_t sys_network_prepare_sd_card(void)
   return STATUS_ERROR;
 }
 
-static status_function_t sys_network_push_cbuffer(const sys_input_data_t *data)
+/* Push one pre-built JSON payload string into cbuffer.
+ * Each slot is exactly NETWORK_CBUFF_SLOT_SIZE bytes (zero-padded). */
+static status_function_t sys_network_push_cbuffer(const char *payload)
 {
-  if (data == NULL)
+  if (payload == NULL)
   {
     return STATUS_ERROR;
   }
 
-  OS_MUTEX_LOCK(s_telem_mutex);
-  size_t written = cb_write(&network_ctx.cbuffer, (void *) data, sizeof(sys_input_data_t));
-  OS_MUTEX_UNLOCK(s_telem_mutex);
+  /* Fixed-size slot: copy payload, zero-pad the remainder */
+  char slot[NETWORK_CBUFF_SLOT_SIZE];
+  memset(slot, 0, sizeof(slot));
+  strncpy(slot, payload, NETWORK_CBUFF_SLOT_SIZE - 1);
 
-  if (written != sizeof(sys_input_data_t))
+  OS_MUTEX_LOCK(network_mutex);
+  size_t written = cb_write(&network_ctx.cbuffer, slot, NETWORK_CBUFF_SLOT_SIZE);
+  OS_MUTEX_UNLOCK(network_mutex);
+
+  if (written != NETWORK_CBUFF_SLOT_SIZE)
   {
-    LOG_WRN("Telemetry cbuffer full — record dropped (overflow=%lu)", network_ctx.cbuffer.overflow);
+    LOG_WRN("Cbuffer full — record dropped (overflow=%u)", (unsigned) network_ctx.cbuffer.overflow);
     return STATUS_ERROR;
   }
 

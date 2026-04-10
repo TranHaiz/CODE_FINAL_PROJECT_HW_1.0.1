@@ -2,8 +2,8 @@
  * @file       sys_network.h
  * @copyright  Copyright (C) 2019 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
- * @version    1.0.0
- * @date       2026-01-17
+ * @version    2.0.0
+ * @date       2026-04-10
  * @author     Hai Tran
  *
  * @brief      System Network Layer - Network management interface
@@ -23,18 +23,19 @@
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
-extern bool is_data_network_ready;
+extern volatile bool is_data_network_ready;
 
 /* Public function prototypes ----------------------------------------- */
 /**
- * @brief Initialize the network layer, including SIM and MQTT setup.
+ * @brief Initialize the network layer (SIM, MQTT, cbuffer, semaphores).
  *
  * @return none
  */
 void sys_network_init(void);
 
 /**
- * @brief Process the network state machine. Should be called periodically.
+ * @brief Network state machine process task entry point.
+ *        Manages SIM/MQTT connection and publishes from cbuffer or SD.
  *
  * @param[in] param  Unused.
  *
@@ -43,9 +44,9 @@ void sys_network_init(void);
 void sys_network_process(void *param);
 
 /**
- * @brief Data task entry point. Register as a FreeRTOS task.
- *        Pulls telemetry from sys_input and stores into cbuffer.
- *        If cbuffer usage exceeds 80%, flushes data to SD.
+ * @brief Data task entry point.
+ *        Reads telemetry from sys_input, builds JSON payload, pushes into cbuffer.
+ *        When offline and cbuffer usage exceeds 80%, flushes to SD card.
  *
  * @param[in] param  Unused.
  *
@@ -54,12 +55,12 @@ void sys_network_process(void *param);
 void sys_network_data_task(void *param);
 
 /**
- * @brief Trigger a network wakeup (e.g. after device unlock)
+ * @brief Trigger a network wakeup (e.g. after device unlock).
  *
  * @return none
  */
 void sys_network_wakeup(void);
 
-#endif /*End file _SYS_NETWORK_H_*/
+#endif /* End file _SYS_NETWORK_H_ */
 
 /* End of file -------------------------------------------------------- */
