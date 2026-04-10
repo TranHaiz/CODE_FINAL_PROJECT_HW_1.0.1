@@ -52,7 +52,7 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_INFO)
 #define RETRY_MAX_BEFORE_RESET     (3)
 
 #define NETWORK_CBUFF_SLOT_SIZE    (MQTT_MESSAGE_MAX_LEN)
-#define NETWORK_CBUFF_COUNT        (20)
+#define NETWORK_CBUFF_COUNT        (100)
 #define NETWORK_BYTES              (NETWORK_CBUFF_COUNT * NETWORK_CBUFF_SLOT_SIZE)
 #define NETWORK_CBUFF_FLUSH_THRESH (80)
 #define CBUFFER_FAST_MSG_THRESHOLD (2)
@@ -331,7 +331,6 @@ static void sys_network_run_mqtt_init(void)
 
 static void sys_network_run_online(void)
 {
-  /* Keepalive — always checked regardless of SD or cbuffer state */
   if (COUNT_MS(network_ctx.last_keepalive_ms) >= MQTT_KEEPALIVE_MS)
   {
     if (!bsp_sim_is_ready())
@@ -344,7 +343,6 @@ static void sys_network_run_online(void)
     network_ctx.last_keepalive_ms = OS_GET_TICK();
   }
 
-  /* Drain SD first to preserve timestamp order */
   if (network_ctx.is_data_sd_pending)
   {
     sys_network_push_sd_to_mqtt();
@@ -388,7 +386,7 @@ static void sys_network_run_sim_hard_reset(void)
 {
   if (COUNT_MS(network_ctx.state_enter_ms) < 10)
   {
-    /* TODO: Hardware reset via MOSFET power control */
+    // TODO: Hardware reset via MOSFET power control
   }
 
   if (COUNT_MS(network_ctx.state_enter_ms) < SIM_HARD_RESET_DELAY_MS)
@@ -413,8 +411,6 @@ static void sys_network_mqtt_message_cb(const char *topic, const uint8_t *data, 
   OS_SEM_GIVE(sys_cmd_req_sem);
 }
 
-/* Build JSON payload into caller-supplied buffer.
- * Returns true on success, false if truncated. */
 static bool sys_network_build_payload(sys_input_data_t *data, char *buf, size_t buf_len)
 {
   if (data == NULL || buf == NULL || buf_len == 0)
@@ -548,12 +544,6 @@ static void sys_network_process_active(void)
   }
 }
 
-/* -------------------------------------------------------------------- */
-/* Publish helpers                                                        */
-/* -------------------------------------------------------------------- */
-
-/* Pop one JSON slot from cbuffer and publish to MQTT.
- * On fail: keep in-flight slot for next retry, transition to ERROR. */
 static void sys_network_publish_online(void)
 {
   if (!s_pub_slot_valid)
@@ -592,8 +582,6 @@ static void sys_network_publish_online(void)
   network_ctx.last_publish_ms = OS_GET_TICK();
 }
 
-/* Flush cbuffer to SD offline log (append, one JSON per line).
- * Called only when offline and cbuffer usage >= threshold. */
 static void sys_network_flush_cbuff_to_sd(void)
 {
   OS_MUTEX_LOCK(network_mutex);
@@ -645,7 +633,6 @@ static void sys_network_flush_cbuff_to_sd(void)
       break;
     }
 
-    /* Append newline so each record is on its own line */
     size_t json_len    = strnlen(slot, NETWORK_CBUFF_SLOT_SIZE);
     slot[json_len]     = '\n';
     slot[json_len + 1] = '\0';
@@ -669,9 +656,6 @@ static void sys_network_flush_cbuff_to_sd(void)
   }
 }
 
-/* Read one JSON line from SD and publish to MQTT.
- * Uses offset to resume without rewriting the file.
- * Deletes file when fully drained. */
 static status_function_t sys_network_push_sd_to_mqtt(void)
 {
   if (bsp_sdcard_is_mounted() != STATUS_OK)
@@ -714,7 +698,6 @@ static status_function_t sys_network_push_sd_to_mqtt(void)
     return STATUS_BUSY;
   }
 
-  /* Read one newline-terminated JSON line */
   size_t  line_len = 0;
   uint8_t ch;
   size_t  rd = 0;
@@ -736,7 +719,6 @@ static status_function_t sys_network_push_sd_to_mqtt(void)
 
   if (line_len == 0)
   {
-    /* Empty line or EOF — advance past it */
     network_ctx.network_sd_offset++;
     return STATUS_BUSY;
   }
@@ -768,7 +750,6 @@ static status_function_t sys_network_push_sd_to_mqtt(void)
     return STATUS_ERROR;
   }
 
-  /* Advance offset past the line + newline character */
   network_ctx.network_sd_offset += line_len + 1;
 
   if (network_ctx.network_sd_offset >= total_size)
@@ -781,10 +762,6 @@ static status_function_t sys_network_push_sd_to_mqtt(void)
 
   return STATUS_OK;
 }
-
-/* -------------------------------------------------------------------- */
-/* Helpers                                                                */
-/* -------------------------------------------------------------------- */
 
 static bool sys_network_need_fast_poll(void)
 {
@@ -802,7 +779,6 @@ static bool sys_network_need_fast_poll(void)
 
 static bool sys_network_need_push_sd(void)
 {
-  /* Never flush to SD while online — publish task drains cbuffer directly */
   if (network_ctx.state == NETWORK_STATE_ONLINE)
   {
     return false;
@@ -868,8 +844,6 @@ static status_function_t sys_network_prepare_sd_card(void)
   return STATUS_ERROR;
 }
 
-/* Push one pre-built JSON payload string into cbuffer.
- * Each slot is exactly NETWORK_CBUFF_SLOT_SIZE bytes (zero-padded). */
 static status_function_t sys_network_push_cbuffer(const char *payload)
 {
   if (payload == NULL)
@@ -877,7 +851,6 @@ static status_function_t sys_network_push_cbuffer(const char *payload)
     return STATUS_ERROR;
   }
 
-  /* Fixed-size slot: copy payload, zero-pad the remainder */
   char slot[NETWORK_CBUFF_SLOT_SIZE];
   memset(slot, 0, sizeof(slot));
   strncpy(slot, payload, NETWORK_CBUFF_SLOT_SIZE - 1);
