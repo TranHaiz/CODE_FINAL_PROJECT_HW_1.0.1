@@ -70,8 +70,9 @@ typedef enum
 typedef esp_reset_reason_t device_reset_reason_t;
 typedef struct
 {
-  uint8_t device_id;
-  char    serial_number[DEVICE_SERIAL_NUMBER_MAX_LEN];
+  uint8_t        device_id;
+  device_state_t last_state;
+  char           serial_number[DEVICE_SERIAL_NUMBER_MAX_LEN];
 } device_nvs_info_t;
 typedef struct
 {

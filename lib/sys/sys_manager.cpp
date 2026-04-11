@@ -13,6 +13,7 @@
 /* Includes ----------------------------------------------------------- */
 #include "sys_manager.h"
 
+#include "bsp_device.h"
 #include "bsp_sim.h"
 #include "sys_input.h"
 #include "sys_network.h"
@@ -43,6 +44,7 @@ static void sys_manager_lock_handler(void);
 static void sys_manager_active_handler(void);
 static void sys_manager_unlocked_handler(void);
 static void sys_manager_change_topic_sub_handler(void);
+static void sys_manager_reboot_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -56,6 +58,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_UNLOCKED             ,   sys_manager_unlocked_handler          );
   INFO(SYS_MANAGER_EVT_ACTIVE               ,   sys_manager_active_handler            );
   INFO(SYS_MANAGER_EVT_CHANGE_CMD_TOPIC     ,   sys_manager_change_topic_sub_handler  );
+  INFO(SYS_MANAGER_EVT_REBOOT               ,   sys_manager_reboot_handler            );
   // clang-format on
 }
 #undef INFO
@@ -110,6 +113,13 @@ static void sys_manager_change_topic_sub_handler(void)
   strncpy(g_device_info.last_mqtt_cmd_topic, g_device_info.mqtt_cmd_topic,
           sizeof(g_device_info.last_mqtt_cmd_topic) - 1);
   LOG_DBG("MQTT last cmd topic: %s", g_device_info.last_mqtt_cmd_topic);
+}
+
+static void sys_manager_reboot_handler(void)
+{
+  bsp_device_flash_write(&g_device_info.nvs_info);
+  LOG_INF("---------- Rebooting device ----------");
+  bsp_device_reboot();
 }
 
 /* End of file -------------------------------------------------------- */

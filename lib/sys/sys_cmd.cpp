@@ -252,8 +252,7 @@ static void sys_cmd_set_device_id_handler(void)
 
 static void sys_cmd_reboot_handler(void)
 {
-  LOG_INF("---------- Rebooting device ----------");
-  bsp_device_reboot();
+  sys_manager_write_event(SYS_MANAGER_EVT_REBOOT);
 }
 
 /* End of file -------------------------------------------------------- */

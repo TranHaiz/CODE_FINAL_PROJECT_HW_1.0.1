@@ -55,9 +55,9 @@ static const char *RESET_REASON_STR[ESP_RST_SDIO + 1] = {
 /* Function definitions ----------------------------------------------- */
 void device_info_init(void)
 {
-  status_function_t ret = bsp_device_check_magic_number();
   timeline_t        timeline;
   bsp_sdcard_file_t log_file;
+  status_function_t ret = bsp_device_check_magic_number();
   bsp_rtc_get(&timeline);
 
   if (ret == STATUS_OK)
@@ -94,7 +94,15 @@ void device_info_init(void)
   }
   case ESP_RST_SW:
   {
-    g_device_info.state = DEVICE_STATE_ACTIVE;
+    if (g_device_info.nvs_info.last_state == DEVICE_STATE_ACTIVE)
+    {
+      g_device_info.state = DEVICE_STATE_ACTIVE;
+    }
+    else
+    {
+      g_device_info.state = DEVICE_STATE_LOCKED;
+    }
+
     break;
   }
   case ESP_RST_UNKNOWN:
