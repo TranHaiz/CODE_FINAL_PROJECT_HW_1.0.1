@@ -55,7 +55,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_LOCKED               ,   sys_manager_lock_handler              );
   INFO(SYS_MANAGER_EVT_UNLOCKED             ,   sys_manager_unlocked_handler          );
   INFO(SYS_MANAGER_EVT_ACTIVE               ,   sys_manager_active_handler            );
-  INFO(SYS_MANAGER_EVT_CHANGE_TOPIC_SUB     ,   sys_manager_change_topic_sub_handler  );
+  INFO(SYS_MANAGER_EVT_CHANGE_CMD_TOPIC     ,   sys_manager_change_topic_sub_handler  );
   // clang-format on
 }
 #undef INFO
@@ -103,8 +103,12 @@ static void sys_manager_unlocked_handler(void)
 }
 static void sys_manager_change_topic_sub_handler(void)
 {
-  // TODO: Unsubscribe from old topic
+  LOG_DBG("Changing MQTT sub cmd change %s to new topic: %s", g_device_info.last_mqtt_cmd_topic,
+          g_device_info.mqtt_cmd_topic);
+  bsp_sim_mqtt_unsub(g_device_info.last_mqtt_cmd_topic);
   bsp_sim_mqtt_sub(g_device_info.mqtt_cmd_topic, sys_network_mqtt_message_cb);
+  strncpy(g_device_info.last_mqtt_cmd_topic, g_device_info.mqtt_cmd_topic, strlen(g_device_info.last_mqtt_cmd_topic));
+  LOG_DBG("MQTT last cmd topic: %s", g_device_info.last_mqtt_cmd_topic);
 }
 
 /* End of file -------------------------------------------------------- */

@@ -437,8 +437,34 @@ status_function_t bsp_sim_mqtt_deinit(void)
   return ret ? STATUS_OK : STATUS_ERROR;
 }
 
+status_function_t bsp_sim_mqtt_unsub(const char *topic)
+{
+  if (topic == NULL)
+    return STATUS_ERROR;
+
+  char   cmd[192];
+  size_t topic_len = strlen(topic);
+
+  if (topic_len == 0 || topic_len > MQTT_MAX_TOPIC_LEN)
+  {
+    LOG_ERR("MQTT topic length out of range: %u", (unsigned) topic_len);
+    return STATUS_ERROR;
+  }
+
+  snprintf(cmd, sizeof(cmd), "AT+QMTUNS=%d,1,\"%s\"\r\n", MQTT_CTX, topic);
+  if (!bsp_sim_send_and_wait_response(cmd, "+QMTUNS: 0,1,0", 5000))
+  {
+    LOG_ERR("MQTT unsubscribe failed: %s", sim_rx_buffer);
+    return STATUS_ERROR;
+  }
+
+  sim_mqtt_cb = NULL;
+  return STATUS_OK;
+}
+
 #endif  // CONFIG_MQTT_SERVER
 
+/* Private definitions ----------------------------------------------- */
 static bool bsp_sim_send_and_wait_response(const char *cmd, const char *resp, size_t timeout)
 {
   if (cmd && cmd[0] != '\0')

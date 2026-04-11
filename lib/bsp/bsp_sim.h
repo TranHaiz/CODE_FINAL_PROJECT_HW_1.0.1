@@ -83,31 +83,48 @@ status_function_t bsp_sim_get_raw_data_firebase(uint8_t *raw_data_buffer, uint16
 #include "device_info.h"
 
 /**
- * @brief Initialize MQTT service on SIM module
+ * @brief Initialize MQTT service on SIM module.
+ * @return Function status
  */
 status_function_t bsp_sim_mqtt_init(void);
 
 /**
- * @brief Publish MQTT message using mqtt_message_t
+ * @brief Publish MQTT message.
+ * @param[in] msg: MQTT message containing topic and payload
+ * @return Function status
  */
 status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg);
 
 /**
- * @brief Subscribe to a topic. The provided callback will be invoked when
- *        a new message arrives (callback signature: void (*cb)(const char *topic, const uint8_t *data, size_t len)).
+ * @brief Subscribe to a topic.
+ * @param[in] topic: The MQTT topic to subscribe to
+ * @param[in] cb: Callback function to be called when a message is received.
+ * @return Function status
  */
 status_function_t bsp_sim_mqtt_sub(const char *topic, bsp_sim_mqtt_callback_t cb);
 
 /**
  * @brief Get buffered MQTT message (if any). Copies into provided buffer and returns size via out_size.
+ * @param[out] out_buf: Buffer to copy MQTT message into
+ * @param[in,out] out_size: On input, size of out_buf. On output.
+ * @return Function status.
  */
 status_function_t bsp_sim_mqtt_get(uint8_t *out_buf, uint16_t *out_size);
 
 /**
  * @brief Deinitialize MQTT service on SIM module
+ * @return Function status
  */
 status_function_t bsp_sim_mqtt_deinit(void);
-#endif
+
+/**
+ * @brief Unsubscribe from a topic.
+ * @param[in] topic: The MQTT topic to unsubscribe from
+ * @return Function status
+ */
+status_function_t bsp_sim_mqtt_unsub(const char *topic);
+
+#endif  // CONFIG_MQTT_SERVER
 
 #endif /* End file _BSP_SIM_H_ */
 

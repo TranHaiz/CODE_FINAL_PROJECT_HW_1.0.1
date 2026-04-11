@@ -78,6 +78,7 @@ typedef struct
   char                  device_version[DEVICE_VERSION_LEN];
   char                  device_name[DEVICE_NAME_MAX_LEN];
   char                  mqtt_cmd_topic[MQTT_MAX_TOPIC_LEN];
+  char                  last_mqtt_cmd_topic[MQTT_MAX_TOPIC_LEN];
   char                  mqtt_data_topic[MQTT_MAX_TOPIC_LEN];
   device_nvs_info_t     nvs_info;
 } device_info_t;

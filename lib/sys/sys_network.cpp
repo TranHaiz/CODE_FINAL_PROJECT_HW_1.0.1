@@ -604,8 +604,8 @@ static void sys_network_flush_cbuff_to_sd(void)
     return;
   }
 
-  bsp_sdcard_file_t f;
-  if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, BSP_SDCARD_MODE_APPEND, &f) != STATUS_OK)
+  bsp_sdcard_file_t off_log_handle;
+  if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, BSP_SDCARD_MODE_APPEND, &off_log_handle) != STATUS_OK)
   {
     LOG_ERR("Cannot open offline log for append");
     return;
@@ -637,7 +637,7 @@ static void sys_network_flush_cbuff_to_sd(void)
     slot[json_len + 1] = '\0';
 
     size_t written_len = 0;
-    bsp_sdcard_write(&f, (const uint8_t *) slot, json_len + 1, &written_len);
+    bsp_sdcard_write(&off_log_handle, (const uint8_t *) slot, json_len + 1, &written_len);
     if (written_len != json_len + 1)
     {
       LOG_WRN("SD write incomplete (%u / %u bytes)", (unsigned) written_len, (unsigned) (json_len + 1));
@@ -646,7 +646,7 @@ static void sys_network_flush_cbuff_to_sd(void)
     flushed++;
   }
 
-  bsp_sdcard_close(&f);
+  bsp_sdcard_close(&off_log_handle);
 
   if (flushed > 0)
   {
@@ -810,14 +810,14 @@ static bool sys_network_check_pending(void)
     return false;
   }
 
-  bsp_sdcard_file_t f;
-  if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, BSP_SDCARD_MODE_READ, &f) != STATUS_OK)
+  bsp_sdcard_file_t off_log_handle;
+  if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, BSP_SDCARD_MODE_READ, &off_log_handle) != STATUS_OK)
   {
     return false;
   }
 
-  bool non_empty = (f.file.size() > 0);
-  bsp_sdcard_close(&f);
+  bool non_empty = (off_log_handle.file.size() > 0);
+  bsp_sdcard_close(&off_log_handle);
   return non_empty;
 }
 

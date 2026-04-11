@@ -68,14 +68,46 @@ void device_info_init(void)
     bsp_device_flash_write(&g_device_info.nvs_info);
   }
 
-  g_device_info.state             = DEVICE_STATE_LOCKED;
   g_device_info.last_reset_reason = bsp_device_get_reset_reason();
+  switch (g_device_info.last_reset_reason)
+  {
+  case ESP_RST_EXT:
+  case ESP_RST_PANIC:
+  case ESP_RST_INT_WDT:
+  case ESP_RST_TASK_WDT:
+  case ESP_RST_WDT:
+  case ESP_RST_BROWNOUT:
+  case ESP_RST_SDIO:
+  {
+    g_device_info.state = DEVICE_STATE_ERROR;
+    break;
+  }
+  case ESP_RST_SW:
+  {
+    g_device_info.state = DEVICE_STATE_ACTIVE;
+    break;
+  }
+  case ESP_RST_UNKNOWN:
+  case ESP_RST_POWERON:
+  case ESP_RST_DEEPSLEEP:
+  {
+    g_device_info.state = DEVICE_STATE_LOCKED;
+    break;
+  }
+  default:
+  {
+    g_device_info.state = DEVICE_STATE_ERROR;
+    break;
+  }
+  }
+
   snprintf(g_device_info.device_version, sizeof(g_device_info.device_version), "%d.%d.%d", FIRRMWARE_MAJOR_VERSION,
            FIRRMWARE_MINOR_VERSION, FIRRMWARE_PATCH_VERSION);
   snprintf(g_device_info.device_name, sizeof(g_device_info.device_name), "haq-trk-%03u",
            g_device_info.nvs_info.device_id);
   snprintf(g_device_info.mqtt_cmd_topic, sizeof(g_device_info.mqtt_cmd_topic), "%s/cmd", g_device_info.device_name);
   snprintf(g_device_info.mqtt_data_topic, sizeof(g_device_info.mqtt_data_topic), "%s/data", g_device_info.device_name);
+  strncpy(g_device_info.last_mqtt_cmd_topic, g_device_info.mqtt_cmd_topic, strlen(g_device_info.last_mqtt_cmd_topic));
 
   LOG_INF("-- DEVICE INFO INITIALIZED ---");
   LOG_INF("Device ID: %u", g_device_info.nvs_info.device_id);
