@@ -64,11 +64,10 @@ void setup()
 {
   Serial.begin(115200);
   delay(1000);  // Wait for Serial to initialize
-  device_info_init();
   bsp_rtc_init();
   bsp_sdcard_init();
   delay(1000);
-  Serial.println("START");
+  device_info_init();
   sys_network_init();
   delay(1000);
   OS_THREAD_CREATE(sys_manager_thread, sys_manager_thread_func);

@@ -126,7 +126,6 @@ static void sys_network_process_idle(void);
 static void sys_network_process_active(void);
 
 static bool sys_network_build_payload(sys_input_data_t *data, char *buf, size_t buf_len);
-static void sys_network_mqtt_message_cb(const char *topic, const uint8_t *data, size_t len);
 
 static void              sys_network_publish_online(void);
 static void              sys_network_flush_cbuff_to_sd(void);
@@ -397,7 +396,7 @@ static void sys_network_run_sim_hard_reset(void)
   sys_network_change_state(NETWORK_STATE_SIM_INIT);
 }
 
-static void sys_network_mqtt_message_cb(const char *topic, const uint8_t *data, size_t len)
+void sys_network_mqtt_message_cb(const char *topic, const uint8_t *data, size_t len)
 {
   LOG_DBG("MQTT rx [%s]: %d bytes", topic, (int) len);
   if ((data == NULL) || (len == 0) || (len >= CMD_INPUT_MAX_LEN))

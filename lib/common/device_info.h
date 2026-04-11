@@ -16,8 +16,19 @@
 /* Includes ----------------------------------------------------------- */
 #include "common_type.h"
 #include "device_config.h"
+#include "esp_system.h"
 
 /* Public defines ----------------------------------------------------- */
+#define FIRRMWARE_MAJOR_VERSION      (1)
+#define FIRRMWARE_MINOR_VERSION      (0)
+#define FIRRMWARE_PATCH_VERSION      (0)
+
+#define DEVICE_NVS_NAMESPACE         "bsp_device"
+#define DEVICE_NVS_KEY_INFO          "dev_info"
+#define DEVICE_NVS_KEY_MAGIC         "dev_magic"
+#define DEVICE_VERSION_LEN           (6)   // example: 1.0.0 (5 chars + 1 null terminator)
+#define DEVICE_SERIAL_NUMBER_MAX_LEN (33)  // 32 chars + 1 null terminator
+#define DEVICE_MAGIC_NUMBER          (0xDEADBEEF)
 
 /**
  * @brief  Device operation modes
@@ -25,25 +36,25 @@
  *       1 - normal mode
  */
 
-#define DEVICE_NORMAL_MODE       (0)
-#define DEVICE_FUSION_DEBUG_MODE (1)
+#define DEVICE_NORMAL_MODE           (0)
+#define DEVICE_FUSION_DEBUG_MODE     (1)
 
 /**
  * @brief  Server configuration
  */
-#define CONFIG_FIREBASE_SERVER   (false)
-#define CONFIG_MQTT_SERVER       (true)
+#define CONFIG_FIREBASE_SERVER       (false)
+#define CONFIG_MQTT_SERVER           (true)
 
-#define MQTT_MAX_TOPIC_LEN       (64)
+#define MQTT_MAX_TOPIC_LEN           (64)
 
-#define SCREEN_SKIP_LOCK_SCREEN  (1)
-#define SCREEN_ROTATION_0        (0)
-#define SCREEN_ROTATION_90       (0)
-#define SCREEN_ROTATION_180      (0)
-#define SCREEN_ROTATION_270      (1)
+#define SCREEN_SKIP_LOCK_SCREEN      (1)
+#define SCREEN_ROTATION_0            (0)
+#define SCREEN_ROTATION_90           (0)
+#define SCREEN_ROTATION_180          (0)
+#define SCREEN_ROTATION_270          (1)
 
-#define DEFAULT_DEVICE_NAME      "haq-trk-000"
-#define DEVICE_NAME_MAX_LEN      (32)
+#define DEFAULT_DEVICE_NAME          "haq-trk-000"
+#define DEVICE_NAME_MAX_LEN          (32)
 
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
@@ -54,12 +65,21 @@ typedef enum
   DEVICE_STATE_ERROR,
   DEVICE_STATE_MAX
 } device_state_t;
+typedef esp_reset_reason_t device_reset_reason_t;
 typedef struct
 {
-  device_state_t state;
-  char           device_name[DEVICE_NAME_MAX_LEN];
-  char           mqtt_cmd_topic[MQTT_MAX_TOPIC_LEN];
-  char           mqtt_data_topic[MQTT_MAX_TOPIC_LEN];
+  uint8_t device_id;
+  char    serial_number[DEVICE_SERIAL_NUMBER_MAX_LEN];
+} device_nvs_info_t;
+typedef struct
+{
+  device_state_t        state;
+  device_reset_reason_t last_reset_reason;
+  char                  device_version[DEVICE_VERSION_LEN];
+  char                  device_name[DEVICE_NAME_MAX_LEN];
+  char                  mqtt_cmd_topic[MQTT_MAX_TOPIC_LEN];
+  char                  mqtt_data_topic[MQTT_MAX_TOPIC_LEN];
+  device_nvs_info_t     nvs_info;
 } device_info_t;
 
 /* Public macros ------------------------------------------------------ */

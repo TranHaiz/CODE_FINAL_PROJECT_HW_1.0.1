@@ -13,6 +13,7 @@
 /* Includes ----------------------------------------------------------- */
 #include "sys_manager.h"
 
+#include "bsp_sim.h"
 #include "sys_input.h"
 #include "sys_network.h"
 #include "sys_ui.h"
@@ -41,6 +42,7 @@ static void sys_manager_wakeup_handler(void);
 static void sys_manager_lock_handler(void);
 static void sys_manager_active_handler(void);
 static void sys_manager_unlocked_handler(void);
+static void sys_manager_change_topic_sub_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -48,11 +50,12 @@ void sys_manager_init(void)
   OS_SEM_CREATE(sys_manager_event_sem);
   manager_handler.current_event = SYS_MANAGER_EVT_IDLE;
   // clang-format off
-  /*   Event                        Handlers*/
-  INFO(SYS_MANAGER_EVT_WAKEUP,      sys_manager_wakeup_handler);
-  INFO(SYS_MANAGER_EVT_LOCKED,      sys_manager_lock_handler);
-  INFO(SYS_MANAGER_EVT_UNLOCKED,    sys_manager_unlocked_handler);
-  INFO(SYS_MANAGER_EVT_ACTIVE,      sys_manager_active_handler);
+  /*   Event                                |   Handlers*/
+  INFO(SYS_MANAGER_EVT_WAKEUP               ,   sys_manager_wakeup_handler            );
+  INFO(SYS_MANAGER_EVT_LOCKED               ,   sys_manager_lock_handler              );
+  INFO(SYS_MANAGER_EVT_UNLOCKED             ,   sys_manager_unlocked_handler          );
+  INFO(SYS_MANAGER_EVT_ACTIVE               ,   sys_manager_active_handler            );
+  INFO(SYS_MANAGER_EVT_CHANGE_TOPIC_SUB     ,   sys_manager_change_topic_sub_handler  );
   // clang-format on
 }
 #undef INFO
@@ -72,7 +75,7 @@ void sys_manager_process(void)
 
   if (manager_handler.handler[manager_handler.current_event] != nullptr)
   {
-  LOG_DBG("Processed event: %d", manager_handler.current_event);
+    LOG_DBG("Processed event: %d", manager_handler.current_event);
     manager_handler.handler[manager_handler.current_event]();
   }
 }
@@ -97,6 +100,11 @@ static void sys_manager_unlocked_handler(void)
   g_device_info.state = DEVICE_STATE_ACTIVE;
   sys_ui_unlock();
   LOG_DBG("Device unlocked and active");
+}
+static void sys_manager_change_topic_sub_handler(void)
+{
+  // TODO: Unsubscribe from old topic
+  bsp_sim_mqtt_sub(g_device_info.mqtt_cmd_topic, sys_network_mqtt_message_cb);
 }
 
 /* End of file -------------------------------------------------------- */

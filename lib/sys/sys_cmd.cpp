@@ -14,7 +14,9 @@
 /* Includes ----------------------------------------------------------- */
 #include "sys_cmd.h"
 
+#include "bsp_device.h"
 #include "bsp_rtc.h"
+#include "bsp_sim.h"
 #include "log_service.h"
 #include "sys_manager.h"
 
@@ -37,6 +39,7 @@ static void sys_cmd_lock_device_handler(void);
 static void sys_cmd_unlock_device_handler(void);
 static void sys_cmd_set_time_handler(void);
 static void sys_cmd_set_device_id_handler(void);
+static void sys_cmd_reboot_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -50,7 +53,8 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("LOCK",      sys_cmd_lock_device_handler),
   INFO("UNLOCK",    sys_cmd_unlock_device_handler),
   INFO("SET_TIME",  sys_cmd_set_time_handler),
-  INFO("SET_DEVICE_ID",  sys_cmd_set_device_id_handler),
+  INFO("SET_DEVICE",  sys_cmd_set_device_id_handler),
+  INFO("RESET",    sys_cmd_reboot_handler)
 };
 #undef INFO
 // clang-format on
@@ -181,25 +185,74 @@ static void sys_cmd_set_time_handler(void)
 
 static void sys_cmd_set_device_id_handler(void)
 {
-  const char *cmd    = g_cmd_input_buffer;
-  const char *id_str = strchr(cmd, '=');
+  const char *cmd = g_cmd_input_buffer;
+  const char *eq  = strchr(cmd, '=');
   char        name_buffer[DEVICE_NAME_MAX_LEN];
 
-  if (!id_str || strlen(id_str + 1) == 0)
+  // Validate '=' exists and has content after it
+  if (!eq || strlen(eq + 1) == 0)
   {
-    LOG_WRN("SET_DEVICE_ID: Invalid format");
+    LOG_WRN("SET_DEVICE: Invalid format, expected SET_DEVICE=<id>,<serial>");
     return;
   }
-  strncat(name_buffer, "haq-trk-", sizeof(name_buffer) - strlen(name_buffer) - 1);
-  strncat(name_buffer, id_str + 1, sizeof(name_buffer) - strlen(name_buffer) - 1);
 
-  // Set device name and MQTT topics
+  // Parse device_id — token before ','
+  const char *id_start = eq + 1;
+  const char *comma    = strchr(id_start, ',');
+
+  if (!comma || comma == id_start)
+  {
+    LOG_WRN("SET_DEVICE: Missing comma or empty device_id");
+    return;
+  }
+
+  char   id_str[8] = { 0 };
+  size_t id_len    = comma - id_start;
+
+  if (id_len >= sizeof(id_str))
+  {
+    LOG_WRN("SET_DEVICE: device_id too long");
+    return;
+  }
+
+  strncpy(id_str, id_start, id_len);
+  id_str[id_len] = '\0';
+
+  const char *serial_start = comma + 1;
+
+  if (strlen(serial_start) == 0)
+  {
+    LOG_WRN("SET_DEVICE: Empty serial number");
+    return;
+  }
+
+  if (strlen(serial_start) >= sizeof(g_device_info.nvs_info.serial_number))
+  {
+    LOG_WRN("SET_DEVICE: Serial number too long");
+    return;
+  }
+
+  g_device_info.nvs_info.device_id = (uint8_t) atoi(id_str);
+  strncpy(g_device_info.nvs_info.serial_number, serial_start, sizeof(g_device_info.nvs_info.serial_number) - 1);
+  g_device_info.nvs_info.serial_number[sizeof(g_device_info.nvs_info.serial_number) - 1] = '\0';
+
+  snprintf(name_buffer, sizeof(name_buffer), "haq-trk-%s", id_str);
   strncpy(g_device_info.device_name, name_buffer, sizeof(g_device_info.device_name) - 1);
   g_device_info.device_name[sizeof(g_device_info.device_name) - 1] = '\0';
+
   snprintf(g_device_info.mqtt_cmd_topic, sizeof(g_device_info.mqtt_cmd_topic), "%s/cmd", g_device_info.device_name);
   snprintf(g_device_info.mqtt_data_topic, sizeof(g_device_info.mqtt_data_topic), "%s/data", g_device_info.device_name);
-  LOG_DBG("Device ID set to: %s, cmd_topic=%s, data_topic=%s", g_device_info.device_name, g_device_info.mqtt_cmd_topic,
-          g_device_info.mqtt_data_topic);
+
+  bsp_device_flash_write(&g_device_info.nvs_info);
+
+  LOG_DBG("SET_DEVICE: id=%s serial=%s name=%s cmd=%s data=%s", id_str, g_device_info.nvs_info.serial_number,
+          g_device_info.device_name, g_device_info.mqtt_cmd_topic, g_device_info.mqtt_data_topic);
+}
+
+static void sys_cmd_reboot_handler(void)
+{
+  LOG_INF("---------- Rebooting device ----------");
+  bsp_device_reboot();
 }
 
 /* End of file -------------------------------------------------------- */

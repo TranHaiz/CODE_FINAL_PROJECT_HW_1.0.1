@@ -61,6 +61,15 @@ void sys_network_data_task(void *param);
  */
 void sys_network_wakeup(void);
 
+/**
+ * @brief MQTT message callback for incoming commands.
+ * @param[in] topic MQTT topic of the received message.
+ * @param[in] data Pointer to the received payload data.
+ * @param[in] len Length of the received payload data.
+ * @return none
+ */
+void sys_network_mqtt_message_cb(const char *topic, const uint8_t *data, size_t len);
+
 #endif /* End file _SYS_NETWORK_H_ */
 
 /* End of file -------------------------------------------------------- */
