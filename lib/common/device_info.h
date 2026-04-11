@@ -53,6 +53,8 @@
 #define SCREEN_ROTATION_180          (0)
 #define SCREEN_ROTATION_270          (1)
 
+#define DEVICE_LOG_SD_PATH_MAX_LEN   (128)
+
 #define DEFAULT_DEVICE_NAME          "haq-trk-000"
 #define DEVICE_NAME_MAX_LEN          (32)
 
@@ -80,6 +82,7 @@ typedef struct
   char                  mqtt_cmd_topic[MQTT_MAX_TOPIC_LEN];
   char                  last_mqtt_cmd_topic[MQTT_MAX_TOPIC_LEN];
   char                  mqtt_data_topic[MQTT_MAX_TOPIC_LEN];
+  char                  log_sd_path[DEVICE_LOG_SD_PATH_MAX_LEN];
   device_nvs_info_t     nvs_info;
 } device_info_t;
 

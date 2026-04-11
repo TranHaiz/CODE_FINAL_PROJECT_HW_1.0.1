@@ -65,13 +65,13 @@ status_function_t bsp_sdcard_init(void)
 
   for (uint8_t retry = 0; retry < SDCARD_MOUNT_RETRIES; retry++)
   {
-    for (uint8_t f = 0; f < 3; f++)
+    for (uint8_t file_handle = 0; file_handle < 3; file_handle++)
     {
-      LOG_DBG("Trying %lu Hz (attempt %d)...\n", freqs[f], retry + 1);
+      LOG_DBG("Trying %lu Hz (attempt %d)...\n", freqs[file_handle], retry + 1);
 
-      if (SD.begin(BSP_SDCARD_DEFAULT_CS_PIN, *sdcard_spi_handler, freqs[f]))
+      if (SD.begin(BSP_SDCARD_DEFAULT_CS_PIN, *sdcard_spi_handler, freqs[file_handle]))
       {
-        LOG_INF("Mounted at %lu Hz\n", freqs[f]);
+        LOG_INF("Mounted at %lu Hz\n", freqs[file_handle]);
         is_sdcard_mounted = true;
         return STATUS_OK;
       }
@@ -229,6 +229,42 @@ status_function_t bsp_sdcard_mkdir(const char *path)
 
   Serial.printf("[SDCARD] ERROR: Failed to create directory: %s\n", path);
   return STATUS_ERROR;
+}
+
+status_function_t bsp_sdcard_file_exists(const char *path)
+{
+  if (path == nullptr || !is_sdcard_mounted)
+  {
+    return STATUS_ERROR;
+  }
+
+  File file_handle = SD.open(path, FILE_READ);
+  if (!file_handle || file_handle.isDirectory())
+  {
+    file_handle.close();
+    return STATUS_ERROR;
+  }
+
+  file_handle.close();
+  return STATUS_OK;
+}
+
+status_function_t bsp_sdcard_dir_exists(const char *path)
+{
+  if (path == nullptr || !is_sdcard_mounted)
+  {
+    return STATUS_ERROR;
+  }
+
+  File file_handle = SD.open(path, FILE_READ);
+  if (!file_handle || !file_handle.isDirectory())
+  {
+    file_handle.close();
+    return STATUS_ERROR;
+  }
+
+  file_handle.close();
+  return STATUS_OK;
 }
 
 status_function_t bsp_sdcard_deinit(void)

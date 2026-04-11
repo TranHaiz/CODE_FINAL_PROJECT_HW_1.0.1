@@ -107,7 +107,8 @@ static void sys_manager_change_topic_sub_handler(void)
           g_device_info.mqtt_cmd_topic);
   bsp_sim_mqtt_unsub(g_device_info.last_mqtt_cmd_topic);
   bsp_sim_mqtt_sub(g_device_info.mqtt_cmd_topic, sys_network_mqtt_message_cb);
-  strncpy(g_device_info.last_mqtt_cmd_topic, g_device_info.mqtt_cmd_topic, strlen(g_device_info.last_mqtt_cmd_topic));
+  strncpy(g_device_info.last_mqtt_cmd_topic, g_device_info.mqtt_cmd_topic,
+          sizeof(g_device_info.last_mqtt_cmd_topic) - 1);
   LOG_DBG("MQTT last cmd topic: %s", g_device_info.last_mqtt_cmd_topic);
 }
 

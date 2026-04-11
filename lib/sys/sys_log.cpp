@@ -141,7 +141,7 @@ static status_function_t sys_log_flush(void)
 
   // Write to SD card
   bsp_sdcard_file_t log_file;
-  status_function_t ret = bsp_sdcard_open(SYS_LOG_FILE_PATH, BSP_SDCARD_MODE_APPEND, &log_file);
+  status_function_t ret = bsp_sdcard_open(g_device_info.log_sd_path, BSP_SDCARD_MODE_APPEND, &log_file);
   if (ret == STATUS_OK)
   {
     DEBUG_LOG("Flushing logs to SD card...");

@@ -60,6 +60,8 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_INFO)
 #define SD_OFFLINE_DIR             "/buff"
 #define SD_OFFLINE_LOG_PATH        "/buff/offline_log.json"
 #define SD_JSON_LINE_MAX_LEN       (MQTT_MESSAGE_MAX_LEN + 2)  // 1 line JSON + <CRLF>
+#define SD_CARD_RETRY_COUNT        (3)
+#define SD_CARD_RETRY_DELAY_MS     (100)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
@@ -605,7 +607,18 @@ static void sys_network_flush_cbuff_to_sd(void)
   }
 
   bsp_sdcard_file_t off_log_handle;
-  if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, BSP_SDCARD_MODE_APPEND, &off_log_handle) != STATUS_OK)
+  bsp_sdcard_mode_t mode;
+
+  if (bsp_sdcard_file_exists(SD_OFFLINE_LOG_PATH) == STATUS_OK)
+  {
+    mode = BSP_SDCARD_MODE_APPEND;
+  }
+  else
+  {
+    mode = BSP_SDCARD_MODE_WRITE;
+  }
+
+  if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, mode, &off_log_handle) != STATUS_OK)
   {
     LOG_ERR("Cannot open offline log for append");
     return;
@@ -828,18 +841,33 @@ static status_function_t sys_network_prepare_sd_card(void)
     return STATUS_ERROR;
   }
 
-  if (bsp_sdcard_mkdir(SD_OFFLINE_DIR) == STATUS_OK)
+  if (bsp_sdcard_dir_exists(SD_OFFLINE_DIR) != STATUS_OK)
   {
+    if (bsp_sdcard_mkdir(SD_OFFLINE_DIR) != STATUS_OK)
+    {
+      LOG_ERR("Cannot create offline directory: %s", SD_OFFLINE_DIR);
+      return STATUS_ERROR;
+    }
+  }
+
+  if (bsp_sdcard_file_exists(SD_OFFLINE_LOG_PATH) == STATUS_OK)
+  {
+    LOG_DBG("Offline log exists on SD");
     return STATUS_OK;
   }
 
   bsp_sdcard_file_t file_handle;
-  if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, BSP_SDCARD_MODE_APPEND, &file_handle) == STATUS_OK)
+  for (uint8_t i = 0; i < SD_CARD_RETRY_COUNT; i++)
   {
-    bsp_sdcard_close(&file_handle);
-    return STATUS_OK;
+    if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, BSP_SDCARD_MODE_WRITE, &file_handle) == STATUS_OK)
+    {
+      bsp_sdcard_close(&file_handle);
+      return STATUS_OK;
+    }
+    OS_DELAY_MS(SD_CARD_RETRY_DELAY_MS);
   }
 
+  LOG_ERR("Cannot create offline log after %d attempts", SD_CARD_RETRY_COUNT);
   return STATUS_ERROR;
 }
 

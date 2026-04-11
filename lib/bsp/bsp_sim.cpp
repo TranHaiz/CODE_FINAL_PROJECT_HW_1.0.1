@@ -420,7 +420,7 @@ status_function_t bsp_sim_mqtt_deinit(void)
 
   // Disconnect
   snprintf(cmd, sizeof(cmd), "AT+QMTDISC=%d\r\n", MQTT_CTX);
-  if (!bsp_sim_send_and_wait_response(cmd, "+QMTDISC: 0,0", 5000))
+  if (!bsp_sim_send_and_wait_response(cmd, "+QMTDISC: 0,0", 3000))
   {
     LOG_ERR("Failed to disconnect MQTT: %s", sim_rx_buffer);
     ret = false;
@@ -428,7 +428,7 @@ status_function_t bsp_sim_mqtt_deinit(void)
 
   // Close TCP
   snprintf(cmd, sizeof(cmd), "AT+QMTCLOSE=%d\r\n", MQTT_CTX);
-  if (!bsp_sim_send_and_wait_response(cmd, "+QMTCLOSE: 0,0", 5000))
+  if (!bsp_sim_send_and_wait_response(cmd, "+QMTCLOSE: 0,0", 3000))
   {
     LOG_ERR("Failed to close MQTT connection: %s", sim_rx_buffer);
     ret = false;

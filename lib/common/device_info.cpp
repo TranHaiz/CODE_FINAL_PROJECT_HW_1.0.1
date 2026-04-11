@@ -14,10 +14,17 @@
 #include "device_info.h"
 
 #include "bsp_device.h"
+#include "bsp_rtc.h"
+#include "bsp_sdcard.h"
 #include "log_service.h"
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(device_info, LOG_LEVEL_DBG)
+
+#define DEVICE_INIT_NEW_LOG_RETRIES    (3)
+#define DEVICE_INIT_NEW_FOLDER_RETRIES (3)
+#define DEVICE_LOG_FOLDER_PATH         "/logs"
+#define DEVICE_OFF_LOG_FOLDER_PATH     "/buff"
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -49,6 +56,9 @@ static const char *RESET_REASON_STR[ESP_RST_SDIO + 1] = {
 void device_info_init(void)
 {
   status_function_t ret = bsp_device_check_magic_number();
+  timeline_t        timeline;
+  bsp_sdcard_file_t log_file;
+  bsp_rtc_get(&timeline);
 
   if (ret == STATUS_OK)
   {
@@ -107,7 +117,67 @@ void device_info_init(void)
            g_device_info.nvs_info.device_id);
   snprintf(g_device_info.mqtt_cmd_topic, sizeof(g_device_info.mqtt_cmd_topic), "%s/cmd", g_device_info.device_name);
   snprintf(g_device_info.mqtt_data_topic, sizeof(g_device_info.mqtt_data_topic), "%s/data", g_device_info.device_name);
-  strncpy(g_device_info.last_mqtt_cmd_topic, g_device_info.mqtt_cmd_topic, strlen(g_device_info.last_mqtt_cmd_topic));
+  strncpy(g_device_info.last_mqtt_cmd_topic, g_device_info.mqtt_cmd_topic,
+          sizeof(g_device_info.last_mqtt_cmd_topic) - 1);
+
+  snprintf(g_device_info.log_sd_path, sizeof(g_device_info.log_sd_path), "/logs/%d-%d-%d.log", timeline.day,
+           timeline.month, timeline.year);
+
+  if (bsp_sdcard_dir_exists(DEVICE_LOG_FOLDER_PATH) != STATUS_OK)
+  {
+    LOG_DBG("Log folder does not exist, creating: %s", DEVICE_LOG_FOLDER_PATH);
+    for (int i = 0; i < DEVICE_INIT_NEW_FOLDER_RETRIES; i++)
+    {
+      if (bsp_sdcard_mkdir(DEVICE_LOG_FOLDER_PATH) != STATUS_OK)
+      {
+        LOG_WRN("Failed to create log folder: %s", DEVICE_LOG_FOLDER_PATH);
+      }
+      else
+      {
+        LOG_DBG("Log folder created successfully");
+        break;
+      }
+      delay(100);
+    }
+  }
+
+  if (bsp_sdcard_dir_exists(DEVICE_OFF_LOG_FOLDER_PATH) != STATUS_OK)
+  {
+    LOG_DBG("Log folder does not exist, creating: %s", DEVICE_OFF_LOG_FOLDER_PATH);
+    for (int i = 0; i < DEVICE_INIT_NEW_FOLDER_RETRIES; i++)
+    {
+      if (bsp_sdcard_mkdir(DEVICE_OFF_LOG_FOLDER_PATH) != STATUS_OK)
+      {
+        LOG_WRN("Failed to create log folder: %s", DEVICE_OFF_LOG_FOLDER_PATH);
+      }
+      else
+      {
+        LOG_DBG("Log off folder created successfully");
+        break;
+      }
+      delay(100);
+    }
+  }
+
+  if (bsp_sdcard_file_exists(g_device_info.log_sd_path) == STATUS_OK)
+  {
+    LOG_DBG("Log file already exists for today, will append logs to it: %s", g_device_info.log_sd_path);
+  }
+  else
+  {
+    LOG_DBG("No log file for today, will create new log file: %s", g_device_info.log_sd_path);
+    for (int i = 0; i < DEVICE_INIT_NEW_LOG_RETRIES; i++)
+    {
+      if (bsp_sdcard_open(g_device_info.log_sd_path, BSP_SDCARD_MODE_WRITE, &log_file) == STATUS_OK)
+      {
+        LOG_DBG("Log file created successfully");
+        bsp_sdcard_close(&log_file);
+        break;
+      }
+      LOG_WRN("Failed to create log file (attempt %d), retrying...", i + 1);
+      delay(100);
+    }
+  }
 
   LOG_INF("-- DEVICE INFO INITIALIZED ---");
   LOG_INF("Device ID: %u", g_device_info.nvs_info.device_id);
