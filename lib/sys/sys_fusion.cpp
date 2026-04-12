@@ -38,6 +38,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_WARN)
 // Attitude complementary filter (gyro + accelerometer)
 #define ATTITUDE_GYRO_WEIGHT        (0.95f)
 #define GYRO_BIAS_CALIB_SAMPLES     (200)
+#define GYRO_EMA_ALPHA              (0.75f)
 #define GYRO_BIAS_ALPHA             (0.01f)
 #define ACC_FORWARD_MAX_MS2         (6.0f)
 
@@ -415,6 +416,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   fusion_ctx.gyro_raw_x = imu.gyro_x;
   fusion_ctx.gyro_raw_y = imu.gyro_y;
   fusion_ctx.gyro_raw_z = imu.gyro_z;
+#endif
 
   if (!fusion_ctx.is_gyro_ema_init)
   {
@@ -425,11 +427,10 @@ static void sys_fusion_update_ins_velocity(float dt)
   }
   else
   {
-    fusion_ctx.gyro_ema_x = 0.3f * imu.gyro_x + 0.7f * fusion_ctx.gyro_ema_x;
-    fusion_ctx.gyro_ema_y = 0.3f * imu.gyro_y + 0.7f * fusion_ctx.gyro_ema_y;
-    fusion_ctx.gyro_ema_z = 0.3f * imu.gyro_z + 0.7f * fusion_ctx.gyro_ema_z;
+    fusion_ctx.gyro_ema_x = (1.0f - GYRO_EMA_ALPHA) * imu.gyro_x + GYRO_EMA_ALPHA * fusion_ctx.gyro_ema_x;
+    fusion_ctx.gyro_ema_y = (1.0f - GYRO_EMA_ALPHA) * imu.gyro_y + GYRO_EMA_ALPHA * fusion_ctx.gyro_ema_y;
+    fusion_ctx.gyro_ema_z = (1.0f - GYRO_EMA_ALPHA) * imu.gyro_z + GYRO_EMA_ALPHA * fusion_ctx.gyro_ema_z;
   }
-#endif
   float acc_x, acc_y, acc_z;
 
   if (fusion_ctx.acc_kf_init)
@@ -449,8 +450,8 @@ static void sys_fusion_update_ins_velocity(float dt)
   float roll_acc  = atan2f(acc_y, acc_z);
   float pitch_acc = atan2f(-acc_x, hypotf(acc_y, acc_z));
 
-  float gyro_x_rads = (imu.gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x;
-  float gyro_y_rads = (imu.gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y;
+  float gyro_x_rads = (fusion_ctx.gyro_ema_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x;
+  float gyro_y_rads = (fusion_ctx.gyro_ema_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y;
 
   fusion_ctx.roll_rad =
     ATTITUDE_GYRO_WEIGHT * (fusion_ctx.roll_rad + gyro_x_rads * dt) + (1.0f - ATTITUDE_GYRO_WEIGHT) * roll_acc;
@@ -459,9 +460,9 @@ static void sys_fusion_update_ins_velocity(float dt)
 
   if (fusion_ctx.is_stationary)
   {
-    fusion_ctx.gyro_bias_x += GYRO_BIAS_ALPHA * ((imu.gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x);
-    fusion_ctx.gyro_bias_y += GYRO_BIAS_ALPHA * ((imu.gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y);
-    fusion_ctx.gyro_bias_z += GYRO_BIAS_ALPHA * ((imu.gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z);
+    fusion_ctx.gyro_bias_x += GYRO_BIAS_ALPHA * ((fusion_ctx.gyro_ema_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x);
+    fusion_ctx.gyro_bias_y += GYRO_BIAS_ALPHA * ((fusion_ctx.gyro_ema_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y);
+    fusion_ctx.gyro_bias_z += GYRO_BIAS_ALPHA * ((fusion_ctx.gyro_ema_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z);
   }
 
   // 3. Body fram -> Navigation frame rotation (ZYX Euler, yaw from compass)
