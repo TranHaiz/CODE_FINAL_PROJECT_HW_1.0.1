@@ -23,6 +23,7 @@
 #include "bsp_temp_hum.h"
 #include "log_service.h"
 #include "os_lib.h"
+#include "sys_manager.h"
 #include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
@@ -67,6 +68,7 @@ static void              sys_input_process_locked(void);
 static void              sys_input_read_dust_sensor(void);
 static void              sys_input_initial_battery_level(void);
 static void              sys_input_read_battery_level(float *battery_level);
+static void              sys_input_wakeup_acc_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_input_init(void)
@@ -77,20 +79,9 @@ void sys_input_init(void)
   LOG_DBG("Initializing system input...");
 
   OS_SEM_CREATE(sys_input_wakeup_sem);
-  input_ctx.data.velocity_ms          = 0.0f;
-  input_ctx.data.velocity_kmh         = 0.0f;
-  input_ctx.data.distance_m           = 0.0f;
-  input_ctx.data.dust_value           = 0.0f;
-  input_ctx.data.temp_hum.temperature = 0.0f;
-  input_ctx.data.temp_hum.humidity    = 0.0f;
-  input_ctx.data.timestamp_ms         = 0;
-  input_ctx.data.heading_deg          = 0.0f;
-  input_ctx.data.direction_str        = "N";
-  input_ctx.data.battery_level        = 100.0f;
-
-  input_ctx.last_env_update_ms = 0;
-  input_ctx.dust_ready         = false;
-  input_ctx.temp_hum_ready     = false;
+  memset(&input_ctx, 0, sizeof(input_ctx));
+  input_ctx.data.direction_str = "N";
+  input_ctx.data.battery_level = 100.0f;
   input_ctx.initialized        = true;
 
 #if SYS_INPUT_BATT_ENABLE
@@ -120,6 +111,10 @@ void sys_input_init(void)
 
   // Sensor fusion: ACC, GPS, Compass
   sys_fusion_init();
+
+  // Init IO interrupt for wakeup
+  bsp_io_int_init(ACC_INT_PIN, BSP_IO_EVENT_RISING, sys_input_wakeup_acc_handler);
+  bsp_acc_config_interrupt(BSP_ACC_INT_PIN_1, BSP_ACC_INT_MOTION_DETECT);
 }
 
 status_function_t sys_input_process(void)
@@ -327,12 +322,12 @@ static status_function_t sys_input_process_active(void)
   fusion_data.direction_str     = "N";
   sys_fusion_process(&fusion_data);
 
-  input_ctx.data.velocity_ms                       = fusion_data.velocity_ms;
-  input_ctx.data.velocity_kmh                      = fusion_data.velocity_kmh;
-  input_ctx.data.distance_m                        = fusion_data.distance_m;
-  input_ctx.data.heading_deg                       = fusion_data.heading_deg;
-  input_ctx.data.direction_str                     = fusion_data.direction_str;
-  input_ctx.data.gps_position                      = fusion_data.gps_position;
+  input_ctx.data.velocity_ms   = fusion_data.velocity_ms;
+  input_ctx.data.velocity_kmh  = fusion_data.velocity_kmh;
+  input_ctx.data.distance_m    = fusion_data.distance_m;
+  input_ctx.data.heading_deg   = fusion_data.heading_deg;
+  input_ctx.data.direction_str = fusion_data.direction_str;
+  input_ctx.data.gps_position  = fusion_data.gps_position;
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
   input_ctx.data.debug = fusion_data.debug;
 #endif
@@ -366,14 +361,29 @@ static status_function_t sys_input_process_active(void)
   input_ctx.data.timestamp_ms = current_time_ms;
   return STATUS_OK;
 }
+
 static void sys_input_process_idle(void)
 {
   // TODO: Turn off sensors before sleeping
   OS_SEM_TAKE(sys_input_wakeup_sem, OS_MAX_DELAY);
+  sys_manager_write_event(SYS_MANAGER_EVT_WAKEUP);
 }
+
 static void sys_input_process_locked(void)
 {
-  // TODO: Detect motion to avoid lost device, maybe read GPS occasionally, etc.
+  sys_fusion_danger_motion_flag_t flag = SYS_FUSION_DANGER_MOTION_NONE;
+  if (sys_fusion_detect_danger_motion(&flag))
+  {
+    sys_manager_write_event(SYS_MANAGER_EVT_DEVICE_DANGER);
+  }
+}
+
+void sys_input_wakeup_acc_handler(void)
+{
+  if (g_device_info.state == DEVICE_STATE_IDLE)
+  {
+    OS_SEM_GIVE_FROM_ISR(sys_input_wakeup_sem);
+  }
 }
 
 /* End of file -------------------------------------------------------- */

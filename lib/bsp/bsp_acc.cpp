@@ -38,7 +38,21 @@ LOG_MODULE_REGISTER(bsp_acc, LOG_LEVEL_ERROR);
 #define LSM6DS3_BIT_MD_DTAP   (0x08)  // Double-tap
 #define LSM6DS3_BIT_MD_STAP   (0x40)  // Single-tap
 
+#define LSM6DS3_REG_CTRL3_C   (0x12)
+#define LSM6DS3_BIT_H_LACTIVE (0x20)
+#define LSM6DS3_BIT_PP_OD     (0x10)
+
 #define LSM6DS3_BIT_INT_EN    (0x80)
+
+#if (ACC_MOTION_DETECT_THRESHOLD_LEVEL == 1)
+#define LSM6DS3_MOTION_THRESHOLD_VALUE (0x01)
+#elif (ACC_MOTION_DETECT_THRESHOLD_LEVEL == 2)
+#define LSM6DS3_MOTION_THRESHOLD_VALUE (0x02)
+#elif (ACC_MOTION_DETECT_THRESHOLD_LEVEL == 3)
+#define LSM6DS3_MOTION_THRESHOLD_VALUE (0x04)
+#else
+#error "ACC_MOTION_DETECT_THRESHOLD_LEVEL must be 1, 2, or 3"
+#endif
 
 /* Private enumerate/structure ---------------------------------------- */
 
@@ -129,6 +143,12 @@ status_function_t bsp_acc_init(void)
   acc_handler.last_update_ms = OS_GET_TICK();
   acc_handler.is_initialized = true;
 
+  uint8_t reg = 0;
+  acc_handler.sensor->readRegister(&reg, LSM6DS3_REG_CTRL3_C);
+  reg &= ~LSM6DS3_BIT_H_LACTIVE;
+  reg &= ~LSM6DS3_BIT_PP_OD;
+  acc_handler.sensor->writeRegister(LSM6DS3_REG_CTRL3_C, reg);
+
   LOG_INF("[ACC] Initialized: ±2g, 104Hz ODR, 50Hz BW");
   return STATUS_OK;
 }
@@ -217,7 +237,7 @@ status_function_t bsp_acc_config_interrupt(bsp_acc_int_pin_t pin, bsp_acc_int_so
   case BSP_ACC_INT_MOTION_DETECT:
     acc_handler.sensor->readRegister(&reg, LSM6DS3_REG_TAP_CFG0);
     acc_handler.sensor->writeRegister(LSM6DS3_REG_TAP_CFG0, reg | (1 << 4) | (1 << 3) | (1 << 2) | LSM6DS3_BIT_INT_EN);
-    acc_handler.sensor->writeRegister(0x5B, 0x02);
+    acc_handler.sensor->writeRegister(0x5B, LSM6DS3_MOTION_THRESHOLD_VALUE);
     acc_handler.sensor->readRegister(&reg, md_cfg_reg);
     acc_handler.sensor->writeRegister(md_cfg_reg, reg | LSM6DS3_BIT_MD_WU);
     break;

@@ -26,7 +26,7 @@
 LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
 
 // MQTT
-#define MQTT_KEEPALIVE_S            (60)
+#define MQTT_KEEPALIVE_S            (30)
 #define MQTT_QOS                    (1)
 #define MQTT_KEEPALIVE_MS           (MQTT_KEEPALIVE_S * 1000UL)
 #define MQTT_PUBLISH_RETRY          (3)
@@ -43,6 +43,7 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
 #define ONLINE_FAST_POLL_MS        (50)
 #define ONLINE_POLL_MS             (500)
 #define ONLINE_LOCKED_POLL_MS      (2000)
+#define ONLINE_IDLE_POLL_MS        (10000)
 #define NETWORK_DATA_TASK_POLL_MS  (700)
 #define SIM_READY_TIMEOUT_MS       (10000)
 #define SIM_HARD_RESET_DELAY_MS    (2000)
@@ -64,6 +65,8 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
 #define SD_JSON_LINE_MAX_LEN       (MQTT_MESSAGE_MAX_LEN + 2)  // 1 line JSON + <CRLF>
 #define SD_CARD_RETRY_COUNT        (3)
 #define SD_CARD_RETRY_DELAY_MS     (100)
+
+#define NETWORK_KEEPALIVE_MES      "KEEPALIVE"
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
@@ -179,13 +182,9 @@ void sys_network_process(void *param)
     {
     case DEVICE_STATE_LOCKED:
     case DEVICE_STATE_ACTIVE:
-    {
-      sys_network_process_active();
-      break;
-    }
     case DEVICE_STATE_IDLE:
     {
-      sys_network_process_idle();
+      sys_network_process_active();
       break;
     }
     default: break;
@@ -370,9 +369,23 @@ static void sys_network_run_online(void)
         sys_network_change_state(NETWORK_STATE_ERROR);
         return;
       }
+      mqtt_message_t mes = {
+        .topic   = g_device_info.mqtt_noti_topic,
+        .payload = NETWORK_KEEPALIVE_MES,
+      };
+      for (uint8_t i = 0; i < MQTT_PUBLISH_RETRY; i++)
+      {
+        if (bsp_sim_mqtt_pub(&mes) == STATUS_OK)
+        {
+          break;
+        }
+        LOG_WRN("Keepalive publish attempt %d failed", i + 1);
+        OS_DELAY_MS(MQTT_PUBLISH_RETRY_DELAY_MS);
+      }
       LOG_DBG("Keepalive OK");
       network_ctx.last_keepalive_ms = OS_GET_TICK();
     }
+    return;
   }
 
   // 1. Publish notifications or commands if pending
@@ -561,17 +574,6 @@ static bool sys_network_build_payload(sys_input_data_t *data, char *buf, size_t 
 
 static void sys_network_process_idle(void)
 {
-  if (network_ctx.mqtt_ready || network_ctx.sim_ready)
-  {
-    bsp_sim_mqtt_deinit();
-    network_ctx.sim_ready  = false;
-    network_ctx.mqtt_ready = false;
-  }
-  if (network_ctx.state != NETWORK_STATE_SIM_INIT)
-  {
-    sys_network_change_state(NETWORK_STATE_SIM_INIT);
-  }
-
   OS_SEM_TAKE(sys_network_wakeup_sem, OS_MAX_DELAY);
 }
 
@@ -610,6 +612,10 @@ static void sys_network_process_active(void)
   else if (g_device_info.state == DEVICE_STATE_LOCKED)
   {
     OS_DELAY_MS(ONLINE_LOCKED_POLL_MS);
+  }
+  else if (g_device_info.state == DEVICE_STATE_IDLE)
+  {
+    OS_DELAY_MS(ONLINE_IDLE_POLL_MS);
   }
   else
   {

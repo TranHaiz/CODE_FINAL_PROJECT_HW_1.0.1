@@ -12,6 +12,7 @@
 /* Includes ----------------------------------------------------------- */
 #include "sys_ui.h"
 
+#include "bsp_led.h"
 #include "bsp_sdcard.h"
 #include "common_type.h"
 #include "log_service.h"
@@ -28,7 +29,9 @@
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
-#define SYS_UI_CLAMP(val, minv, maxv) ((val) < (minv) ? (minv) : ((val) > (maxv) ? (maxv) : (val)))
+
+#define SYS_UI_LED_RGB_TASK_MS        (100)
+#define SYS_UI_LED_DEFAULT_BRIGHTNESS (80)
 
 // Platform UI settings
 #define SYS_UI_COLOR_BG               SYS_UI_WIDGET_COLOR_BG
@@ -152,7 +155,8 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
   INFO(0, 13, 27, 42, "Navy")       \
   INFO(1, 3, 4, 94, "Ocean")        \
   INFO(2, 10, 10, 10, "Black")
-#define SYS_UI_BG_COLOR_COUNT (3)
+#define SYS_UI_BG_COLOR_COUNT         (3)
+#define SYS_UI_CLAMP(val, minv, maxv) ((val) < (minv) ? (minv) : ((val) > (maxv) ? (maxv) : (val)))
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
@@ -394,6 +398,7 @@ void sys_ui_init(void)
   ui_ctx.last_time_update_screen = now;
 
   bsp_touch_init();
+  bsp_led_init(SYS_UI_LED_RGB_TASK_MS);
 
   LOG_DBG("sys_ui_init: complete");
 }
@@ -1566,6 +1571,7 @@ static void sys_ui_process_idle(void)
 {
   bsp_display_set_brightness_percent(SYS_UI_BRIGHTNESS_PERCENT_OFF);
   OS_SEM_TAKE(sys_ui_wakeup_sem, OS_MAX_DELAY);
+  bsp_display_set_brightness_percent(ui_ctx.brightness_percent);
 }
 static void sys_ui_process_locked(void)
 {

@@ -54,7 +54,7 @@ typedef struct
   float distance_ins;  // INS distance since last GPS update
   float distance_gps;  // Last GPS step distance (haversine)
 } sys_fusion_debug_data_t;
-#endif  /* DEVICE_FUSION_DEBUG_MODE */
+#endif /* DEVICE_FUSION_DEBUG_MODE */
 
 /**
  * @brief Fusion output data structure
@@ -71,6 +71,17 @@ typedef struct
   sys_fusion_debug_data_t debug;
 #endif
 } sys_fusion_data_t;
+
+/**
+ * @brief Detect dangerous motion patterns.
+ */
+typedef enum
+{
+  SYS_FUSION_DANGER_MOTION_NONE = 0,
+  SYS_FUSION_DANGER_MOTION_TILT,
+  SYS_FUSION_DANGER_MOTION_MOVING,
+  SYS_FUSION_DANGER_MOTION_VIBRATION
+} sys_fusion_danger_motion_flag_t;
 
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
@@ -90,6 +101,13 @@ void sys_fusion_init(void);
  * @return status_function_t Status of operation
  */
 status_function_t sys_fusion_process(sys_fusion_data_t *data);
+
+/**
+ * @brief Detect dangerous motion patterns (e.g. fall, collision) using accelerometer data
+ * @param[out] out_flags Optional pointer to receive detailed flags for detected motion types
+ * @return true if dangerous motion is detected, false otherwise
+ */
+bool sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags);
 
 #endif /*End file _SYS_FUSION_H_*/
 

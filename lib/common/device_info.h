@@ -36,8 +36,9 @@
  *       1 - normal mode
  */
 
-#define DEVICE_NORMAL_MODE           (0)
-#define DEVICE_FUSION_DEBUG_MODE     (1)
+#define DEVICE_NORMAL_MODE           (false)
+#define DEVICE_FUSION_DEBUG_MODE     (true)
+#define DEVICE_IDLE_MODE_ENABLED     (true)
 
 /**
  * @brief  Server configuration
@@ -47,11 +48,11 @@
 
 #define MQTT_MAX_TOPIC_LEN           (64)
 
-#define SCREEN_SKIP_LOCK_SCREEN      (1)
-#define SCREEN_ROTATION_0            (0)
-#define SCREEN_ROTATION_90           (0)
-#define SCREEN_ROTATION_180          (0)
-#define SCREEN_ROTATION_270          (1)
+#define SCREEN_SKIP_LOCK_SCREEN      (true)
+#define SCREEN_ROTATION_0            (false)
+#define SCREEN_ROTATION_90           (false)
+#define SCREEN_ROTATION_180          (false)
+#define SCREEN_ROTATION_270          (true)
 
 #define DEVICE_LOG_SD_PATH_MAX_LEN   (128)
 

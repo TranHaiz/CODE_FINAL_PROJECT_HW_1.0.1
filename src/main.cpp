@@ -70,13 +70,13 @@ void setup()
   device_info_init();
   sys_network_init();
   delay(1000);
-  OS_THREAD_CREATE(sys_manager_thread, sys_manager_thread_func);
   OS_THREAD_CREATE(sys_cmd_thread, sys_cmd_thread_func);
   OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
   OS_THREAD_CREATE(sys_network_thread, sys_network_process);
   OS_THREAD_CREATE(network_data_thread, sys_network_data_task);
   OS_THREAD_CREATE(sys_ui_thread, sys_ui_thread_func);
   OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
+  OS_THREAD_CREATE(sys_manager_thread, sys_manager_thread_func);
 }
 
 void loop()
@@ -87,10 +87,7 @@ void loop()
 /* Private definitions ----------------------------------------------- */
 void sys_input_thread_func(void *param)
 {
-  Serial.println("System input thread started");
-  // Initialize system input
   sys_input_init();
-  Serial.println("System input initialized");
 
   while (true)
   {
@@ -116,7 +113,7 @@ void sys_input_thread_func(void *param)
 void sys_ui_thread_func(void *param)
 {
   sys_ui_init();
-  bsp_led_set(LED_COLOR_PURPLE, LED_MODE_PULSE, 50);
+  bsp_led_set(BSP_LED_COLOR_PURPLE, BSP_LED_MODE_PULSE, 50);
 
   while (true)
   {

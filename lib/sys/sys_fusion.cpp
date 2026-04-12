@@ -69,21 +69,30 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_WARN)
 #error "Must define either DEMO_VEHICLE or DEMO_WALKING"
 #endif
 
-#define GPS_HDOP_MAX         (3.0f)
-#define GPS_SATELLITES_MIN   (4)
-#define GPS_EMA_ALPHA        (0.6f)
-#define GPS_MAX_STEP_M       (50.0f)
-#define GPS_VALID_TIMEOUT_MS (2000)
-#define GPS_FADE_TIMEOUT_MS  (1000)
+#define GPS_HDOP_MAX                  (3.0f)
+#define GPS_SATELLITES_MIN            (4)
+#define GPS_EMA_ALPHA                 (0.6f)
+#define GPS_MAX_STEP_M                (50.0f)
+#define GPS_VALID_TIMEOUT_MS          (2000)
+#define GPS_FADE_TIMEOUT_MS           (1000)
 
-#define COMPASS_EMA_ALPHA    (0.15f)
-#define COMPASS_UPDATE_MS    (100)
+#define COMPASS_EMA_ALPHA             (0.15f)
+#define COMPASS_UPDATE_MS             (100)
 
-#define GRAVITY_MS2          (9.806f)
-#define KMH_TO_MS            (1.0f / 3.6f)
-#define MS_TO_KMH            (3.6f)
-#define US_TO_S              (1000000.0f)
-#define DEG_TO_RAD           (0.01745329252f)
+#define GRAVITY_MS2                   (9.806f)
+#define KMH_TO_MS                     (1.0f / 3.6f)
+#define MS_TO_KMH                     (3.6f)
+#define US_TO_S                       (1000000.0f)
+#define DEG_TO_RAD                    (0.01745329252f)
+
+// Avoid stolen
+#define DANGER_TILT_THRESHOLD_DEG     (30.0f)
+#define DANGER_TILT_CONFIRM_MS        (800)
+#define DANGER_MOTION_THRESHOLD_G     (0.18f)
+#define DANGER_MOTION_CONFIRM_MS      (1200)
+#define DANGER_VIBRATION_THRESHOLD_G  (0.35f)
+#define DANGER_VIBRATION_WINDOW_MS    (3000)
+#define DANGER_VIBRATION_COUNT_THRESH (5)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
@@ -191,7 +200,7 @@ static void        sys_fusion_compute_output_velocity(sys_fusion_data_t *data, f
 static void        sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms);
 static const char *sys_fusion_deg_to_direction_str(float deg);
 static void        sys_fusion_gps_callback(bsp_gps_data_t *gps_data);
-static float       sys_fusion_haversine_m(float lat1, float lon1, float lat2, float lon2);
+static float       sys_fusion_caculate_dis_gps(float lat1, float lon1, float lat2, float lon2);
 
 /* Function definitions ----------------------------------------------- */
 void sys_fusion_init(void)
@@ -566,7 +575,7 @@ static void sys_fusion_update_gps_data(void)
 
     if (fusion_ctx.has_last_gps_position)
     {
-      float distance_gps = sys_fusion_haversine_m(fusion_ctx.last_valid_lat, fusion_ctx.last_valid_lon, lat, lon);
+      float distance_gps = sys_fusion_caculate_dis_gps(fusion_ctx.last_valid_lat, fusion_ctx.last_valid_lon, lat, lon);
 
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
       fusion_ctx.distance_gps = distance_gps;
@@ -795,7 +804,7 @@ static void sys_fusion_gps_callback(bsp_gps_data_t *gps_data)
   fusion_ctx.last_gps_ms               = OS_GET_TICK();
 }
 
-static float sys_fusion_haversine_m(float lat1, float lon1, float lat2, float lon2)
+static float sys_fusion_caculate_dis_gps(float lat1, float lon1, float lat2, float lon2)
 {
   const float R    = 6371000.0f;
   float       dlat = (lat2 - lat1) * (float) M_PI / 180.0f;
@@ -804,6 +813,86 @@ static float sys_fusion_haversine_m(float lat1, float lon1, float lat2, float lo
     sinf(dlat / 2.0f) * sinf(dlat / 2.0f)
     + cosf(lat1 * (float) M_PI / 180.0f) * cosf(lat2 * (float) M_PI / 180.0f) * sinf(dlon / 2.0f) * sinf(dlon / 2.0f);
   return R * 2.0f * atan2f(sqrtf(a), sqrtf(1.0f - a));
+}
+
+bool sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
+{
+  static size_t  tilt_start_ms   = 0;
+  static size_t  motion_start_ms = 0;
+  static size_t  vibration_ms    = 0;
+  static uint8_t vibration_count = 0;
+
+  sys_fusion_danger_motion_flag_t flags = SYS_FUSION_DANGER_MOTION_NONE;
+  bsp_acc_raw_data_t   raw;
+  size_t               now = OS_GET_TICK();
+
+  if (bsp_acc_get_raw_data(&raw) != STATUS_OK)
+  {
+    return false;
+  }
+
+  float magnitude = sqrtf(raw.acc_x * raw.acc_x + raw.acc_y * raw.acc_y + raw.acc_z * raw.acc_z);
+
+  if (magnitude > 0.1f)
+  {
+    float tilt_angle_deg = acosf(fabsf(raw.acc_z) / magnitude) * (180.0f / (float) M_PI);
+
+    if (tilt_angle_deg > DANGER_TILT_THRESHOLD_DEG)
+    {
+      if (tilt_start_ms == 0)
+      {
+        tilt_start_ms = now;
+      }
+      else if ((now - tilt_start_ms) >= DANGER_TILT_CONFIRM_MS)
+      {
+        flags = (sys_fusion_danger_motion_flag_t) (flags | SYS_FUSION_DANGER_MOTION_TILT);
+      }
+    }
+    else
+    {
+      tilt_start_ms = 0;
+    }
+  }
+
+  float lateral_g = sqrtf(raw.acc_x * raw.acc_x + raw.acc_y * raw.acc_y);
+  if (lateral_g > DANGER_MOTION_THRESHOLD_G)
+  {
+    if (motion_start_ms == 0)
+    {
+      motion_start_ms = now;
+    }
+    else if ((now - motion_start_ms) >= DANGER_MOTION_CONFIRM_MS)
+    {
+      flags = SYS_FUSION_DANGER_MOTION_MOVING;
+    }
+  }
+  else
+  {
+    motion_start_ms = 0;
+  }
+
+  if ((now - vibration_ms) >= DANGER_VIBRATION_WINDOW_MS)
+  {
+    vibration_ms    = now;
+    vibration_count = 0;
+  }
+
+  if (magnitude > DANGER_VIBRATION_THRESHOLD_G + 1.0f)
+  {
+    vibration_count++;
+  }
+
+  if (vibration_count >= DANGER_VIBRATION_COUNT_THRESH)
+  {
+    flags = SYS_FUSION_DANGER_MOTION_VIBRATION;
+  }
+
+  if (out_flags != NULL)
+  {
+    *out_flags = flags;
+  }
+
+  return (flags != SYS_FUSION_DANGER_MOTION_NONE);
 }
 
 /* End of file -------------------------------------------------------- */

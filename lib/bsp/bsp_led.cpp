@@ -12,6 +12,7 @@
 
 /* Includes ----------------------------------------------------------- */
 #include "bsp_led.h"
+
 #include "device_info.h"
 #include "log_service.h"
 #include "os_lib.h"
@@ -41,8 +42,8 @@ typedef struct
 /* Private variables -------------------------------------------------- */
 static led_color_info_t         LED_COLOR_INFO[LED_COLOR_MAX];
 static Adafruit_NeoPixel        led_strip(BSP_LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
-static volatile bsp_led_mode_t  led_mode       = LED_MODE_SOLID;
-static volatile bsp_led_color_t led_color      = LED_COLOR_GREEN;
+static volatile bsp_led_mode_t  led_mode       = BSP_LED_MODE_SOLID;
+static volatile bsp_led_color_t led_color      = BSP_LED_COLOR_GREEN;
 static volatile uint8_t         led_brightness = 100;
 static volatile int             pulse_val      = 0;
 static volatile int             fade_amount    = 5;
@@ -64,15 +65,15 @@ void bsp_led_init(uint32_t tick_ms)
 
   // clang-format off
 #define INFO(color, r, g, b) LED_COLOR_INFO[color] = { r, g, b }
-  //        LED_COLOR_NAME      R     G       B
-  INFO(LED_COLOR_GREEN,         0,    255,    0);
-  INFO(LED_COLOR_BLUE,          0,    0,      255);
-  INFO(LED_COLOR_YELLOW,        255,  255,    0);
-  INFO(LED_COLOR_CYAN,          0,    255,    255);
-  INFO(LED_COLOR_WHITE,         255,  255,    255);
-  INFO(LED_COLOR_RED,           255,  0,      0);
-  INFO(LED_COLOR_PINK,          255,  192,    203);
-  INFO(LED_COLOR_PURPLE,        128,  0,      128);
+  //        LED_COLOR_NAME    |    R      |   G     |   B     |
+  INFO(BSP_LED_COLOR_GREEN    ,    0      ,   255   ,   0     );
+  INFO(BSP_LED_COLOR_BLUE     ,    0      ,   0     ,   255   );
+  INFO(BSP_LED_COLOR_YELLOW   ,    255    ,   255   ,   0     );
+  INFO(BSP_LED_COLOR_CYAN     ,    0      ,   255   ,   255   );
+  INFO(BSP_LED_COLOR_WHITE    ,    255    ,   255   ,   255   );
+  INFO(BSP_LED_COLOR_RED      ,    255    ,   0     ,   0     );
+  INFO(BSP_LED_COLOR_PINK     ,    255    ,   192   ,   203   );
+  INFO(BSP_LED_COLOR_PURPLE   ,    128    ,   0     ,   128   );
 #undef INFO
   // clang-format on
 }
@@ -142,12 +143,12 @@ static void bsp_led_update_task(void)
 
   switch (led_mode)
   {
-  case LED_MODE_SOLID:
+  case BSP_LED_MODE_SOLID:
   {
     led_strip.setPixelColor(0, bsp_led_make_color(led_color, led_brightness));
     break;
   }
-  case LED_MODE_FLASH_SLOW:
+  case BSP_LED_MODE_FLASH_SLOW:
   {
     static uint32_t flash_tick_slow = 0;
     flash_tick_slow += delta_ms;
@@ -160,7 +161,7 @@ static void bsp_led_update_task(void)
     }
     break;
   }
-  case LED_MODE_FLASH_FAST:
+  case BSP_LED_MODE_FLASH_FAST:
   {
     static uint32_t flash_tick_fast = 0;
     flash_tick_fast += delta_ms;
@@ -172,7 +173,7 @@ static void bsp_led_update_task(void)
     }
     break;
   }
-  case LED_MODE_PULSE:
+  case BSP_LED_MODE_PULSE:
   {
     static uint32_t hold_ticks = 0;
 
