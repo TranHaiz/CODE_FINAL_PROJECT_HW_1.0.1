@@ -294,9 +294,8 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   // 5. Output velocity — complementary filter (INS + GPS)
   sys_fusion_compute_output_velocity(data, dt);
 
-  // 6. INS-only distance fallback when GPS unavailable
-  if (fusion_ctx.gps_state == GPS_STATE_INVALID && fusion_ctx.is_offset_mag_ready && dt > 0.0f
-      && data->velocity_ms > GPS_SPEED_MIN_MS)
+  // 6. Distance accumulation — single source: velocity_out
+  if (fusion_ctx.is_offset_mag_ready && data->velocity_ms > GPS_SPEED_MIN_MS && dt > 0.0f)
   {
     fusion_ctx.distance_m += data->velocity_ms * dt;
   }
@@ -579,13 +578,11 @@ static void sys_fusion_update_gps_data(void)
       if ((z_r < GPS_RELIABILITY_THRESHOLD_M) && (fusion_ctx.distance_ins != 0.0f))
       {
         fusion_ctx.gps_reliable = true;
-        if (distance_gps < GPS_MAX_STEP_M && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
-          fusion_ctx.distance_m += distance_gps;
       }
       else
       {
         fusion_ctx.gps_reliable = false;
-        LOG_WRN("GPS rejected: z_r=%.1fm (ins=%.1fm gps=%.1fm)", z_r, fusion_ctx.distance_ins, distance_gps);
+        LOG_DBG("GPS rejected: z_r=%.1fm (ins=%.1fm gps=%.1fm)", z_r, fusion_ctx.distance_ins, distance_gps);
       }
     }
     else
