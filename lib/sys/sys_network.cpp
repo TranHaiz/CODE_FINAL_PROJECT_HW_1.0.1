@@ -31,6 +31,7 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
 #define MQTT_KEEPALIVE_MS           (MQTT_KEEPALIVE_S * 1000UL)
 #define MQTT_PUBLISH_RETRY          (3)
 #define MQTT_PUBLISH_RETRY_DELAY_MS (100)
+#define MQTT_REQUEST_PUBLISH_MAX    (10)
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
 #define MQTT_MESSAGE_MAX_LEN (1024)
 #else
@@ -41,6 +42,7 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
 #define OFFLINE_POLL_MS            (100)
 #define ONLINE_FAST_POLL_MS        (50)
 #define ONLINE_POLL_MS             (500)
+#define ONLINE_LOCKED_POLL_MS      (2000)
 #define NETWORK_DATA_TASK_POLL_MS  (700)
 #define SIM_READY_TIMEOUT_MS       (10000)
 #define SIM_HARD_RESET_DELAY_MS    (2000)
@@ -106,11 +108,14 @@ static net_ctx_t network_ctx;
 static uint8_t   network_buffer[NETWORK_BYTES];
 static char      s_pub_slot[NETWORK_CBUFF_SLOT_SIZE];
 static bool      s_pub_slot_valid = false;
+static cbuffer_t req_pub_cbuffer;
+static char      req_pub_buffer[MQTT_REQUEST_PUBLISH_MAX * MQTT_REQUEST_PUBLISH_SIZE];
 
 /* Shared scratch buffer for SD line read */
 static char s_sd_line[SD_JSON_LINE_MAX_LEN];
 
-OS_MUTEX_DEFINE_STATIC(network_mutex);
+OS_MUTEX_DEFINE_STATIC(network_data_mutex);
+OS_MUTEX_DEFINE_STATIC(network_noti_mutex);
 OS_SEM_DEFINE_STATIC(sys_network_wakeup_sem);
 
 /* Private function prototypes ---------------------------------------- */
@@ -148,9 +153,11 @@ void sys_network_init(void)
   network_ctx.prev_state = NETWORK_STATE_SIM_INIT;
 
   OS_SEM_CREATE(sys_network_wakeup_sem);
-  OS_MUTEX_CREATE(network_mutex);
+  OS_MUTEX_CREATE(network_noti_mutex);
+  OS_MUTEX_CREATE(network_data_mutex);
 
   cb_init(&network_ctx.cbuffer, network_buffer, NETWORK_BYTES);
+  cb_init(&req_pub_cbuffer, req_pub_buffer, MQTT_REQUEST_PUBLISH_MAX * MQTT_REQUEST_PUBLISH_SIZE);
 
   (void) sys_network_prepare_sd_card();
 
@@ -189,6 +196,27 @@ void sys_network_process(void *param)
 void sys_network_wakeup(void)
 {
   OS_SEM_GIVE(sys_network_wakeup_sem);
+}
+
+void sys_network_mqtt_publish_noti(const char *payload, size_t payload_len)
+{
+  if (payload == NULL || payload_len == 0 || payload_len >= MQTT_REQUEST_PUBLISH_SIZE)
+  {
+    return;
+  }
+
+  char slot[MQTT_REQUEST_PUBLISH_SIZE];
+  memset(slot, 0, sizeof(slot));
+  memcpy(slot, payload, payload_len);
+
+  OS_MUTEX_LOCK(network_noti_mutex);
+  uint32_t ret = cb_write(&req_pub_cbuffer, slot, MQTT_REQUEST_PUBLISH_SIZE);
+  OS_MUTEX_UNLOCK(network_noti_mutex);
+
+  if (ret != MQTT_REQUEST_PUBLISH_SIZE)
+  {
+    LOG_WRN("req_pub cbuffer full — notification dropped");
+  }
 }
 
 void sys_network_data_task(void *param)
@@ -347,12 +375,53 @@ static void sys_network_run_online(void)
     }
   }
 
+  // 1. Publish notifications or commands if pending
+  char     req_payload[MQTT_REQUEST_PUBLISH_SIZE] = { 0 };
+  uint32_t req_count                              = 0;
+  bool     is_pub_noti_ok                         = false;
+
+  OS_MUTEX_LOCK(network_noti_mutex);
+  if (cb_data_count(&req_pub_cbuffer) >= MQTT_REQUEST_PUBLISH_SIZE)
+  {
+    req_count = cb_read(&req_pub_cbuffer, req_payload, MQTT_REQUEST_PUBLISH_SIZE);
+  }
+  OS_MUTEX_UNLOCK(network_noti_mutex);
+
+  if (req_count != 0)
+  {
+    mqtt_message_t mes = {
+      .topic   = g_device_info.mqtt_noti_topic,
+      .payload = req_payload,
+    };
+    for (uint8_t attempt = 0; attempt < MQTT_PUBLISH_RETRY; attempt++)
+    {
+      if (bsp_sim_mqtt_pub(&mes) == STATUS_OK)
+      {
+        is_pub_noti_ok = true;
+        break;
+      }
+    }
+
+    if (!is_pub_noti_ok)
+    {
+      LOG_WRN("Failed to publish notification after %d attempts", MQTT_PUBLISH_RETRY);
+      sys_network_change_state(NETWORK_STATE_ERROR);
+    }
+    return;
+  }
+  else
+  {
+    // Do nothing
+  }
+
+  // 2. Publish mes in sd
   if (network_ctx.is_data_sd_pending)
   {
     sys_network_push_sd_to_mqtt();
     return;
   }
 
+  // 3. Publish from cbuffer if available
   sys_network_publish_online();
 }
 
@@ -515,10 +584,6 @@ static void sys_network_process_active(void)
   case NETWORK_STATE_MQTT_INIT: sys_network_run_mqtt_init(); break;
   case NETWORK_STATE_ONLINE:
   {
-    if (g_device_info.state != DEVICE_STATE_ACTIVE)
-    {
-      return;
-    }
     sys_network_run_online();
     break;
   }
@@ -542,6 +607,10 @@ static void sys_network_process_active(void)
   {
     OS_DELAY_MS(ONLINE_FAST_POLL_MS);
   }
+  else if (g_device_info.state == DEVICE_STATE_LOCKED)
+  {
+    OS_DELAY_MS(ONLINE_LOCKED_POLL_MS);
+  }
   else
   {
     OS_DELAY_MS(ONLINE_POLL_MS);
@@ -552,15 +621,15 @@ static void sys_network_publish_online(void)
 {
   if (!s_pub_slot_valid)
   {
-    OS_MUTEX_LOCK(network_mutex);
+    OS_MUTEX_LOCK(network_data_mutex);
     size_t available = cb_data_count(&network_ctx.cbuffer);
     if (available < NETWORK_CBUFF_SLOT_SIZE)
     {
-      OS_MUTEX_UNLOCK(network_mutex);
+      OS_MUTEX_UNLOCK(network_data_mutex);
       return;
     }
     size_t read = cb_read(&network_ctx.cbuffer, s_pub_slot, NETWORK_CBUFF_SLOT_SIZE);
-    OS_MUTEX_UNLOCK(network_mutex);
+    OS_MUTEX_UNLOCK(network_data_mutex);
 
     if (read != NETWORK_CBUFF_SLOT_SIZE)
     {
@@ -570,12 +639,12 @@ static void sys_network_publish_online(void)
     s_pub_slot_valid = true;
   }
 
-  mqtt_message_t msg = {
+  mqtt_message_t mes = {
     .topic   = g_device_info.mqtt_data_topic,
     .payload = s_pub_slot,
   };
 
-  if (bsp_sim_mqtt_pub(&msg) != STATUS_OK)
+  if (bsp_sim_mqtt_pub(&mes) != STATUS_OK)
   {
     LOG_WRN("Publish failed — keeping in-flight slot for next retry");
     sys_network_change_state(NETWORK_STATE_ERROR);
@@ -588,9 +657,9 @@ static void sys_network_publish_online(void)
 
 static void sys_network_flush_cbuff_to_sd(void)
 {
-  OS_MUTEX_LOCK(network_mutex);
+  OS_MUTEX_LOCK(network_data_mutex);
   size_t available = cb_data_count(&network_ctx.cbuffer);
-  OS_MUTEX_UNLOCK(network_mutex);
+  OS_MUTEX_UNLOCK(network_data_mutex);
 
   if (available < NETWORK_CBUFF_SLOT_SIZE)
   {
@@ -633,15 +702,15 @@ static void sys_network_flush_cbuff_to_sd(void)
   {
     char slot[NETWORK_CBUFF_SLOT_SIZE];
 
-    OS_MUTEX_LOCK(network_mutex);
+    OS_MUTEX_LOCK(network_data_mutex);
     size_t avail = cb_data_count(&network_ctx.cbuffer);
     if (avail < NETWORK_CBUFF_SLOT_SIZE)
     {
-      OS_MUTEX_UNLOCK(network_mutex);
+      OS_MUTEX_UNLOCK(network_data_mutex);
       break;
     }
     size_t read = cb_read(&network_ctx.cbuffer, slot, NETWORK_CBUFF_SLOT_SIZE);
-    OS_MUTEX_UNLOCK(network_mutex);
+    OS_MUTEX_UNLOCK(network_data_mutex);
 
     if (read != NETWORK_CBUFF_SLOT_SIZE)
     {
@@ -740,7 +809,7 @@ static status_function_t sys_network_push_sd_to_mqtt(void)
 
   s_sd_line[line_len] = '\0';
 
-  mqtt_message_t msg = {
+  mqtt_message_t mes = {
     .topic   = g_device_info.mqtt_data_topic,
     .payload = s_sd_line,
   };
@@ -748,7 +817,7 @@ static status_function_t sys_network_push_sd_to_mqtt(void)
   bool publish_ok = false;
   for (uint8_t attempt = 0; attempt < MQTT_PUBLISH_RETRY; attempt++)
   {
-    if (bsp_sim_mqtt_pub(&msg) == STATUS_OK)
+    if (bsp_sim_mqtt_pub(&mes) == STATUS_OK)
     {
       publish_ok = true;
       break;
@@ -785,9 +854,9 @@ static bool sys_network_need_fast_poll(void)
     return true;
   }
 
-  OS_MUTEX_LOCK(network_mutex);
+  OS_MUTEX_LOCK(network_data_mutex);
   size_t available = cb_data_count(&network_ctx.cbuffer);
-  OS_MUTEX_UNLOCK(network_mutex);
+  OS_MUTEX_UNLOCK(network_data_mutex);
 
   return (available >= (CBUFFER_FAST_MSG_THRESHOLD * NETWORK_CBUFF_SLOT_SIZE));
 }
@@ -804,9 +873,9 @@ static bool sys_network_need_push_sd(void)
     return false;
   }
 
-  OS_MUTEX_LOCK(network_mutex);
+  OS_MUTEX_LOCK(network_data_mutex);
   size_t available = cb_data_count(&network_ctx.cbuffer);
-  OS_MUTEX_UNLOCK(network_mutex);
+  OS_MUTEX_UNLOCK(network_data_mutex);
 
   size_t total_bytes  = network_ctx.cbuffer.size - 1;
   size_t used_percent = (available * 100) / total_bytes;
@@ -885,9 +954,9 @@ static status_function_t sys_network_push_cbuffer(const char *payload)
   memset(slot, 0, sizeof(slot));
   strncpy(slot, payload, NETWORK_CBUFF_SLOT_SIZE - 1);
 
-  OS_MUTEX_LOCK(network_mutex);
+  OS_MUTEX_LOCK(network_data_mutex);
   size_t written = cb_write(&network_ctx.cbuffer, slot, NETWORK_CBUFF_SLOT_SIZE);
-  OS_MUTEX_UNLOCK(network_mutex);
+  OS_MUTEX_UNLOCK(network_data_mutex);
 
   if (written != NETWORK_CBUFF_SLOT_SIZE)
   {

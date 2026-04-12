@@ -20,6 +20,8 @@
 #include "sys_input.h"
 
 /* Public defines ----------------------------------------------------- */
+#define MQTT_REQUEST_PUBLISH_SIZE (128)
+
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
@@ -60,6 +62,16 @@ void sys_network_data_task(void *param);
  * @return none
  */
 void sys_network_wakeup(void);
+
+/**
+ * @brief Publish a notification or command response via MQTT.
+ *
+ * @param[in] payload Payload data to publish.
+ * @param[in] payload_len Length of the payload data in bytes.
+ *
+ * @return none
+ */
+void sys_network_mqtt_publish_noti(const char *payload, size_t payload_len);
 
 /**
  * @brief MQTT message callback for incoming commands.

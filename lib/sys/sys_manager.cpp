@@ -22,6 +22,8 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_DBG)
 
+#define NETWORK_NOTI_USERLOCK_PAYLOAD "USER_LOCKED"
+
 /* Private enumerate/structure ---------------------------------------- */
 typedef void (*sys_manager_process_handler_t)(void);
 typedef struct
@@ -45,6 +47,7 @@ static void sys_manager_active_handler(void);
 static void sys_manager_unlocked_handler(void);
 static void sys_manager_change_topic_sub_handler(void);
 static void sys_manager_reboot_handler(void);
+static void sys_manager_user_lock_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -59,6 +62,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_ACTIVE               ,   sys_manager_active_handler            );
   INFO(SYS_MANAGER_EVT_CHANGE_CMD_TOPIC     ,   sys_manager_change_topic_sub_handler  );
   INFO(SYS_MANAGER_EVT_REBOOT               ,   sys_manager_reboot_handler            );
+  INFO(SYS_MANAGER_EVT_USER_LOCK            ,   sys_manager_user_lock_handler         );
   // clang-format on
 }
 #undef INFO
@@ -120,6 +124,14 @@ static void sys_manager_reboot_handler(void)
   bsp_device_flash_write(&g_device_info.nvs_info);
   LOG_INF("---------- Rebooting device ----------");
   bsp_device_reboot();
+}
+
+static void sys_manager_user_lock_handler(void)
+{
+  LOG_DBG("Handling user lock event");
+  sys_network_mqtt_publish_noti(NETWORK_NOTI_USERLOCK_PAYLOAD, strlen(NETWORK_NOTI_USERLOCK_PAYLOAD));
+  g_device_info.state = DEVICE_STATE_LOCKED;
+  sys_ui_lock();
 }
 
 /* End of file -------------------------------------------------------- */

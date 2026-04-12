@@ -95,6 +95,19 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_BACK_BTN_Y             (10)
 #define SYS_UI_BACK_BTN_W             (60)
 #define SYS_UI_BACK_BTN_H             (25)
+#define SYS_UI_BACK_BTN_LABEL         "BACK"
+#define SYS_UI_BACK_BTN_COLOR         SYS_UI_COLOR_ACCENT
+#define SYS_UI_BACK_BTN_TEXT_COLOR    SYS_UI_COLOR_TEXT
+#define SYS_UI_CONFIRM_BTN_X          (75)
+#define SYS_UI_CONFIRM_BTN_Y          (105)
+#define SYS_UI_CONFIRM_BTN_W          (120)
+#define SYS_UI_CONFIRM_BTN_H          (50)
+#define SYS_UI_CONFIRM_BTN_LABEL      "CONFIRM"
+#define SYS_UI_CONFIRM_BTN_COLOR      SYS_UI_COLOR_SUCCESS
+#define SYS_UI_CONFIRM_BTN_TEXT_COLOR SYS_UI_COLOR_TEXT
+#define SYS_UI_OUT_LABEL_X            (50)
+#define SYS_UI_OUT_LABEL_Y            (81)
+#define SYS_UI_OUT_LABEL_TEXT         "Do you want to quit the bike?"
 
 // Settings screen
 #define SYS_UI_SWATCH_ROW_Y           (130)
@@ -175,8 +188,8 @@ typedef struct
   lv_obj_t *color_btns[SYS_UI_BG_COLOR_COUNT];
   // Out screen
   lv_obj_t *out_screen;
-  lv_obj_t *out_title;
   lv_obj_t *out_back_btn;
+  lv_obj_t *out_confirm_btn;
   // Lock screen
   lv_obj_t      *lock_screen;
   lv_obj_t      *lock_qr_img;
@@ -280,7 +293,7 @@ static void              sys_ui_change_screen(sys_ui_view_t view);
 static void              sys_ui_init_data(void);
 static void              sys_ui_init_history_data(void);
 static void              sys_ui_init_all_widgets(void);
-static void              sys_ui_reset_all_widgets(sys_ui_widgets_t *w);
+static void              sys_ui_reset_all_widgets(sys_ui_widgets_t *screen);
 static void              sys_ui_register_callbacks(void);
 static status_function_t sys_ui_image_draw(lv_obj_t     *parent,
                                            const char   *path,
@@ -314,6 +327,7 @@ static void sys_ui_settings_screen_cb_color_btn(lv_event_t *event);
 static void sys_ui_out_screen_create(void);
 static void sys_ui_out_screen_draw(void);
 static void sys_ui_out_screen_cb_back_btn(lv_event_t *event);
+static void sys_ui_out_screen_cb_confirm_btn(lv_event_t *event);
 // Lock screen
 static void sys_ui_lock_screen_create(void);
 static void sys_ui_lock_screen_draw(void);
@@ -507,6 +521,7 @@ static void sys_ui_change_screen(sys_ui_view_t view)
     if (ui_ctx.widgets.out_back_btn != nullptr)
     {
       lv_obj_add_event_cb(ui_ctx.widgets.out_back_btn, sys_ui_out_screen_cb_back_btn, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ui_ctx.widgets.out_confirm_btn, sys_ui_out_screen_cb_confirm_btn, LV_EVENT_CLICKED, nullptr);
     }
     break;
   }
@@ -627,70 +642,17 @@ static void sys_ui_init_all_widgets(void)
   sys_ui_main_screen_update_speed(static_cast<int>(ui_ctx.current_speed));
 }
 
-static void sys_ui_reset_all_widgets(sys_ui_widgets_t *w)
+static void sys_ui_reset_all_widgets(sys_ui_widgets_t *screen)
 {
-  w->active_screen        = nullptr;
-  w->main_screen          = nullptr;
-  w->speedometer_arc      = nullptr;
-  w->speed_label          = nullptr;
-  w->speed_unit_label     = nullptr;
-  w->compass_arc          = nullptr;
-  w->compass_needle       = nullptr;
-  w->compass_deg_label    = nullptr;
-  w->compass_dir_label    = nullptr;
-  w->time_card            = nullptr;
-  w->time_label           = nullptr;
-  w->time_unit_label      = nullptr;
-  w->distance_card        = nullptr;
-  w->distance_label       = nullptr;
-  w->distance_unit_label  = nullptr;
-  w->env_card             = nullptr;
-  w->temp_label           = nullptr;
-  w->humidity_label       = nullptr;
-  w->aqi_label            = nullptr;
-  w->settings_btn         = nullptr;
-  w->out_btn              = nullptr;
-  w->settings_screen      = nullptr;
-  w->settings_title       = nullptr;
-  w->settings_back_btn    = nullptr;
-  w->brightness_slider    = nullptr;
-  w->brightness_label     = nullptr;
-  w->out_screen           = nullptr;
-  w->out_title            = nullptr;
-  w->out_back_btn         = nullptr;
-  w->time_history_screen  = nullptr;
-  w->time_history_title   = nullptr;
-  w->time_back_btn        = nullptr;
-  w->time_remaining_label = nullptr;
-  w->extend_btn           = nullptr;
-  w->distance_screen      = nullptr;
-  w->distance_title       = nullptr;
-  w->distance_back_btn    = nullptr;
-  w->total_distance_label = nullptr;
-  w->avg_speed_label      = nullptr;
-  w->distance_chart       = nullptr;
-  w->distance_series      = nullptr;
-  w->temp_screen          = nullptr;
-  w->temp_title           = nullptr;
-  w->temp_back_btn        = nullptr;
-  w->temp_chart           = nullptr;
-  w->temp_series          = nullptr;
-  w->temp_range_label     = nullptr;
-  w->zoom_minus_btn       = nullptr;
-  w->zoom_plus_btn        = nullptr;
-  w->pan_left_btn         = nullptr;
-  w->pan_right_btn        = nullptr;
-  w->lock_screen          = nullptr;
-  w->device_id_label      = nullptr;
-  w->lock_qr_img          = nullptr;
+  memset(screen, 0, sizeof(sys_ui_widgets_t));
 
   for (int i = 0; i < SYS_UI_BG_COLOR_COUNT; ++i)
   {
-    w->color_btns[i] = nullptr;
+    screen->color_btns[i] = nullptr;
   }
   for (int i = 0; i < SYS_UI_MAX_RENTAL_HISTORY; ++i)
   {
-    w->history_labels[i] = nullptr;
+    screen->history_labels[i] = nullptr;
   }
 }
 
@@ -1125,10 +1087,12 @@ static void sys_ui_out_screen_create(void)
 
   ui_ctx.widgets.out_back_btn =
     sys_ui_widget_create_button(ui_ctx.widgets.out_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
-                                SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
-  ui_ctx.widgets.out_title = sys_ui_widget_create_label(ui_ctx.widgets.out_screen, 80, 80, "OUT MODE",
-                                                        SYS_UI_COLOR_WARNING, &lv_font_montserrat_24);
-  sys_ui_widget_create_label(ui_ctx.widgets.out_screen, 80, 130, "Tap BACK to resume.", SYS_UI_COLOR_TEXT, nullptr);
+                                SYS_UI_BACK_BTN_H, SYS_UI_BACK_BTN_LABEL, SYS_UI_BACK_BTN_COLOR, SYS_UI_COLOR_BG);
+  sys_ui_widget_create_label(ui_ctx.widgets.out_screen, SYS_UI_OUT_LABEL_X, SYS_UI_OUT_LABEL_Y, SYS_UI_OUT_LABEL_TEXT,
+                             SYS_UI_COLOR_TEXT, nullptr);
+  ui_ctx.widgets.out_confirm_btn = sys_ui_widget_create_button(
+    ui_ctx.widgets.out_screen, SYS_UI_CONFIRM_BTN_X, SYS_UI_CONFIRM_BTN_Y, SYS_UI_CONFIRM_BTN_W, SYS_UI_CONFIRM_BTN_H,
+    SYS_UI_CONFIRM_BTN_LABEL, SYS_UI_CONFIRM_BTN_COLOR, SYS_UI_COLOR_BG);
 }
 
 static void sys_ui_out_screen_draw(void)
@@ -1146,6 +1110,13 @@ static void sys_ui_out_screen_cb_back_btn(lv_event_t *event)
   (void) event;
   LOG_DBG("sys_ui_out_screen_cb_back_btn");
   sys_ui_change_screen(SYS_UI_VIEW_MAIN);
+}
+
+static void sys_ui_out_screen_cb_confirm_btn(lv_event_t *event)
+{
+  (void) event;
+  LOG_DBG("sys_ui_out_screen_cb_confirm_btn");
+  sys_manager_write_event(SYS_MANAGER_EVT_USER_LOCK);
 }
 
 static void sys_ui_time_screen_create(void)

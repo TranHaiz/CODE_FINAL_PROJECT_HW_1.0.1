@@ -127,6 +127,7 @@ void device_info_init(void)
   snprintf(g_device_info.mqtt_data_topic, sizeof(g_device_info.mqtt_data_topic), "%s/data", g_device_info.device_name);
   strncpy(g_device_info.last_mqtt_cmd_topic, g_device_info.mqtt_cmd_topic,
           sizeof(g_device_info.last_mqtt_cmd_topic) - 1);
+  snprintf(g_device_info.mqtt_noti_topic, sizeof(g_device_info.mqtt_noti_topic), "%s/noti", g_device_info.device_name);
 
   snprintf(g_device_info.log_sd_path, sizeof(g_device_info.log_sd_path), "/logs/%d-%d-%d.log", timeline.date,
            timeline.month, timeline.year);
