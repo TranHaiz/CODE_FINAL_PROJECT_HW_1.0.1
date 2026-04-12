@@ -128,7 +128,7 @@ void device_info_init(void)
   strncpy(g_device_info.last_mqtt_cmd_topic, g_device_info.mqtt_cmd_topic,
           sizeof(g_device_info.last_mqtt_cmd_topic) - 1);
 
-  snprintf(g_device_info.log_sd_path, sizeof(g_device_info.log_sd_path), "/logs/%d-%d-%d.log", timeline.day,
+  snprintf(g_device_info.log_sd_path, sizeof(g_device_info.log_sd_path), "/logs/%d-%d-%d.log", timeline.date,
            timeline.month, timeline.year);
 
   if (bsp_sdcard_dir_exists(DEVICE_LOG_FOLDER_PATH) != STATUS_OK)

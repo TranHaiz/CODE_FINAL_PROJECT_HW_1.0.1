@@ -23,7 +23,7 @@
 #include "sys_ui_simple.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_INFO)
+LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
 
 // MQTT
 #define MQTT_KEEPALIVE_S            (60)

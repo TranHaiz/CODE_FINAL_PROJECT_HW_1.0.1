@@ -17,7 +17,7 @@
 #include "os_lib.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_sim, LOG_LEVEL_INFO)
+LOG_MODULE_REGISTER(bsp_sim, LOG_LEVEL_DBG)
 #define SIM_SEND_CMD_RETRY (3)
 #define DEBUG_SIM
 
