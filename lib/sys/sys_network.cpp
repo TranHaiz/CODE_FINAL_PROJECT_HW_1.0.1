@@ -332,16 +332,19 @@ static void sys_network_run_mqtt_init(void)
 
 static void sys_network_run_online(void)
 {
-  if (COUNT_MS(network_ctx.last_keepalive_ms) >= MQTT_KEEPALIVE_MS)
+  if (g_device_info.state != DEVICE_STATE_ACTIVE)
   {
-    if (!bsp_sim_is_ready())
+    if (COUNT_MS(network_ctx.last_keepalive_ms) >= MQTT_KEEPALIVE_MS)
     {
-      LOG_WRN("Keepalive: SIM or network lost");
-      sys_network_change_state(NETWORK_STATE_ERROR);
-      return;
+      if (!bsp_sim_is_ready())
+      {
+        LOG_WRN("Keepalive: SIM or network lost");
+        sys_network_change_state(NETWORK_STATE_ERROR);
+        return;
+      }
+      LOG_DBG("Keepalive OK");
+      network_ctx.last_keepalive_ms = OS_GET_TICK();
     }
-    LOG_DBG("Keepalive OK");
-    network_ctx.last_keepalive_ms = OS_GET_TICK();
   }
 
   if (network_ctx.is_data_sd_pending)
@@ -483,7 +486,7 @@ static bool sys_network_build_payload(sys_input_data_t *data, char *buf, size_t 
   }
 #endif
 
-  LOG_DBG("Payload built: %s", buf);
+  // LOG_DBG("Payload built: %s", buf);
   return true;
 }
 
