@@ -125,14 +125,18 @@ static void sys_manager_lock_handler(void)
 
 static void sys_manager_active_handler(void)
 {
+  bsp_timer_reset(&manager_handler.shutdown_timer);
+  bsp_timer_stop(&manager_handler.shutdown_timer);
+  g_device_info.state = DEVICE_STATE_ACTIVE;
+  sys_ui_wakeup();
   LOG_DBG("Handling active event");
 }
 
 static void sys_manager_unlocked_handler(void)
 {
 #if (DEVICE_IDLE_MODE_ENABLED)
+bsp_timer_reset(&manager_handler.shutdown_timer);
   bsp_timer_stop(&manager_handler.shutdown_timer);
-  bsp_timer_reset(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
 
   g_device_info.state = DEVICE_STATE_ACTIVE;
