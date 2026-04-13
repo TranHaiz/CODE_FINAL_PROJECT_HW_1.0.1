@@ -30,7 +30,7 @@ lv_obj_t *sys_ui_widget_create_card(lv_obj_t *parent, int x, int y, int w, int h
   lv_obj_t *card = lv_obj_create(parent);
   lv_obj_set_pos(card, x, y);
   lv_obj_set_size(card, w, h);
-  lv_obj_set_style_bg_color(card, lv_color_hex(SYS_UI_WIDGET_COLOR_BG_CARD), 0);
+  lv_obj_set_style_bg_color(card, lv_color_hex(SYS_UI_WIDGET_COLOR_BLUE_GRAY), 0);
   lv_obj_set_style_border_color(card, lv_color_hex(border_color), 0);
   lv_obj_set_style_border_width(card, SYS_UI_WIDGET_CARD_BORDER, 0);
   lv_obj_set_style_radius(card, SYS_UI_WIDGET_CARD_RADIUS, 0);
@@ -181,7 +181,7 @@ lv_obj_t *sys_ui_widget_create_chart(lv_obj_t *parent, int x, int y, int w, int 
   return chart;
 }
 
-lv_chart_series_t *sys_ui_widget_addChart_series(lv_obj_t *chart, size_t color)
+lv_chart_series_t *sys_ui_widget_add_chart_series(lv_obj_t *chart, size_t color)
 {
   return lv_chart_add_series(chart, lv_color_hex(color), LV_CHART_AXIS_PRIMARY_Y);
 }

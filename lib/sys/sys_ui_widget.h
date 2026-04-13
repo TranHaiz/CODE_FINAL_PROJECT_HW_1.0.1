@@ -20,21 +20,21 @@
 #include <lvgl.h>
 
 /* Public defines ----------------------------------------------------- */
-#define SYS_UI_WIDGET_COLOR_BG       BSP_DISPLAY_RGB_TO_HEX(13,  27,  42)   // Dark navy
-#define SYS_UI_WIDGET_COLOR_BG_CARD  BSP_DISPLAY_RGB_TO_HEX(22,  40,  60)   // Card surface
-#define SYS_UI_WIDGET_COLOR_PRIMARY  BSP_DISPLAY_RGB_TO_HEX(0,   180, 216)  // Vivid cyan
-#define SYS_UI_WIDGET_COLOR_ACCENT   BSP_DISPLAY_RGB_TO_HEX(255, 183, 3)    // Amber gold
-#define SYS_UI_WIDGET_COLOR_SUCCESS  BSP_DISPLAY_RGB_TO_HEX(6,   214, 160)  // Mint green
-#define SYS_UI_WIDGET_COLOR_WARNING  BSP_DISPLAY_RGB_TO_HEX(249, 160, 63)   // Warm orange
-#define SYS_UI_WIDGET_COLOR_DANGER   BSP_DISPLAY_RGB_TO_HEX(239, 71,  111)  // Coral red
-#define SYS_UI_WIDGET_COLOR_TEXT     BSP_DISPLAY_RGB_TO_HEX(255, 255, 255)  // White
-#define SYS_UI_WIDGET_COLOR_TEXT_DIM BSP_DISPLAY_RGB_TO_HEX(141, 153, 174)  // Steel gray
+#define SYS_UI_WIDGET_COLOR_DARK_NAVY BSP_DISPLAY_RGB_TO_HEX(13, 27, 42)
+#define SYS_UI_WIDGET_COLOR_BLUE_GRAY BSP_DISPLAY_RGB_TO_HEX(22, 40, 60)
+#define SYS_UI_WIDGET_COLOR_CYAN      BSP_DISPLAY_RGB_TO_HEX(0, 180, 216)
+#define SYS_UI_WIDGET_COLOR_GOLD      BSP_DISPLAY_RGB_TO_HEX(255, 183, 3)
+#define SYS_UI_WIDGET_COLOR_GREEN     BSP_DISPLAY_RGB_TO_HEX(6, 214, 160)
+#define SYS_UI_WIDGET_COLOR_ORANGE    BSP_DISPLAY_RGB_TO_HEX(249, 160, 63)
+#define SYS_UI_WIDGET_COLOR_RED       BSP_DISPLAY_RGB_TO_HEX(239, 71, 111)
+#define SYS_UI_WIDGET_COLOR_WHITE     BSP_DISPLAY_RGB_TO_HEX(255, 255, 255)
+#define SYS_UI_WIDGET_COLOR_GRAY      BSP_DISPLAY_RGB_TO_HEX(141, 153, 174)
 
-#define SYS_UI_WIDGET_CARD_RADIUS    (4)   // Card corner radius
-#define SYS_UI_WIDGET_CARD_BORDER    (1)   // Card border width
-#define SYS_UI_WIDGET_CARD_PAD       (4)   // Card padding
-#define SYS_UI_WIDGET_BTN_RADIUS     (6)   // Button corner radius
-#define SYS_UI_WIDGET_ARC_WIDTH      (10)  // Arc thickness
+#define SYS_UI_WIDGET_CARD_RADIUS     (4)
+#define SYS_UI_WIDGET_CARD_BORDER     (1)
+#define SYS_UI_WIDGET_CARD_PAD        (4)
+#define SYS_UI_WIDGET_BTN_RADIUS      (6)
+#define SYS_UI_WIDGET_ARC_WIDTH       (10)
 
 /* Public enumerate/structure ----------------------------------------- */
 /**
@@ -238,7 +238,7 @@ lv_obj_t *sys_ui_widget_create_chart(lv_obj_t *parent, int x, int y, int w, int 
  *
  * @return Chart series pointer
  */
-lv_chart_series_t *sys_ui_widget_addChart_series(lv_obj_t *chart, size_t color);
+lv_chart_series_t *sys_ui_widget_add_chart_series(lv_obj_t *chart, size_t color);
 
 /**
  * @brief Create a status LED (small circular indicator)

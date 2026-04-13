@@ -30,124 +30,144 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 
-#define SYS_UI_LED_RGB_TASK_MS        (100)
-#define SYS_UI_LED_DEFAULT_BRIGHTNESS (80)
+#define SYS_UI_LED_RGB_TASK_MS          (100)
+#define SYS_UI_LED_DEFAULT_BRIGHTNESS   (80)
 
 // Platform UI settings
-#define SYS_UI_COLOR_BG               SYS_UI_WIDGET_COLOR_BG
-#define SYS_UI_COLOR_BG_CARD          SYS_UI_WIDGET_COLOR_BG_CARD
-#define SYS_UI_COLOR_PRIMARY          SYS_UI_WIDGET_COLOR_PRIMARY
-#define SYS_UI_COLOR_ACCENT           SYS_UI_WIDGET_COLOR_ACCENT
-#define SYS_UI_COLOR_SUCCESS          SYS_UI_WIDGET_COLOR_SUCCESS
-#define SYS_UI_COLOR_WARNING          SYS_UI_WIDGET_COLOR_WARNING
-#define SYS_UI_COLOR_DANGER           SYS_UI_WIDGET_COLOR_DANGER
-#define SYS_UI_COLOR_TEXT             SYS_UI_WIDGET_COLOR_TEXT
-#define SYS_UI_COLOR_TEXT_DIM         SYS_UI_WIDGET_COLOR_TEXT_DIM
-#define SYS_UI_DATA_HISTORY_SAMPLES   (100)
-#define SYS_UI_BRIGHTNESS_PERCENT_OFF (0)
+#define SYS_UI_COLOR_BG                 SYS_UI_WIDGET_COLOR_DARK_NAVY
+#define SYS_UI_COLOR_BG_CARD            SYS_UI_WIDGET_COLOR_BLUE_GRAY
+#define SYS_UI_COLOR_PRIMARY            SYS_UI_WIDGET_COLOR_CYAN
+#define SYS_UI_COLOR_ACCENT             SYS_UI_WIDGET_COLOR_GOLD
+#define SYS_UI_COLOR_SUCCESS            SYS_UI_WIDGET_COLOR_GREEN
+#define SYS_UI_COLOR_WARNING            SYS_UI_WIDGET_COLOR_ORANGE
+#define SYS_UI_COLOR_DANGER             SYS_UI_WIDGET_COLOR_RED
+#define SYS_UI_COLOR_TEXT               SYS_UI_WIDGET_COLOR_WHITE
+#define SYS_UI_COLOR_TEXT_DIM           SYS_UI_WIDGET_COLOR_GRAY
+#define SYS_UI_DATA_HISTORY_SAMPLES     (100)
+#define SYS_UI_BRIGHTNESS_PERCENT_OFF   (0)
 
 // Timing
-#define SYS_UI_COUNTDOWN_MS           (1000)
-#define SYS_UI_ENVIRONMENT_MS         (3000)
+#define SYS_UI_COUNTDOWN_MS             (1000)
+#define SYS_UI_ENVIRONMENT_MS           (3000)
 
 // Data limits
-#define SYS_UI_MAX_RENTAL_HISTORY     (4)
-#define SYS_UI_MAX_DISTANCE_LOG       (16)
-#define SYS_UI_MAX_TEMP_SAMPLES       (120)
+#define SYS_UI_MAX_RENTAL_HISTORY       (4)
+#define SYS_UI_MAX_DISTANCE_LOG         (16)
+#define SYS_UI_MAX_TEMP_SAMPLES         (120)
 
 // Top control buttons
-#define SYS_UI_CTRL_BTN_Y             (5)
-#define SYS_UI_CTRL_BTN_H             (25)
-#define SYS_UI_SETTINGS_BTN_X         (10)
-#define SYS_UI_SETTINGS_BTN_W         (90)
-#define SYS_UI_OUT_BTN_X              (220)
-#define SYS_UI_OUT_BTN_W              (90)
+#define SYS_UI_CTRL_BTN_Y               (5)
+#define SYS_UI_CTRL_BTN_H               (25)
+#define SYS_UI_SETTINGS_BTN_X           (10)
+#define SYS_UI_SETTINGS_BTN_W           (90)
+#define SYS_UI_OUT_BTN_X                (220)
+#define SYS_UI_OUT_BTN_W                (90)
 
 // Speedometer arc
-#define SYS_UI_SPEEDO_CX              (107)
-#define SYS_UI_SPEEDO_CY              (106)
-#define SYS_UI_SPEEDO_OUTER_R         (74)
-#define SYS_UI_SPEEDO_INNER_R         (54)
+#define SYS_UI_SPEEDO_CX                (107)
+#define SYS_UI_SPEEDO_CY                (106)
+#define SYS_UI_SPEEDO_OUTER_R           (74)
+#define SYS_UI_SPEEDO_INNER_R           (54)
 
 // Compass panel
-#define SYS_UI_MAP_PANEL_X            (2)
-#define SYS_UI_MAP_PANEL_Y            (183)
-#define SYS_UI_MAP_PANEL_W            (50)
-#define SYS_UI_MAP_PANEL_H            (52)
-#define SYS_UI_COMPASS_CX             (22)
-#define SYS_UI_COMPASS_CY             (210)
-#define SYS_UI_COMPASS_R              (15)
-#define SYS_UI_HEADING_TEXT_X         (SYS_UI_COMPASS_CX - 12)
-#define SYS_UI_HEADING_TEXT_Y         (SYS_UI_COMPASS_CY - 12)
-#define SYS_UI_COMPASS_DEG_X          (SYS_UI_COMPASS_CX - 12)
-#define SYS_UI_COMPASS_DEG_Y          (SYS_UI_COMPASS_CY + 5)
-#define SYS_UI_COMPASS_PANEL_BG_COLOR (0x0A1520)
+#define SYS_UI_MAP_PANEL_X              (2)
+#define SYS_UI_MAP_PANEL_Y              (183)
+#define SYS_UI_MAP_PANEL_W              (50)
+#define SYS_UI_MAP_PANEL_H              (52)
+#define SYS_UI_COMPASS_CX               (22)
+#define SYS_UI_COMPASS_CY               (210)
+#define SYS_UI_COMPASS_R                (15)
+#define SYS_UI_HEADING_TEXT_X           (SYS_UI_COMPASS_CX - 12)
+#define SYS_UI_HEADING_TEXT_Y           (SYS_UI_COMPASS_CY - 12)
+#define SYS_UI_COMPASS_DEG_X            (SYS_UI_COMPASS_CX - 12)
+#define SYS_UI_COMPASS_DEG_Y            (SYS_UI_COMPASS_CY + 5)
+#define SYS_UI_COMPASS_PANEL_BG_COLOR   (0x0A1520)
 
 // Right panel info cards
-#define SYS_UI_CARD_X                 (218)
-#define SYS_UI_CARD_W                 (100)
-#define SYS_UI_TIME_CARD_Y            (34)
-#define SYS_UI_TIME_CARD_H            (52)
-#define SYS_UI_DIST_CARD_Y            (91)
-#define SYS_UI_DIST_CARD_H            (40)
-#define SYS_UI_ENV_CARD_Y             (136)
-#define SYS_UI_ENV_CARD_H             (100)
+#define SYS_UI_CARD_X                   (218)
+#define SYS_UI_CARD_W                   (100)
+#define SYS_UI_TIME_CARD_Y              (34)
+#define SYS_UI_TIME_CARD_H              (52)
+#define SYS_UI_DIST_CARD_Y              (91)
+#define SYS_UI_DIST_CARD_H              (40)
+#define SYS_UI_ENV_CARD_Y               (136)
+#define SYS_UI_ENV_CARD_H               (100)
 
 // Shared sub-screen back button
-#define SYS_UI_BACK_BTN_X             (10)
-#define SYS_UI_BACK_BTN_Y             (10)
-#define SYS_UI_BACK_BTN_W             (60)
-#define SYS_UI_BACK_BTN_H             (25)
-#define SYS_UI_BACK_BTN_LABEL         "BACK"
-#define SYS_UI_BACK_BTN_COLOR         SYS_UI_COLOR_ACCENT
-#define SYS_UI_BACK_BTN_TEXT_COLOR    SYS_UI_COLOR_TEXT
-#define SYS_UI_CONFIRM_BTN_X          (75)
-#define SYS_UI_CONFIRM_BTN_Y          (105)
-#define SYS_UI_CONFIRM_BTN_W          (120)
-#define SYS_UI_CONFIRM_BTN_H          (50)
-#define SYS_UI_CONFIRM_BTN_LABEL      "CONFIRM"
-#define SYS_UI_CONFIRM_BTN_COLOR      SYS_UI_COLOR_SUCCESS
-#define SYS_UI_CONFIRM_BTN_TEXT_COLOR SYS_UI_COLOR_TEXT
-#define SYS_UI_OUT_LABEL_X            (50)
-#define SYS_UI_OUT_LABEL_Y            (81)
-#define SYS_UI_OUT_LABEL_TEXT         "Do you want to quit the bike?"
+#define SYS_UI_BACK_BTN_X               (10)
+#define SYS_UI_BACK_BTN_Y               (10)
+#define SYS_UI_BACK_BTN_W               (60)
+#define SYS_UI_BACK_BTN_H               (25)
+#define SYS_UI_BACK_BTN_LABEL           "BACK"
+#define SYS_UI_BACK_BTN_COLOR           SYS_UI_COLOR_ACCENT
+#define SYS_UI_BACK_BTN_TEXT_COLOR      SYS_UI_COLOR_TEXT
+
+// Screen out
+#define SYS_UI_CONFIRM_BTN_X            (75)
+#define SYS_UI_CONFIRM_BTN_Y            (105)
+#define SYS_UI_CONFIRM_BTN_W            (120)
+#define SYS_UI_CONFIRM_BTN_H            (50)
+#define SYS_UI_CONFIRM_BTN_LABEL        "CONFIRM"
+#define SYS_UI_CONFIRM_BTN_COLOR        SYS_UI_COLOR_SUCCESS
+#define SYS_UI_CONFIRM_BTN_TEXT_COLOR   SYS_UI_COLOR_TEXT
+#define SYS_UI_OUT_LABEL_X              (50)
+#define SYS_UI_OUT_LABEL_Y              (81)
+#define SYS_UI_OUT_LABEL_TEXT           "Do you want to quit the bike?"
 
 // Settings screen
-#define SYS_UI_SWATCH_ROW_Y           (130)
-#define SYS_UI_SWATCH_SIZE            (36)
-#define SYS_UI_SWATCH_SPAN            (50)
+#define SYS_UI_SWATCH_ROW_Y             (130)
+#define SYS_UI_SWATCH_SIZE              (36)
+#define SYS_UI_SWATCH_SPAN              (50)
 
 // Distance / Temperature sub-screens
-#define SYS_UI_EXTEND_BTN_X           (180)
-#define SYS_UI_EXTEND_BTN_Y           (180)
-#define SYS_UI_EXTEND_BTN_W           (120)
-#define SYS_UI_EXTEND_BTN_H           (30)
-#define SYS_UI_TEMP_GRAPH_X           (20)
-#define SYS_UI_TEMP_GRAPH_Y           (50)
-#define SYS_UI_TEMP_GRAPH_W           (280)
-#define SYS_UI_TEMP_GRAPH_H           (140)
-#define SYS_UI_TEMP_BTN_Y             (200)
-#define SYS_UI_TEMP_BTN_W             (60)
-#define SYS_UI_TEMP_BTN_H             (24)
-#define SYS_UI_TEMP_BTN_GAP           (10)
+#define SYS_UI_EXTEND_BTN_X             (180)
+#define SYS_UI_EXTEND_BTN_Y             (180)
+#define SYS_UI_EXTEND_BTN_W             (120)
+#define SYS_UI_EXTEND_BTN_H             (30)
+#define SYS_UI_TEMP_GRAPH_X             (20)
+#define SYS_UI_TEMP_GRAPH_Y             (50)
+#define SYS_UI_TEMP_GRAPH_W             (280)
+#define SYS_UI_TEMP_GRAPH_H             (140)
+#define SYS_UI_TEMP_BTN_Y               (200)
+#define SYS_UI_TEMP_BTN_W               (60)
+#define SYS_UI_TEMP_BTN_H               (24)
+#define SYS_UI_TEMP_BTN_GAP             (10)
+
+// Fusion screen
+#define SYS_UI_FUSION_LABEL_X           (72)
+#define SYS_UI_FUSION_LABEL_Y           (15)
+#define SYS_UI_FUSION_LABEL_TEXT        "FUSION STATS"
+#define SYS_UI_FUSION_MAX_SPEED_TEXT    "Max Speed: %.1f km/h"
+#define SYS_UI_FUSION_MAX_SPEED_X       (30)
+#define SYS_UI_FUSION_MAX_SPEED_Y       (50)
+#define SYS_UI_FUSION_AVG_SPEED_TEXT    "Avg Speed: %.1f km/h"
+#define SYS_UI_FUSION_AVG_SPEED_X       (30)
+#define SYS_UI_FUSION_AVG_SPEED_Y       (70)
+#define SYS_UI_FUSION_CHART_X           (30)
+#define SYS_UI_FUSION_CHART_Y           (95)
+#define SYS_UI_FUSION_CHART_W           (260)
+#define SYS_UI_FUSION_CHART_H           (120)
+#define SYS_UI_FUSION_CHART_POINTS      (16)
+#define SYS_UI_FUSION_CHART_COLOR       BSP_DISPLAY_RGB_TO_HEX(17, 17, 17)  // Dark gray
+#define SYS_UI_FUSION_CHART_POINT_COLOR SYS_UI_WIDGET_COLOR_GOLD
 
 // Lock screen
-#define SYS_UI_QR_PATH                "/img/qr.bin"
-#define SYS_UI_QR_LABEL               "SCAN TO UNLOCK"
-#define SYS_UI_QR_LABEL_X             (80)
-#define SYS_UI_QR_LABEL_Y             (20)
-#define SYS_UI_QR_LABEL_FAIL          "[QR]"
-#define SYS_UI_QR_LABEL_FAIL_X        (100)
-#define SYS_UI_QR_LABEL_FAIL_Y        (80)
-#define SYS_UI_QR_LABEL_FAIL_FONT     (&lv_font_montserrat_28)
-#define SYS_UI_QR_LABEL_FONT          (&lv_font_montserrat_18)
-#define SYS_UI_QR_WIDTH               (160)
-#define SYS_UI_QR_HEIGHT              (160)
-#define SYS_UI_QR_X                   (80)
-#define SYS_UI_QR_Y                   (50)
-#define SYS_UI_DEVICE_ID_LABEL_X      (80)
-#define SYS_UI_DEVICE_ID_LABEL_Y      (215)
-#define SYS_UI_DEVICE_ID_LABEL_FONT   (&lv_font_montserrat_10)
+#define SYS_UI_QR_PATH                  "/img/qr.bin"
+#define SYS_UI_QR_LABEL                 "SCAN TO UNLOCK"
+#define SYS_UI_QR_LABEL_X               (80)
+#define SYS_UI_QR_LABEL_Y               (20)
+#define SYS_UI_QR_LABEL_FAIL            "[QR]"
+#define SYS_UI_QR_LABEL_FAIL_X          (100)
+#define SYS_UI_QR_LABEL_FAIL_Y          (80)
+#define SYS_UI_QR_LABEL_FAIL_FONT       (&lv_font_montserrat_28)
+#define SYS_UI_QR_LABEL_FONT            (&lv_font_montserrat_18)
+#define SYS_UI_QR_WIDTH                 (160)
+#define SYS_UI_QR_HEIGHT                (160)
+#define SYS_UI_QR_X                     (80)
+#define SYS_UI_QR_Y                     (50)
+#define SYS_UI_DEVICE_ID_LABEL_X        (80)
+#define SYS_UI_DEVICE_ID_LABEL_Y        (215)
+#define SYS_UI_DEVICE_ID_LABEL_FONT     (&lv_font_montserrat_10)
 
 /* Background color palette for settings screen
  * INFO(index, R, G, B, label)            */
@@ -206,11 +226,11 @@ typedef struct
   lv_obj_t *time_remaining_label;
   lv_obj_t *history_labels[SYS_UI_MAX_RENTAL_HISTORY];
   lv_obj_t *extend_btn;
-  // Distance screen
-  lv_obj_t          *distance_screen;
+  // Fusion screen
+  lv_obj_t          *fusion_screen;
   lv_obj_t          *distance_title;
   lv_obj_t          *distance_back_btn;
-  lv_obj_t          *total_distance_label;
+  lv_obj_t          *max_speed_lable;
   lv_obj_t          *avg_speed_label;
   lv_obj_t          *distance_chart;
   lv_chart_series_t *distance_series;
@@ -239,6 +259,7 @@ typedef struct
   size_t frame_counter;
   // Motion data
   float             current_speed;
+  float             max_speed;
   float             target_speed;
   float             distance_km;
   int               prev_speed_int;
@@ -270,7 +291,7 @@ typedef struct
   size_t temp_timestamps[SYS_UI_MAX_TEMP_SAMPLES];
   int    temperature_sample_count;
   int    temperature_zoom;
-  int    temperature_pan;
+  int    temperature_graph_offset;
 } sys_ui_context_t;
 
 /* Public variables --------------------------------------------------- */
@@ -280,10 +301,10 @@ sys_ui_data_status_t g_sys_ui_data_status = { 0 };
 static sys_ui_context_t ui_ctx;
 
 static float  distance_history_data[SYS_UI_DATA_HISTORY_SAMPLES];
-static int    s_distance_history_count = 0;
+static int    distance_history_count = 0;
 static float  temperature_history_data[SYS_UI_DATA_HISTORY_SAMPLES];
 static size_t temperature_time_data[SYS_UI_DATA_HISTORY_SAMPLES];
-static int    s_temperature_history_count = 0;
+static int    temperature_history_count = 0;
 
 OS_SEM_DEFINE_STATIC(sys_ui_wakeup_sem);
 
@@ -340,16 +361,16 @@ static void sys_ui_lock_screen_cb_debug(lv_event_t *event);
 #endif
 // Time history screen
 static void sys_ui_time_screen_create(void);
-static void sys_ui_time_screen_draw(void);
+static void sys_ui_time_screen_update(void);
 static void sys_ui_time_screen_cb_back_btn(lv_event_t *event);
 static void sys_ui_time_screen_cb_extend_btn(lv_event_t *event);
-// Distance screen
-static void sys_ui_distance_screen_create(void);
-static void sys_ui_distance_screen_draw(void);
-static void sys_ui_distance_screen_cb_back_btn(lv_event_t *event);
+// Fusion screen
+static void sys_ui_fusion_screen_create(void);
+static void sys_ui_fusion_screen_update(void);
+static void sys_ui_fusion_screen_cb_back_btn(lv_event_t *event);
 // Temperature screen
 static void sys_ui_temp_screen_create(void);
-static void sys_ui_temp_screen_draw(void);
+static void sys_ui_temp_screen_update(void);
 static void sys_ui_temp_screen_refresh(void);
 static void sys_ui_temp_screen_cb_back_btn(lv_event_t *event);
 static void sys_ui_temp_screen_cb_zoom_minus(lv_event_t *event);
@@ -532,7 +553,7 @@ static void sys_ui_change_screen(sys_ui_view_t view)
   }
   case SYS_UI_VIEW_TIME:
   {
-    sys_ui_time_screen_draw();
+    sys_ui_time_screen_update();
     if (ui_ctx.widgets.time_back_btn != nullptr)
     {
       lv_obj_add_event_cb(ui_ctx.widgets.time_back_btn, sys_ui_time_screen_cb_back_btn, LV_EVENT_CLICKED, nullptr);
@@ -545,17 +566,17 @@ static void sys_ui_change_screen(sys_ui_view_t view)
   }
   case SYS_UI_VIEW_DISTANCE:
   {
-    sys_ui_distance_screen_draw();
+    sys_ui_fusion_screen_update();
     if (ui_ctx.widgets.distance_back_btn != nullptr)
     {
-      lv_obj_add_event_cb(ui_ctx.widgets.distance_back_btn, sys_ui_distance_screen_cb_back_btn, LV_EVENT_CLICKED,
+      lv_obj_add_event_cb(ui_ctx.widgets.distance_back_btn, sys_ui_fusion_screen_cb_back_btn, LV_EVENT_CLICKED,
                           nullptr);
     }
     break;
   }
   case SYS_UI_VIEW_TEMPERATURE:
   {
-    sys_ui_temp_screen_draw();
+    sys_ui_temp_screen_update();
     if (ui_ctx.widgets.temp_back_btn != nullptr)
     {
       lv_obj_add_event_cb(ui_ctx.widgets.temp_back_btn, sys_ui_temp_screen_cb_back_btn, LV_EVENT_CLICKED, nullptr);
@@ -940,6 +961,7 @@ static void sys_ui_main_screen_update_compass(void)
 static void sys_ui_main_screen_update_speed_n_distance(void)
 {
   ui_ctx.current_speed       = ui_ctx.fusion.velocity_kmh;
+  ui_ctx.max_speed           = (ui_ctx.max_speed > ui_ctx.current_speed) ? ui_ctx.max_speed : ui_ctx.current_speed;
   ui_ctx.distance_km         = ui_ctx.fusion.distance_m / 1000.0f;
   ui_ctx.compass_heading_deg = ui_ctx.fusion.heading_deg;
   sys_ui_main_screen_update_speed((int) ui_ctx.current_speed);
@@ -1147,7 +1169,7 @@ static void sys_ui_time_screen_create(void)
                                                           "+30 min", SYS_UI_COLOR_SUCCESS, SYS_UI_COLOR_BG);
 }
 
-static void sys_ui_time_screen_draw(void)
+static void sys_ui_time_screen_update(void)
 {
   if (ui_ctx.widgets.time_history_screen == nullptr)
   {
@@ -1185,32 +1207,36 @@ static void sys_ui_time_screen_cb_extend_btn(lv_event_t *event)
   (void) event;
   LOG_DBG("sys_ui_time_screen_cb_extend_btn");
   ui_ctx.remaining_minutes += 30;
-  sys_ui_time_screen_draw();
+  sys_ui_time_screen_update();
 }
 
-static void sys_ui_distance_screen_create(void)
+static void sys_ui_fusion_screen_create(void)
 {
-  ui_ctx.widgets.distance_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
+  ui_ctx.widgets.fusion_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
 
   ui_ctx.widgets.distance_back_btn =
-    sys_ui_widget_create_button(ui_ctx.widgets.distance_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
+    sys_ui_widget_create_button(ui_ctx.widgets.fusion_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W,
                                 SYS_UI_BACK_BTN_H, "BACK", SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
-  ui_ctx.widgets.distance_title = sys_ui_widget_create_label(ui_ctx.widgets.distance_screen, 70, 15, "DISTANCE STATS",
-                                                             SYS_UI_COLOR_TEXT, &lv_font_montserrat_18);
-  ui_ctx.widgets.total_distance_label =
-    sys_ui_widget_create_label(ui_ctx.widgets.distance_screen, 30, 50, "Total: 0.00 km", SYS_UI_COLOR_TEXT, nullptr);
-  ui_ctx.widgets.avg_speed_label = sys_ui_widget_create_label(ui_ctx.widgets.distance_screen, 30, 70,
-                                                              "Avg speed: 0.0 km/h", SYS_UI_COLOR_TEXT, nullptr);
-  ui_ctx.widgets.distance_chart =
-    sys_ui_widget_create_chart(ui_ctx.widgets.distance_screen, 30, 95, 260, 120, 16, 0x111111);
-  ui_ctx.widgets.distance_series = sys_ui_widget_addChart_series(ui_ctx.widgets.distance_chart, SYS_UI_COLOR_ACCENT);
+  ui_ctx.widgets.distance_title =
+    sys_ui_widget_create_label(ui_ctx.widgets.fusion_screen, SYS_UI_FUSION_LABEL_X, SYS_UI_FUSION_LABEL_Y,
+                               SYS_UI_FUSION_LABEL_TEXT, SYS_UI_COLOR_TEXT, &lv_font_montserrat_18);
+  ui_ctx.widgets.max_speed_lable =
+    sys_ui_widget_create_label(ui_ctx.widgets.fusion_screen, SYS_UI_FUSION_MAX_SPEED_X, SYS_UI_FUSION_MAX_SPEED_Y,
+                               "Total: 0.00 km", SYS_UI_COLOR_TEXT, nullptr);
+  ui_ctx.widgets.avg_speed_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.fusion_screen, SYS_UI_FUSION_AVG_SPEED_X, SYS_UI_FUSION_AVG_SPEED_Y,
+                               "Avg speed: 0.0 km/h", SYS_UI_COLOR_TEXT, nullptr);
+  ui_ctx.widgets.distance_chart = sys_ui_widget_create_chart(
+    ui_ctx.widgets.fusion_screen, SYS_UI_FUSION_CHART_X, SYS_UI_FUSION_CHART_Y, SYS_UI_FUSION_CHART_W,
+    SYS_UI_FUSION_CHART_H, SYS_UI_FUSION_CHART_POINTS, SYS_UI_FUSION_CHART_COLOR);
+  ui_ctx.widgets.distance_series = sys_ui_widget_add_chart_series(ui_ctx.widgets.distance_chart, SYS_UI_COLOR_ACCENT);
 }
 
-static void sys_ui_distance_screen_draw(void)
+static void sys_ui_fusion_screen_update(void)
 {
-  if (ui_ctx.widgets.distance_screen == nullptr)
+  if (ui_ctx.widgets.fusion_screen == nullptr)
   {
-    sys_ui_distance_screen_create();
+    sys_ui_fusion_screen_create();
   }
 
   size_t now   = OS_GET_TICK();
@@ -1220,19 +1246,19 @@ static void sys_ui_distance_screen_draw(void)
     hours = 0.001f;
   }
 
-  if (ui_ctx.widgets.total_distance_label != nullptr)
+  if (ui_ctx.widgets.max_speed_lable != nullptr)
   {
-    sys_ui_widget_set_label_text_format(ui_ctx.widgets.total_distance_label, "Total: %.2f km", ui_ctx.distance_km);
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.max_speed_lable, SYS_UI_FUSION_MAX_SPEED_TEXT, ui_ctx.max_speed);
   }
   if (ui_ctx.widgets.avg_speed_label != nullptr)
   {
-    sys_ui_widget_set_label_text_format(ui_ctx.widgets.avg_speed_label, "Avg speed: %.1f km/h",
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.avg_speed_label, SYS_UI_FUSION_AVG_SPEED_TEXT,
                                         ui_ctx.distance_km / hours);
   }
 
   if (ui_ctx.widgets.distance_chart != nullptr && ui_ctx.widgets.distance_series != nullptr)
   {
-    int count = s_distance_history_count;
+    int count = distance_history_count;
     int base  = (count > 16) ? (count - 16) : 0;
     int plot  = (count - base > 0) ? (count - base) : 1;
     lv_chart_set_point_count(ui_ctx.widgets.distance_chart, plot);
@@ -1244,13 +1270,13 @@ static void sys_ui_distance_screen_draw(void)
     lv_chart_refresh(ui_ctx.widgets.distance_chart);
   }
 
-  sys_ui_show_screen(ui_ctx.widgets.distance_screen);
+  sys_ui_show_screen(ui_ctx.widgets.fusion_screen);
 }
 
-static void sys_ui_distance_screen_cb_back_btn(lv_event_t *event)
+static void sys_ui_fusion_screen_cb_back_btn(lv_event_t *event)
 {
   (void) event;
-  LOG_DBG("sys_ui_distance_screen_cb_back_btn");
+  LOG_DBG("sys_ui_fusion_screen_cb_back_btn");
   sys_ui_change_screen(SYS_UI_VIEW_MAIN);
 }
 
@@ -1266,7 +1292,7 @@ static void sys_ui_temp_screen_create(void)
   ui_ctx.widgets.temp_chart =
     sys_ui_widget_create_chart(ui_ctx.widgets.temp_screen, SYS_UI_TEMP_GRAPH_X, SYS_UI_TEMP_GRAPH_Y,
                                SYS_UI_TEMP_GRAPH_W, SYS_UI_TEMP_GRAPH_H, 60, 0x111111);
-  ui_ctx.widgets.temp_series = sys_ui_widget_addChart_series(ui_ctx.widgets.temp_chart, SYS_UI_COLOR_ACCENT);
+  ui_ctx.widgets.temp_series = sys_ui_widget_add_chart_series(ui_ctx.widgets.temp_chart, SYS_UI_COLOR_ACCENT);
   ui_ctx.widgets.temp_range_label =
     sys_ui_widget_create_label(ui_ctx.widgets.temp_screen, SYS_UI_TEMP_GRAPH_X, SYS_UI_TEMP_GRAPH_Y - 15,
                                "Collecting...", SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
@@ -1284,41 +1310,43 @@ static void sys_ui_temp_screen_create(void)
     SYS_UI_TEMP_BTN_W, SYS_UI_TEMP_BTN_H, ">", SYS_UI_COLOR_PRIMARY, SYS_UI_COLOR_BG);
 }
 
-static void sys_ui_temp_screen_draw(void)
+static void sys_ui_temp_screen_update(void)
 {
+  // 1. Create screen if not exists
   if (ui_ctx.widgets.temp_screen == nullptr)
   {
     sys_ui_temp_screen_create();
   }
 
-  int count = s_temperature_history_count;
+  // 2. If no data, just show screen
+  int count = temperature_history_count;
   if (ui_ctx.widgets.temp_chart == nullptr || ui_ctx.widgets.temp_series == nullptr || count <= 1)
   {
     sys_ui_show_screen(ui_ctx.widgets.temp_screen);
     return;
   }
 
-  int zoom       = ui_ctx.temperature_zoom;
-  int pan_offset = SYS_UI_CLAMP(ui_ctx.temperature_pan, 0, count - 1);
-  int window     = SYS_UI_CLAMP(count / zoom, 2, count);
-  pan_offset     = SYS_UI_CLAMP(pan_offset, 0, count - window);
+  int zoom         = ui_ctx.temperature_zoom;
+  int graph_offset = SYS_UI_CLAMP(ui_ctx.temperature_graph_offset, 0, count - 1);
+  int window       = SYS_UI_CLAMP(count / zoom, 2, count);
+  graph_offset     = SYS_UI_CLAMP(graph_offset, 0, count - window);
 
-  float min_temp = temperature_history_data[pan_offset];
-  float max_temp = temperature_history_data[pan_offset];
+  float min_temp = temperature_history_data[graph_offset];
+  float max_temp = temperature_history_data[graph_offset];
   for (int i = 0; i < window; ++i)
   {
-    float v = temperature_history_data[pan_offset + i];
-    if (v < min_temp)
-      min_temp = v;
-    if (v > max_temp)
-      max_temp = v;
+    float now = temperature_history_data[graph_offset + i];
+    if (now < min_temp)
+      min_temp = now;
+    if (now > max_temp)
+      max_temp = now;
   }
 
   if (ui_ctx.widgets.temp_range_label != nullptr)
   {
-    float span = (temperature_time_data[pan_offset + window - 1] - temperature_time_data[pan_offset]) / 1000.0f;
+    float offset = (temperature_time_data[graph_offset + window - 1] - temperature_time_data[graph_offset]) / 1000.0f;
     sys_ui_widget_set_label_text_format(ui_ctx.widgets.temp_range_label, "%.1f-%.1fC (%.1fs)", min_temp, max_temp,
-                                        span);
+                                        offset);
   }
 
   lv_chart_set_point_count(ui_ctx.widgets.temp_chart, window);
@@ -1327,7 +1355,7 @@ static void sys_ui_temp_screen_draw(void)
   for (int i = 0; i < window; ++i)
   {
     lv_chart_set_value_by_id(ui_ctx.widgets.temp_chart, ui_ctx.widgets.temp_series, i,
-                             (int) (temperature_history_data[pan_offset + i] * 10));
+                             (int) (temperature_history_data[graph_offset + i] * 10));
   }
   lv_chart_refresh(ui_ctx.widgets.temp_chart);
 
@@ -1336,9 +1364,9 @@ static void sys_ui_temp_screen_draw(void)
 
 static void sys_ui_temp_screen_refresh(void)
 {
-  int max_pan            = (s_temperature_history_count > 2) ? (s_temperature_history_count - 2) : 0;
-  ui_ctx.temperature_pan = SYS_UI_CLAMP(ui_ctx.temperature_pan, 0, max_pan);
-  sys_ui_temp_screen_draw();
+  int max_pan                     = (temperature_history_count > 2) ? (temperature_history_count - 2) : 0;
+  ui_ctx.temperature_graph_offset = SYS_UI_CLAMP(ui_ctx.temperature_graph_offset, 0, max_pan);
+  sys_ui_temp_screen_update();
 }
 
 static void sys_ui_temp_screen_cb_back_btn(lv_event_t *event)
@@ -1373,17 +1401,17 @@ static void sys_ui_temp_screen_cb_zoom_plus(lv_event_t *event)
 static void sys_ui_temp_screen_cb_pan_left(lv_event_t *event)
 {
   (void) event;
-  ui_ctx.temperature_pan -= 5;
+  ui_ctx.temperature_graph_offset -= 5;
   sys_ui_temp_screen_refresh();
-  LOG_DBG("sys_ui_temp_screen_cb_pan_left: pan=%d", ui_ctx.temperature_pan);
+  LOG_DBG("sys_ui_temp_screen_cb_pan_left: pan=%d", ui_ctx.temperature_graph_offset);
 }
 
 static void sys_ui_temp_screen_cb_pan_right(lv_event_t *event)
 {
   (void) event;
-  ui_ctx.temperature_pan += 5;
+  ui_ctx.temperature_graph_offset += 5;
   sys_ui_temp_screen_refresh();
-  LOG_DBG("sys_ui_temp_screen_cb_pan_right: pan=%d", ui_ctx.temperature_pan);
+  LOG_DBG("sys_ui_temp_screen_cb_pan_right: pan=%d", ui_ctx.temperature_graph_offset);
 }
 
 static void sys_ui_log_distance_sample(float value)
@@ -1530,18 +1558,18 @@ static void sys_ui_process_active(void)
     {
       ui_ctx.last_second_tick = now;
       sys_ui_main_screen_update_countdown();
-      sys_ui_time_screen_draw();
+      sys_ui_time_screen_update();
     }
     break;
   }
   case SYS_UI_VIEW_DISTANCE:
   {
-    sys_ui_distance_screen_draw();
+    sys_ui_fusion_screen_update();
     break;
   }
   case SYS_UI_VIEW_TEMPERATURE:
   {
-    sys_ui_temp_screen_draw();
+    sys_ui_temp_screen_update();
     break;
   }
   case SYS_UI_VIEW_LOCK:
