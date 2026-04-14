@@ -21,9 +21,10 @@
 
 #include <SimpleKalmanFilter.h>  // platformio.ini: lib_deps = denyssene/SimpleKalmanFilter
 #include <math.h>
+#include <stdlib.h>  // calloc
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_WARN)
+LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_INFO)
 
 #define DEMO_VEHICLE                (true)
 #define DEMO_WALKING                (false)
@@ -38,9 +39,13 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_WARN)
 // Attitude complementary filter (gyro + accelerometer)
 #define ATTITUDE_GYRO_WEIGHT        (0.95f)
 #define GYRO_BIAS_CALIB_SAMPLES     (200)
-#define GYRO_EMA_ALPHA              (0.75f)
 #define GYRO_BIAS_ALPHA             (0.01f)
 #define ACC_FORWARD_MAX_MS2         (6.0f)
+
+// Gyro Kalman filter — low Q = trust smoothed estimate; raise Q if attitude lags fast turns
+#define GYRO_KF_E_MEA               (0.5f)   // measurement noise (dps units)
+#define GYRO_KF_E_EST               (0.5f)   // initial estimate error
+#define GYRO_KF_Q                   (0.05f)  // process noise: lower = smoother, higher = more responsive
 
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 #define CF_WC                       (1.0f)
@@ -76,7 +81,10 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_WARN)
 #define GPS_VALID_TIMEOUT_MS          (2000)
 #define GPS_FADE_TIMEOUT_MS           (1000)
 
-#define COMPASS_EMA_ALPHA             (0.15f)
+// Compass Kalman filter — low Q suppresses magnetic noise; raise Q if heading reacts too slowly
+#define COMPASS_KF_E_MEA              (2.0f)   // measurement noise (raw counts)
+#define COMPASS_KF_E_EST              (2.0f)   // initial estimate error
+#define COMPASS_KF_Q                  (0.02f)  // process noise: very low — heading changes slowly
 #define COMPASS_UPDATE_MS             (100)
 
 #define GRAVITY_MS2                   (9.806f)
@@ -133,6 +141,11 @@ typedef struct
   SimpleKalmanFilter *acc_kf_z;
   bool                acc_kf_init;
 
+  SimpleKalmanFilter *gyro_kf_x;
+  SimpleKalmanFilter *gyro_kf_y;
+  SimpleKalmanFilter *gyro_kf_z;
+  bool                gyro_kf_init;
+
   float roll_rad;
   float pitch_rad;
   // yaw is fusion_ctx.heading_deg (from compass, updated in sys_fusion_read_compass)
@@ -146,13 +159,13 @@ typedef struct
   uint32_t stationary_time_ms;
 
   // Compass
-  float       compass_ema_x;
-  float       compass_ema_y;
-  float       compass_ema_z;
-  size_t      compass_last_ms;
-  bool        compass_filter_init;
-  float       heading_deg;
-  const char *direction_str;
+  SimpleKalmanFilter *compass_kf_x;
+  SimpleKalmanFilter *compass_kf_y;
+  SimpleKalmanFilter *compass_kf_z;
+  bool                compass_kf_init;
+  size_t              compass_last_ms;
+  float               heading_deg;
+  const char         *direction_str;
 
   // Sensor ready flags
   bool compass_ready;
@@ -167,16 +180,21 @@ typedef struct
   float acc_raw_x;
   float acc_raw_y;
   float acc_raw_z;
+  float acc_kf_filtered_x;
+  float acc_kf_filtered_y;
+  float acc_kf_filtered_z;
   float gyro_raw_x;
   float gyro_raw_y;
   float gyro_raw_z;
-  float gyro_ema_x;
-  float gyro_ema_y;
-  float gyro_ema_z;
-  bool  is_gyro_ema_init;
+  float gyro_kf_filtered_x;
+  float gyro_kf_filtered_y;
+  float gyro_kf_filtered_z;
   float compass_raw_x;
   float compass_raw_y;
   float compass_raw_z;
+  float compass_kf_filtered_x;
+  float compass_kf_filtered_y;
+  float compass_kf_filtered_z;
   float distance_gps;
 #endif
 } sys_fusion_context_t;
@@ -187,6 +205,24 @@ typedef struct
 
 /* Private variables -------------------------------------------------- */
 static sys_fusion_context_t fusion_ctx = { 0 };
+
+/* The upstream SimpleKalmanFilter (denyssene, v1.x) does NOT zero-initialize
+ * _last_estimate / _current_estimate / _kalman_gain in its constructor.
+ * On ESP32, heap memory returned by `new` can contain NaN bit-patterns;
+ * the update formula  `_current_estimate = _last_estimate + gain*(mea - _last_estimate)`
+ * then propagates NaN permanently — calling updateEstimate() never recovers
+ * because NaN arithmetic always returns NaN.
+ *
+ * Fix: allocate with calloc (zeroes every byte) then use placement-new so
+ * the constructor only fills the fields it knows about (_err_measure etc.)
+ * while _last_estimate and friends remain 0.0f from calloc. */
+static SimpleKalmanFilter *kf_new(float e_mea, float e_est, float q)
+{
+  void *mem = calloc(1, sizeof(SimpleKalmanFilter));
+  if (mem == NULL)
+    return NULL;
+  return new (mem) SimpleKalmanFilter(e_mea, e_est, q);
+}
 
 /* Private function prototypes ---------------------------------------- */
 static float       sys_fusion_calculate_magnitude(float x, float y, float z);
@@ -211,10 +247,38 @@ void sys_fusion_init(void)
   memset(&fusion_ctx, 0, sizeof(fusion_ctx));
   fusion_ctx.direction_str = "N";
 
-  fusion_ctx.acc_kf_x    = new SimpleKalmanFilter(ACC_KF_E_MEA, ACC_KF_E_EST, ACC_KF_Q);
-  fusion_ctx.acc_kf_y    = new SimpleKalmanFilter(ACC_KF_E_MEA, ACC_KF_E_EST, ACC_KF_Q);
-  fusion_ctx.acc_kf_z    = new SimpleKalmanFilter(ACC_KF_E_MEA, ACC_KF_E_EST, ACC_KF_Q);
-  fusion_ctx.acc_kf_init = false;
+  fusion_ctx.acc_kf_x = kf_new(ACC_KF_E_MEA, ACC_KF_E_EST, ACC_KF_Q);
+  fusion_ctx.acc_kf_y = kf_new(ACC_KF_E_MEA, ACC_KF_E_EST, ACC_KF_Q);
+  fusion_ctx.acc_kf_z = kf_new(ACC_KF_E_MEA, ACC_KF_E_EST, ACC_KF_Q);
+  if (fusion_ctx.acc_kf_x && fusion_ctx.acc_kf_y && fusion_ctx.acc_kf_z)
+  {
+    fusion_ctx.acc_kf_x->updateEstimate(0.0f);
+    fusion_ctx.acc_kf_y->updateEstimate(0.0f);
+    fusion_ctx.acc_kf_z->updateEstimate(1.0f);  // z at rest ≈ 1g
+    fusion_ctx.acc_kf_init = true;
+  }
+
+  fusion_ctx.gyro_kf_x = kf_new(GYRO_KF_E_MEA, GYRO_KF_E_EST, GYRO_KF_Q);
+  fusion_ctx.gyro_kf_y = kf_new(GYRO_KF_E_MEA, GYRO_KF_E_EST, GYRO_KF_Q);
+  fusion_ctx.gyro_kf_z = kf_new(GYRO_KF_E_MEA, GYRO_KF_E_EST, GYRO_KF_Q);
+  if (fusion_ctx.gyro_kf_x && fusion_ctx.gyro_kf_y && fusion_ctx.gyro_kf_z)
+  {
+    fusion_ctx.gyro_kf_x->updateEstimate(0.0f);
+    fusion_ctx.gyro_kf_y->updateEstimate(0.0f);
+    fusion_ctx.gyro_kf_z->updateEstimate(0.0f);
+    fusion_ctx.gyro_kf_init = true;
+  }
+
+  fusion_ctx.compass_kf_x = kf_new(COMPASS_KF_E_MEA, COMPASS_KF_E_EST, COMPASS_KF_Q);
+  fusion_ctx.compass_kf_y = kf_new(COMPASS_KF_E_MEA, COMPASS_KF_E_EST, COMPASS_KF_Q);
+  fusion_ctx.compass_kf_z = kf_new(COMPASS_KF_E_MEA, COMPASS_KF_E_EST, COMPASS_KF_Q);
+  if (fusion_ctx.compass_kf_x && fusion_ctx.compass_kf_y && fusion_ctx.compass_kf_z)
+  {
+    fusion_ctx.compass_kf_x->updateEstimate(0.0f);
+    fusion_ctx.compass_kf_y->updateEstimate(0.0f);
+    fusion_ctx.compass_kf_z->updateEstimate(0.0f);
+    fusion_ctx.compass_kf_init = true;
+  }
 
   LOG_DBG("Init ACC");
   if (bsp_acc_init() == STATUS_OK)
@@ -223,17 +287,22 @@ void sys_fusion_init(void)
     LOG_DBG("ACC OK");
 
     bsp_acc_raw_data_t init_acc = { 0 };
-    if (bsp_acc_get_raw_data(&init_acc) == STATUS_OK)
+    if (bsp_acc_get_raw_data(&init_acc) == STATUS_OK && isfinite(init_acc.acc_x) && isfinite(init_acc.acc_y)
+        && isfinite(init_acc.acc_z) && isfinite(init_acc.gyro_x) && isfinite(init_acc.gyro_y)
+        && isfinite(init_acc.gyro_z))
     {
-      // Seed Kalman with first reading so filter starts at correct value
+      // Re-seed with real first reading — only if all axes finite, avoids injecting NaN into KF
       fusion_ctx.acc_kf_x->updateEstimate(init_acc.acc_x);
       fusion_ctx.acc_kf_y->updateEstimate(init_acc.acc_y);
       fusion_ctx.acc_kf_z->updateEstimate(init_acc.acc_z);
-      fusion_ctx.acc_kf_init = true;
+      fusion_ctx.gyro_kf_x->updateEstimate(init_acc.gyro_x);
+      fusion_ctx.gyro_kf_y->updateEstimate(init_acc.gyro_y);
+      fusion_ctx.gyro_kf_z->updateEstimate(init_acc.gyro_z);
 
       fusion_ctx.roll_rad  = atan2f(init_acc.acc_y, init_acc.acc_z);
       fusion_ctx.pitch_rad = atan2f(-init_acc.acc_x, hypotf(init_acc.acc_y, init_acc.acc_z));
     }
+    // Non-finite or failed read: KF keeps valid state from force-init above
   }
   else
   {
@@ -332,21 +401,21 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   data->debug.acc_raw_x        = fusion_ctx.acc_raw_x;
   data->debug.acc_raw_y        = fusion_ctx.acc_raw_y;
   data->debug.acc_raw_z        = fusion_ctx.acc_raw_z;
-  data->debug.acc_filter_x     = fusion_ctx.acc_kf_x ? fusion_ctx.acc_kf_x->getFilteredValue() : fusion_ctx.acc_raw_x;
-  data->debug.acc_filter_y     = fusion_ctx.acc_kf_y ? fusion_ctx.acc_kf_y->getFilteredValue() : fusion_ctx.acc_raw_y;
-  data->debug.acc_filter_z     = fusion_ctx.acc_kf_z ? fusion_ctx.acc_kf_z->getFilteredValue() : fusion_ctx.acc_raw_z;
+  data->debug.acc_filter_x     = fusion_ctx.acc_kf_filtered_x;
+  data->debug.acc_filter_y     = fusion_ctx.acc_kf_filtered_y;
+  data->debug.acc_filter_z     = fusion_ctx.acc_kf_filtered_z;
   data->debug.gyro_raw_x       = fusion_ctx.gyro_raw_x;
   data->debug.gyro_raw_y       = fusion_ctx.gyro_raw_y;
   data->debug.gyro_raw_z       = fusion_ctx.gyro_raw_z;
-  data->debug.gyro_filter_x    = fusion_ctx.gyro_ema_x;
-  data->debug.gyro_filter_y    = fusion_ctx.gyro_ema_y;
-  data->debug.gyro_filter_z    = fusion_ctx.gyro_ema_z;
+  data->debug.gyro_filter_x    = fusion_ctx.gyro_kf_filtered_x;
+  data->debug.gyro_filter_y    = fusion_ctx.gyro_kf_filtered_y;
+  data->debug.gyro_filter_z    = fusion_ctx.gyro_kf_filtered_z;
   data->debug.compass_raw_x    = fusion_ctx.compass_raw_x;
   data->debug.compass_raw_y    = fusion_ctx.compass_raw_y;
   data->debug.compass_raw_z    = fusion_ctx.compass_raw_z;
-  data->debug.compass_filter_x = fusion_ctx.compass_ema_x;
-  data->debug.compass_filter_y = fusion_ctx.compass_ema_y;
-  data->debug.compass_filter_z = fusion_ctx.compass_ema_z;
+  data->debug.compass_filter_x = fusion_ctx.compass_kf_filtered_x;
+  data->debug.compass_filter_y = fusion_ctx.compass_kf_filtered_y;
+  data->debug.compass_filter_z = fusion_ctx.compass_kf_filtered_z;
   data->debug.v_ins            = fusion_ctx.velocity_ins;
   data->debug.v_gps            = fusion_ctx.velocity_gps;
   data->debug.distance_ins     = fusion_ctx.distance_ins;
@@ -427,22 +496,31 @@ static void sys_fusion_update_ins_velocity(float dt)
   fusion_ctx.gyro_raw_z = imu.gyro_z;
 #endif
 
-  if (!fusion_ctx.is_gyro_ema_init)
+  // 1a. Kalman filter on gyro — replaces EMA(α=0.75)
+  float gyro_kf_x, gyro_kf_y, gyro_kf_z;
+  if (fusion_ctx.gyro_kf_init && isfinite(imu.gyro_x) && isfinite(imu.gyro_y) && isfinite(imu.gyro_z))
   {
-    fusion_ctx.gyro_ema_x       = imu.gyro_x;
-    fusion_ctx.gyro_ema_y       = imu.gyro_y;
-    fusion_ctx.gyro_ema_z       = imu.gyro_z;
-    fusion_ctx.is_gyro_ema_init = true;
+    gyro_kf_x = fusion_ctx.gyro_kf_x->updateEstimate(imu.gyro_x);
+    gyro_kf_y = fusion_ctx.gyro_kf_y->updateEstimate(imu.gyro_y);
+    gyro_kf_z = fusion_ctx.gyro_kf_z->updateEstimate(imu.gyro_z);
   }
   else
   {
-    fusion_ctx.gyro_ema_x = (1.0f - GYRO_EMA_ALPHA) * imu.gyro_x + GYRO_EMA_ALPHA * fusion_ctx.gyro_ema_x;
-    fusion_ctx.gyro_ema_y = (1.0f - GYRO_EMA_ALPHA) * imu.gyro_y + GYRO_EMA_ALPHA * fusion_ctx.gyro_ema_y;
-    fusion_ctx.gyro_ema_z = (1.0f - GYRO_EMA_ALPHA) * imu.gyro_z + GYRO_EMA_ALPHA * fusion_ctx.gyro_ema_z;
+    // Non-finite input: keep last filtered value, don't corrupt KF state
+    gyro_kf_x = isfinite(imu.gyro_x) ? imu.gyro_x : 0.0f;
+    gyro_kf_y = isfinite(imu.gyro_y) ? imu.gyro_y : 0.0f;
+    gyro_kf_z = isfinite(imu.gyro_z) ? imu.gyro_z : 0.0f;
   }
+
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  fusion_ctx.gyro_kf_filtered_x = gyro_kf_x;
+  fusion_ctx.gyro_kf_filtered_y = gyro_kf_y;
+  fusion_ctx.gyro_kf_filtered_z = gyro_kf_z;
+#endif
+
   float acc_x, acc_y, acc_z;
 
-  if (fusion_ctx.acc_kf_init)
+  if (fusion_ctx.acc_kf_init && isfinite(imu.acc_x) && isfinite(imu.acc_y) && isfinite(imu.acc_z))
   {
     acc_x = fusion_ctx.acc_kf_x->updateEstimate(imu.acc_x);
     acc_y = fusion_ctx.acc_kf_y->updateEstimate(imu.acc_y);
@@ -450,17 +528,23 @@ static void sys_fusion_update_ins_velocity(float dt)
   }
   else
   {
-    acc_x = imu.acc_x;
-    acc_y = imu.acc_y;
-    acc_z = imu.acc_z;
+    acc_x = isfinite(imu.acc_x) ? imu.acc_x : 0.0f;
+    acc_y = isfinite(imu.acc_y) ? imu.acc_y : 0.0f;
+    acc_z = isfinite(imu.acc_z) ? imu.acc_z : 1.0f;  // fallback: 1g upright
   }
+
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  fusion_ctx.acc_kf_filtered_x = acc_x;
+  fusion_ctx.acc_kf_filtered_y = acc_y;
+  fusion_ctx.acc_kf_filtered_z = acc_z;
+#endif
 
   // 2. Update attitude: roll, pitch
   float roll_acc  = atan2f(acc_y, acc_z);
   float pitch_acc = atan2f(-acc_x, hypotf(acc_y, acc_z));
 
-  float gyro_x_rads = (fusion_ctx.gyro_ema_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x;
-  float gyro_y_rads = (fusion_ctx.gyro_ema_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y;
+  float gyro_x_rads = (gyro_kf_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x;
+  float gyro_y_rads = (gyro_kf_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y;
 
   fusion_ctx.roll_rad =
     ATTITUDE_GYRO_WEIGHT * (fusion_ctx.roll_rad + gyro_x_rads * dt) + (1.0f - ATTITUDE_GYRO_WEIGHT) * roll_acc;
@@ -469,9 +553,9 @@ static void sys_fusion_update_ins_velocity(float dt)
 
   if (fusion_ctx.is_stationary)
   {
-    fusion_ctx.gyro_bias_x += GYRO_BIAS_ALPHA * ((fusion_ctx.gyro_ema_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x);
-    fusion_ctx.gyro_bias_y += GYRO_BIAS_ALPHA * ((fusion_ctx.gyro_ema_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y);
-    fusion_ctx.gyro_bias_z += GYRO_BIAS_ALPHA * ((fusion_ctx.gyro_ema_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z);
+    fusion_ctx.gyro_bias_x += GYRO_BIAS_ALPHA * ((gyro_kf_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x);
+    fusion_ctx.gyro_bias_y += GYRO_BIAS_ALPHA * ((gyro_kf_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y);
+    fusion_ctx.gyro_bias_z += GYRO_BIAS_ALPHA * ((gyro_kf_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z);
   }
 
   // 3. Body fram -> Navigation frame rotation (ZYX Euler, yaw from compass)
@@ -766,24 +850,21 @@ static void sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms)
   fusion_ctx.compass_raw_z = (float) raw_data.raw_z;
 #endif
 
-  if (!fusion_ctx.compass_filter_init)
-  {
-    fusion_ctx.compass_ema_x       = (float) raw_data.raw_x;
-    fusion_ctx.compass_ema_y       = (float) raw_data.raw_y;
-    fusion_ctx.compass_ema_z       = (float) raw_data.raw_z;
-    fusion_ctx.compass_filter_init = true;
-  }
-  else
-  {
-    fusion_ctx.compass_ema_x =
-      COMPASS_EMA_ALPHA * (float) raw_data.raw_x + (1.0f - COMPASS_EMA_ALPHA) * fusion_ctx.compass_ema_x;
-    fusion_ctx.compass_ema_y =
-      COMPASS_EMA_ALPHA * (float) raw_data.raw_y + (1.0f - COMPASS_EMA_ALPHA) * fusion_ctx.compass_ema_y;
-    fusion_ctx.compass_ema_z =
-      COMPASS_EMA_ALPHA * (float) raw_data.raw_z + (1.0f - COMPASS_EMA_ALPHA) * fusion_ctx.compass_ema_z;
-  }
+  // Kalman filter on compass raw counts — replaces EMA(α=0.15)
+  float rx   = (float) raw_data.raw_x;
+  float ry   = (float) raw_data.raw_y;
+  float rz   = (float) raw_data.raw_z;
+  float kf_x = isfinite(rx) ? fusion_ctx.compass_kf_x->updateEstimate(rx) : fusion_ctx.compass_kf_x->getFilteredValue();
+  float kf_y = isfinite(ry) ? fusion_ctx.compass_kf_y->updateEstimate(ry) : fusion_ctx.compass_kf_y->getFilteredValue();
+  float kf_z = isfinite(rz) ? fusion_ctx.compass_kf_z->updateEstimate(rz) : fusion_ctx.compass_kf_z->getFilteredValue();
 
-  float heading_rad = atan2f(fusion_ctx.compass_ema_y, fusion_ctx.compass_ema_x);
+#if (DEVICE_FUSION_DEBUG_MODE == 1)
+  fusion_ctx.compass_kf_filtered_x = kf_x;
+  fusion_ctx.compass_kf_filtered_y = kf_y;
+  fusion_ctx.compass_kf_filtered_z = kf_z;
+#endif
+
+  float heading_rad = atan2f(kf_y, kf_x);
   float heading_deg = heading_rad * 180.0f / (float) M_PI;
   if (heading_deg < 0.0f)
     heading_deg += 360.0f;
@@ -823,8 +904,8 @@ bool sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
   static uint8_t vibration_count = 0;
 
   sys_fusion_danger_motion_flag_t flags = SYS_FUSION_DANGER_MOTION_NONE;
-  bsp_acc_raw_data_t   raw;
-  size_t               now = OS_GET_TICK();
+  bsp_acc_raw_data_t              raw;
+  size_t                          now = OS_GET_TICK();
 
   if (bsp_acc_get_raw_data(&raw) != STATUS_OK)
   {
