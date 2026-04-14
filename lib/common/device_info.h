@@ -19,46 +19,6 @@
 #include "esp_system.h"
 
 /* Public defines ----------------------------------------------------- */
-#define FIRRMWARE_MAJOR_VERSION      (1)
-#define FIRRMWARE_MINOR_VERSION      (0)
-#define FIRRMWARE_PATCH_VERSION      (0)
-
-#define DEVICE_NVS_NAMESPACE         "bsp_device"
-#define DEVICE_NVS_KEY_INFO          "dev_info"
-#define DEVICE_NVS_KEY_MAGIC         "dev_magic"
-#define DEVICE_VERSION_LEN           (6)   // example: 1.0.0 (5 chars + 1 null terminator)
-#define DEVICE_SERIAL_NUMBER_MAX_LEN (33)  // 32 chars + 1 null terminator
-#define DEVICE_MAGIC_NUMBER          (0xDEADBEEF)
-
-/**
- * @brief  Device operation modes
- * @note 0 - deactivated
- *       1 - normal mode
- */
-
-#define DEVICE_NORMAL_MODE           (false)
-#define DEVICE_FUSION_DEBUG_MODE     (true)
-#define DEVICE_IDLE_MODE_ENABLED     (true)
-
-/**
- * @brief  Server configuration
- */
-#define CONFIG_FIREBASE_SERVER       (false)
-#define CONFIG_MQTT_SERVER           (true)
-
-#define MQTT_MAX_TOPIC_LEN           (64)
-
-#define SCREEN_SKIP_LOCK_SCREEN      (true)
-#define SCREEN_ROTATION_0            (false)
-#define SCREEN_ROTATION_90           (false)
-#define SCREEN_ROTATION_180          (false)
-#define SCREEN_ROTATION_270          (true)
-
-#define DEVICE_LOG_SD_PATH_MAX_LEN   (128)
-
-#define DEFAULT_DEVICE_NAME          "haq-trk-000"
-#define DEVICE_NAME_MAX_LEN          (32)
-
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
 {

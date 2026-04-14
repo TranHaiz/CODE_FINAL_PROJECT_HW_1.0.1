@@ -43,10 +43,19 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
 status_function_t g_ret = STATUS_ERROR;
 sys_input_data_t  g_input_data;
 
+#if (DEVICE_INPUT_ENABLED)
 OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 3, 4096);
+#endif
+
+#if (DEVICE_NETWORK_ENABLED)
 OS_THREAD_DECLARE(sys_network_thread, tskIDLE_PRIORITY + 2, 8192);
 OS_THREAD_DECLARE(network_data_thread, tskIDLE_PRIORITY + 3, 6144);
+#endif
+
+#if (DEVICE_UI_ENABLED)
 OS_THREAD_DECLARE(sys_ui_thread, tskIDLE_PRIORITY + 4, 16384);
+#endif
+
 OS_THREAD_DECLARE(sys_log_thread, tskIDLE_PRIORITY + 1, 4096);
 OS_THREAD_DECLARE(sys_cmd_thread, tskIDLE_PRIORITY + 5, 4096);
 OS_THREAD_DECLARE(sys_manager_thread, tskIDLE_PRIORITY + 5, 4096);
@@ -71,10 +80,20 @@ void setup()
   sys_network_init();
   delay(1000);
   OS_THREAD_CREATE(sys_cmd_thread, sys_cmd_thread_func);
+
+#if (DEVICE_INPUT_ENABLED)
   OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
+#endif
+
+#if (DEVICE_NETWORK_ENABLED)
   OS_THREAD_CREATE(sys_network_thread, sys_network_process);
   OS_THREAD_CREATE(network_data_thread, sys_network_data_task);
+#endif
+
+#if (DEVICE_UI_ENABLED)
   OS_THREAD_CREATE(sys_ui_thread, sys_ui_thread_func);
+#endif
+
   OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
   OS_THREAD_CREATE(sys_manager_thread, sys_manager_thread_func);
 }

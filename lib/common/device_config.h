@@ -16,7 +16,48 @@
 /* Includes ----------------------------------------------------------- */
 /* Public defines ----------------------------------------------------- */
 
-// IL9341 screen configuration
+// ------------------------------ Device configuration ------------------------------
+#define FIRRMWARE_MAJOR_VERSION           (1)
+#define FIRRMWARE_MINOR_VERSION           (0)
+#define FIRRMWARE_PATCH_VERSION           (0)
+
+#define DEFAULT_DEVICE_NAME               "haq-trk-000"
+#define DEVICE_NAME_MAX_LEN               (32)
+#define DEVICE_NVS_NAMESPACE              "bsp_device"
+#define DEVICE_NVS_KEY_INFO               "dev_info"
+#define DEVICE_NVS_KEY_MAGIC              "dev_magic"
+#define DEVICE_VERSION_LEN                (6)   // example: 1.0.0 (5 chars + 1 null terminator)
+#define DEVICE_SERIAL_NUMBER_MAX_LEN      (33)  // 32 chars + 1 null terminator
+#define DEVICE_MAGIC_NUMBER               (0xDEADBEEF)
+
+#define DEVICE_NORMAL_MODE                (false)
+#define DEVICE_FUSION_DEBUG_MODE          (true)
+#define DEVICE_IDLE_MODE_ENABLED          (true)
+#define DEVICE_NETWORK_ENABLED            (true)
+#define DEVICE_INPUT_ENABLED              (true)
+#define DEVICE_UI_ENABLED                 (true)
+
+// ------------------------------ LOG service configuration ------------------------------
+#define LOG_ENABLE                        (1)
+#define LOG_USB_ENABLE                    (1)
+#define LOG_SDCARD_ENABLE                 (1)
+#define LOG_TIMESTAMP_ENABLE              (1)
+
+// Network configuration
+#define CONFIG_FIREBASE_SERVER            (false)
+#define CONFIG_MQTT_SERVER                (true)
+
+#define MQTT_MAX_TOPIC_LEN                (64)
+
+#define DEVICE_LOG_SD_PATH_MAX_LEN        (128)
+
+// ------------------------------ IL9341 screen configuration ------------------------------
+#define SCREEN_SKIP_LOCK_SCREEN           (true)
+#define SCREEN_ROTATION_0                 (false)
+#define SCREEN_ROTATION_90                (false)
+#define SCREEN_ROTATION_180               (false)
+#define SCREEN_ROTATION_270               (true)
+
 #define SCREEN_TOUCH_CS                   (3)
 #define SCREEN_TOUCH_IRQ                  (8)
 #define SCREEN_MISO                       (13)
@@ -27,7 +68,7 @@
 #define SCREEN_RST                        (10)
 #define SCREEN_CS                         (14)
 
-// UART configuration
+// ------------------------------ UART configuration ------------------------------
 #define SIM_UART_HANDLER                  UART_NUM_2
 #define SIM_UART_TX                       (42)  // Connect to SIM RX
 #define SIM_UART_RX                       (2)   // Connect to SIM TX
@@ -38,11 +79,11 @@
 #define GPS_UART_RX                       (44)  // Connect to GPS TX
 #define GPS_UART_BAUDRATE                 (9600)
 
-// GP2Y1010AU0F Dust Sensor configuration
+// ------------------------------ GP2Y1010AU0F Dust Sensor configuration ------------------------------
 #define DUST_SENSOR_LED_PIN               (15)
 #define DUST_SENSOR_AOOUT_PIN             (16)
 
-// LSM6DS3 Accelerometer I2C configuration
+// ------------------------------ LSM6DS3 Accelerometer I2C configuration ------------------------------
 #define ACC_I2C_SDA_PIN                   (4)
 #define ACC_I2C_SCL_PIN                   (5)
 #define ACC_INT_PIN                       (1)
@@ -50,29 +91,29 @@
 #define ACC_I2C_ADDR_ALT                  (0x6A)
 #define ACC_MOTION_DETECT_THRESHOLD_LEVEL (3)  // 1: low, 2: medium, 3: high
 
-// HMC5883L Compass I2C configuration
+// ------------------------------ HMC5883L Compass I2C configuration ------------------------------
 #define COMPASS_I2C_SDA_PIN               (4)
 #define COMPASS_I2C_SCL_PIN               (5)
 #define COMPASS_I2C_ADDR                  (0x1E)
 #define COMPASS_I2C_CLOCK                 (100000)
 
-// SHT31 Temperature and Humidity Sensor I2C configuration
+// ------------------------------ SHT31 Temperature and Humidity Sensor I2C configuration ------------------------------
 #define TEMP_HUM_I2C_SDA_PIN              (4)
 #define TEMP_HUM_I2C_SCL_PIN              (5)
 #define TEMP_HUM_I2C_ADDR                 (0x44)
 #define TEMP_HUM_I2C_CLOCK                (100000)
 
-// DS1307 RTC I2C configuration
+// ------------------------------ DS1307 RTC I2C configuration ------------------------------
 #define RTC_I2C_SDA_PIN                   (40)
 #define RTC_I2C_SCL_PIN                   (39)
 #define RTC_I2C_ADDR                      (0x68)
 
-// Battery monitor (INA226) I2C configuration
+// ------------------------------ Battery monitor (INA226) I2C configuration ------------------------------
 #define BATT_I2C_SDA_PIN                  (40)
 #define BATT_I2C_SCL_PIN                  (39)
 #define BATT_I2C_ADDR                     (0x40)
 
-// SD Card SPI configuration
+// ------------------------------ SD Card SPI configuration ------------------------------
 #define BSP_SDCARD_DEFAULT_CS_PIN         (21)
 #define BSP_SDCARD_DEFAULT_SCK_PIN        (47)
 #define BSP_SDCARD_DEFAULT_MOSI_PIN       (48)
