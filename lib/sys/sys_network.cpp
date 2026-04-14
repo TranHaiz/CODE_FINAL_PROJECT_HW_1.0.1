@@ -373,16 +373,24 @@ static void sys_network_run_online(void)
         .topic   = g_device_info.mqtt_noti_topic,
         .payload = NETWORK_KEEPALIVE_MES,
       };
+
+      bool publish_ok = false;
       for (uint8_t i = 0; i < MQTT_PUBLISH_RETRY; i++)
       {
         if (bsp_sim_mqtt_pub(&mes) == STATUS_OK)
         {
+          LOG_DBG("Keepalive OK");
+          publish_ok = true;
           break;
         }
-        LOG_WRN("Keepalive publish attempt %d failed", i + 1);
         OS_DELAY_MS(MQTT_PUBLISH_RETRY_DELAY_MS);
       }
-      LOG_DBG("Keepalive OK");
+      if (!publish_ok)
+      {
+        LOG_WRN("Keepalive failed after %d attempts", MQTT_PUBLISH_RETRY);
+        sys_network_change_state(NETWORK_STATE_ERROR);
+        return;
+      }
       network_ctx.last_keepalive_ms = OS_GET_TICK();
     }
     return;
@@ -650,7 +658,16 @@ static void sys_network_publish_online(void)
     .payload = s_pub_slot,
   };
 
-  if (bsp_sim_mqtt_pub(&mes) != STATUS_OK)
+  bool pub_ok = false;
+  for (uint8_t i = 0; i < MQTT_PUBLISH_RETRY; i++)
+  {
+    if (bsp_sim_mqtt_pub(&mes) == STATUS_OK)
+    {
+      pub_ok = true;
+      break;
+    }
+  }
+  if (!pub_ok)
   {
     LOG_WRN("Publish failed — keeping in-flight slot for next retry");
     sys_network_change_state(NETWORK_STATE_ERROR);
@@ -837,6 +854,7 @@ static status_function_t sys_network_push_sd_to_mqtt(void)
   if (!publish_ok)
   {
     LOG_WRN("Failed to publish SD record after %d attempts — will retry", MQTT_PUBLISH_RETRY);
+    sys_network_change_state(NETWORK_STATE_ERROR);
     return STATUS_ERROR;
   }
 
