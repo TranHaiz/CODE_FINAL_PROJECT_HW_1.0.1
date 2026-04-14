@@ -40,7 +40,8 @@ typedef enum
 typedef struct
 {
   bool is_fusion_data_ready_for_ui;
-  bool is_env_data_ready_for_ui;
+  bool is_dust_data_ready_for_ui;
+  bool is_temp_hum_data_ready_for_ui;
   bool is_battery_data_ready_for_ui;
 } sys_ui_data_status_t;
 

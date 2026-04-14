@@ -12,6 +12,7 @@
 /* Includes ----------------------------------------------------------- */
 #include "sys_ui.h"
 
+#include "bsp_dust_sensor.h"
 #include "bsp_led.h"
 #include "bsp_sdcard.h"
 #include "common_type.h"
@@ -269,9 +270,9 @@ typedef struct
   int remaining_minutes;
   int remaining_seconds;
   // Environment
-  float temperature_C;
-  float humidity;
-  int   air_quality;
+  float    temperature_C;
+  float    humidity;
+  uint16_t air_quality;
   // Device state
   int    battery_percent;
   int    brightness_percent;
@@ -1539,16 +1540,18 @@ static void sys_ui_process_active(void)
       g_sys_ui_data_status.is_fusion_data_ready_for_ui = false;
     }
 
-    if (g_sys_ui_data_status.is_env_data_ready_for_ui)
+    if (g_sys_ui_data_status.is_dust_data_ready_for_ui || g_sys_ui_data_status.is_temp_hum_data_ready_for_ui)
     {
       sys_input_data_t env = { 0 };
       if (sys_input_get_env_data(&env) == STATUS_OK)
       {
         ui_ctx.temperature_C = env.temp_hum.temperature;
         ui_ctx.humidity      = env.temp_hum.humidity;
+        ui_ctx.air_quality   = bsp_dust_sensor_get_aqi_level(env.dust_value);
       }
       sys_ui_main_screen_update_env(ui_ctx.temperature_C, ui_ctx.humidity, ui_ctx.air_quality);
-      g_sys_ui_data_status.is_env_data_ready_for_ui = false;
+      g_sys_ui_data_status.is_dust_data_ready_for_ui     = false;
+      g_sys_ui_data_status.is_temp_hum_data_ready_for_ui = false;
     }
     break;
   }

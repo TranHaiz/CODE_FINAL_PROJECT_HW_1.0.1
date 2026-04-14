@@ -37,7 +37,7 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
 #define SYS_INPUT_BATT_DEBOUNCE        (10)
 #define SYS_INPUT_BATT_MAX_ERROR       (5)
 
-#define SYS_INPUT_BATT_ENABLE          (0)
+#define SYS_INPUT_BATT_ENABLE          (true)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
@@ -46,7 +46,8 @@ typedef struct
   bool temp_hum_ready;
   bool initialized;
 
-  uint32_t last_env_update_ms;
+  uint32_t last_dust_update_ms;
+  uint32_t last_temp_hum_update_ms;
 
   int32_t  batt_remaining_mah;
   uint32_t batt_last_update_ms;
@@ -333,19 +334,25 @@ static status_function_t sys_input_process_active(void)
 #endif
   g_sys_ui_data_status.is_fusion_data_ready_for_ui = true;
 
-  // 2. Environmental sensors
-  if ((current_time_ms - input_ctx.last_env_update_ms) >= SYS_INPUT_ENV_UPDATE_RATE_MS)
+  // 2. Dust sensors
+  if ((current_time_ms - input_ctx.last_dust_update_ms) >= SYS_INPUT_DUST_UPDATE_RATE_MS)
   {
-    input_ctx.last_env_update_ms = current_time_ms;
+    input_ctx.last_dust_update_ms = current_time_ms;
     sys_input_read_dust_sensor();
-    if (input_ctx.temp_hum_ready)
-    {
-      (void) bsp_temp_hum_read(&input_ctx.data.temp_hum);
-    }
-    g_sys_ui_data_status.is_env_data_ready_for_ui = true;
+    g_sys_ui_data_status.is_dust_data_ready_for_ui = true;
   }
 
-// 3. Battery level
+  // 3. Temperature and humidity sensors
+  if ((current_time_ms - input_ctx.last_temp_hum_update_ms) >= SYS_INPUT_TEMP_HUM_UPDATE_RATE_MS)
+  {
+    input_ctx.last_temp_hum_update_ms = current_time_ms;
+    if (bsp_temp_hum_read(&input_ctx.data.temp_hum) == STATUS_OK)
+    {
+      g_sys_ui_data_status.is_temp_hum_data_ready_for_ui = true;
+    }
+  }
+
+// 4. Battery level
 #if SYS_INPUT_BATT_ENABLE
   if ((current_time_ms - input_ctx.batt_last_update_ms) >= SYS_INPUT_BATT_UPDATE_RATE_MS)
   {
@@ -357,7 +364,7 @@ static status_function_t sys_input_process_active(void)
 // Do nothing
 #endif
 
-  // 4. Finalize
+  // 5. Finalize
   input_ctx.data.timestamp_ms = current_time_ms;
   return STATUS_OK;
 }

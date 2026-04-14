@@ -22,8 +22,9 @@
 #include "sys_fusion.h"
 
 /* Public defines ----------------------------------------------------- */
-#define SYS_INPUT_ENV_UPDATE_RATE_MS  (1000)
-#define SYS_INPUT_BATT_UPDATE_RATE_MS (10000)
+#define SYS_INPUT_DUST_UPDATE_RATE_MS     (1000)
+#define SYS_INPUT_TEMP_HUM_UPDATE_RATE_MS (10000)
+#define SYS_INPUT_BATT_UPDATE_RATE_MS     (10000)
 
 /* Public enumerate/structure ----------------------------------------- */
 typedef struct
