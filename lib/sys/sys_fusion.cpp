@@ -244,9 +244,11 @@ void sys_fusion_init(void)
   if (fusion_ctx.initialized)
     return;
 
+  // 1. Reset context
   memset(&fusion_ctx, 0, sizeof(fusion_ctx));
   fusion_ctx.direction_str = "N";
 
+  // 2. Create Kalman filters for accelerometer, gyro, compass
   fusion_ctx.acc_kf_x = kf_new(ACC_KF_E_MEA, ACC_KF_E_EST, ACC_KF_Q);
   fusion_ctx.acc_kf_y = kf_new(ACC_KF_E_MEA, ACC_KF_E_EST, ACC_KF_Q);
   fusion_ctx.acc_kf_z = kf_new(ACC_KF_E_MEA, ACC_KF_E_EST, ACC_KF_Q);
@@ -280,6 +282,7 @@ void sys_fusion_init(void)
     fusion_ctx.compass_kf_init = true;
   }
 
+  // 3. Initialize sensors (ACC, GPS, Compass)
   LOG_DBG("Init ACC");
   if (bsp_acc_init() == STATUS_OK)
   {
@@ -331,6 +334,7 @@ void sys_fusion_init(void)
     LOG_ERR("Compass init failed");
   }
 
+  // 4. Calibrate accelerometer offset magnitude (for ZUPT)
   LOG_DBG("Calib acc offset. Device must be stationary");
   if (fusion_ctx.acc_ready)
   {
@@ -352,6 +356,7 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   if (dt > 0.1f)  // Sample rates (50-100ms)
     dt = 0.1f;
 
+  // 0. Reset new GPS fix flag
   fusion_ctx.is_new_gps_fix_this_cycle = false;
 
   // 1. Compass
@@ -850,7 +855,6 @@ static void sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms)
   fusion_ctx.compass_raw_z = (float) raw_data.raw_z;
 #endif
 
-  // Kalman filter on compass raw counts — replaces EMA(α=0.15)
   float rx   = (float) raw_data.raw_x;
   float ry   = (float) raw_data.raw_y;
   float rz   = (float) raw_data.raw_z;
