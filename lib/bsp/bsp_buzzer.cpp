@@ -20,72 +20,195 @@
 #include <Arduino.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_buzzer, LOG_LEVEL_INFO);
-#define BSP_BUZZER_PWM_CHANNEL (0)
-#define BSP_BUZZER_PWM_FREQ    (4000)
-#define BSP_BUZZER_PWM_RES     (8)
-#define BSP_BUZZER_DUTY_OFF    (0)
-#define BSP_BUZZER_DUTY_MAX    (255)
+LOG_MODULE_REGISTER(bsp_buzzer, LOG_LEVEL_DBG);
 
 /* Private enumerate/structure ---------------------------------------- */
+typedef struct
+{
+  bsp_buzzer_state_t state;
+
+  // beep_long
+  size_t   beep_start_ms;
+  uint32_t beep_duration_ms;
+
+  // beep_cycle
+  uint8_t  cycle_total;
+  uint8_t  cycle_remaining;
+  uint32_t cycle_beep_ms;    // ON duration per cycle
+  uint32_t cycle_period_ms;  // total period per cycle (ON + OFF)
+  size_t   cycle_step_ms;    // timestamp of current step start
+  bool     cycle_is_on;      // current step: ON or OFF
+
+  bool is_initialized;
+} bsp_buzzer_ctx_t;
+
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
 /* Private variables -------------------------------------------------- */
-static bool is_buzzer_initialized = false;
+static bsp_buzzer_ctx_t s_buzzer = {
+  .state            = BSP_BUZZER_STATE_IDLE,
+  .beep_start_ms    = 0,
+  .beep_duration_ms = 0,
+  .cycle_total      = 0,
+  .cycle_remaining  = 0,
+  .cycle_beep_ms    = 0,
+  .cycle_period_ms  = 0,
+  .cycle_step_ms    = 0,
+  .cycle_is_on      = false,
+  .is_initialized   = false,
+};
 
 /* Private function prototypes ---------------------------------------- */
-static void buzzer_pwm_set(uint8_t duty);
+static void bsp_buzzer_set(bool on);
 
 /* Function definitions ----------------------------------------------- */
+
 status_function_t bsp_buzzer_init(void)
 {
-  if (is_buzzer_initialized)
-    return STATUS_OK;
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
 
-  ledcSetup(BSP_BUZZER_PWM_CHANNEL, BSP_BUZZER_PWM_FREQ, BSP_BUZZER_PWM_RES);
-  ledcAttachPin(BUZZER_PIN, BSP_BUZZER_PWM_CHANNEL);
-  buzzer_pwm_set(BSP_BUZZER_DUTY_OFF);
-  is_buzzer_initialized = true;
+  s_buzzer.state          = BSP_BUZZER_STATE_IDLE;
+  s_buzzer.is_initialized = true;
+
+  LOG_DBG("Buzzer initialized");
   return STATUS_OK;
 }
 
-status_function_t bsp_buzzer_beep(uint8_t volume_percent, uint8_t beep_count, uint16_t delay_ms)
+void bsp_buzzer_process(void)
 {
-  if (!is_buzzer_initialized)
-    bsp_buzzer_init();
-  uint8_t duty = (volume_percent > 100 ? BSP_BUZZER_DUTY_MAX : (volume_percent * BSP_BUZZER_DUTY_MAX) / 100);
-  for (uint8_t i = 0; i < beep_count; ++i)
+  if (!s_buzzer.is_initialized)
   {
-    buzzer_pwm_set(duty);
-    OS_DELAY_MS(100);
-    buzzer_pwm_set(BSP_BUZZER_DUTY_OFF);
-    if (i < beep_count - 1)
-      OS_DELAY_MS(delay_ms);
+    return;
   }
-  return STATUS_OK;
+
+  size_t now = OS_GET_TICK();
+
+  switch (s_buzzer.state)
+  {
+  case BSP_BUZZER_STATE_BEEP_LONG:
+  {
+    if ((now - s_buzzer.beep_start_ms) >= s_buzzer.beep_duration_ms)
+    {
+      bsp_buzzer_set(false);
+      s_buzzer.state = BSP_BUZZER_STATE_IDLE;
+      LOG_DBG("beep_long done");
+    }
+    break;
+  }
+
+  case BSP_BUZZER_STATE_BEEP_CYCLE:
+  {
+    if (s_buzzer.cycle_remaining == 0)
+    {
+      bsp_buzzer_set(false);
+      s_buzzer.state = BSP_BUZZER_STATE_IDLE;
+      LOG_DBG("beep_cycle done (%d cycles)", s_buzzer.cycle_total);
+      break;
+    }
+
+    size_t elapsed = now - s_buzzer.cycle_step_ms;
+
+    if (s_buzzer.cycle_is_on)
+    {
+      // Currently ON — check if beep_ms elapsed
+      if (elapsed >= s_buzzer.cycle_beep_ms)
+      {
+        bsp_buzzer_set(false);
+        s_buzzer.cycle_is_on   = false;
+        s_buzzer.cycle_step_ms = now;
+      }
+    }
+    else
+    {
+      // Currently OFF — check if rest of period elapsed
+      uint32_t off_ms = s_buzzer.cycle_period_ms - s_buzzer.cycle_beep_ms;
+      if (elapsed >= off_ms)
+      {
+        s_buzzer.cycle_remaining--;
+        if (s_buzzer.cycle_remaining > 0)
+        {
+          bsp_buzzer_set(true);
+          s_buzzer.cycle_is_on   = true;
+          s_buzzer.cycle_step_ms = now;
+        }
+        else
+        {
+          s_buzzer.state = BSP_BUZZER_STATE_IDLE;
+          LOG_DBG("beep_cycle done (%d cycles)", s_buzzer.cycle_total);
+        }
+      }
+    }
+    break;
+  }
+
+  case BSP_BUZZER_STATE_IDLE:
+  default: break;
+  }
 }
 
-status_function_t bsp_buzzer_on(uint8_t volume_percent)
+status_function_t bsp_buzzer_beep_long(uint32_t duration_ms)
 {
-  if (!is_buzzer_initialized)
-    bsp_buzzer_init();
-  uint8_t duty = (volume_percent > 100 ? BSP_BUZZER_DUTY_MAX : (volume_percent * BSP_BUZZER_DUTY_MAX) / 100);
-  buzzer_pwm_set(duty);
-  return STATUS_OK;
-}
-
-status_function_t bsp_buzzer_off(void)
-{
-  if (!is_buzzer_initialized)
+  if (!s_buzzer.is_initialized)
+  {
     return STATUS_ERROR;
-  buzzer_pwm_set(BSP_BUZZER_DUTY_OFF);
+  }
+
+  s_buzzer.beep_duration_ms = duration_ms;
+  s_buzzer.beep_start_ms    = OS_GET_TICK();
+  s_buzzer.state            = BSP_BUZZER_STATE_BEEP_LONG;
+
+  bsp_buzzer_set(true);
+
+  LOG_DBG("beep_long: %lu ms", duration_ms);
+  return STATUS_OK;
+}
+
+void bsp_buzzer_enable(bool enable)
+{
+  if (!s_buzzer.is_initialized)
+  {
+    return;
+  }
+
+  // Cancel any ongoing pattern
+  s_buzzer.state = BSP_BUZZER_STATE_IDLE;
+  bsp_buzzer_set(enable);
+
+  LOG_DBG("buzzer %s", enable ? "ON" : "OFF");
+}
+
+status_function_t bsp_buzzer_beep_cycle(uint8_t cycles, uint32_t beep_ms, uint32_t period_ms)
+{
+  if (!s_buzzer.is_initialized)
+  {
+    return STATUS_ERROR;
+  }
+
+  if (cycles == 0 || beep_ms == 0 || period_ms < beep_ms)
+  {
+    LOG_WRN("beep_cycle: invalid params (cycles=%d beep=%lu period=%lu)", cycles, beep_ms, period_ms);
+    return STATUS_ERROR;
+  }
+
+  s_buzzer.cycle_total     = cycles;
+  s_buzzer.cycle_remaining = cycles;
+  s_buzzer.cycle_beep_ms   = beep_ms;
+  s_buzzer.cycle_period_ms = period_ms;
+  s_buzzer.cycle_step_ms   = OS_GET_TICK();
+  s_buzzer.cycle_is_on     = true;
+  s_buzzer.state           = BSP_BUZZER_STATE_BEEP_CYCLE;
+
+  bsp_buzzer_set(true);
+
+  LOG_DBG("beep_cycle: %d x (on=%lu ms / period=%lu ms)", cycles, beep_ms, period_ms);
   return STATUS_OK;
 }
 
 /* Private definitions ----------------------------------------------- */
-static void buzzer_pwm_set(uint8_t duty)
+static void bsp_buzzer_set(bool on)
 {
-  ledcWrite(BSP_BUZZER_PWM_CHANNEL, duty);
+  digitalWrite(BUZZER_PIN, on ? HIGH : LOW);
 }
 
 /* End of file -------------------------------------------------------- */
