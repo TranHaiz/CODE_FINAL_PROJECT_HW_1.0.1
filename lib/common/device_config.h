@@ -124,7 +124,7 @@
 
 // Other pin definitions
 #define LED_PIN                           (38)
-#define BUZZER_PIN                        (37)
+#define BUZZER_PIN                        (6)
 
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
