@@ -26,18 +26,20 @@ typedef enum
   DEVICE_STATE_LOCKED,
   DEVICE_STATE_ACTIVE,
   DEVICE_STATE_ERROR,
+  DEVICE_STATE_PAUSED,
+  DEVICE_STATE_NOTI,
   DEVICE_STATE_MAX
 } device_state_t;
 typedef esp_reset_reason_t device_reset_reason_t;
 typedef struct
 {
   uint8_t        device_id;
+  device_state_t curr_state;
   device_state_t last_state;
   char           serial_number[DEVICE_SERIAL_NUMBER_MAX_LEN];
 } device_nvs_info_t;
 typedef struct
 {
-  device_state_t        state;
   device_reset_reason_t last_reset_reason;
   char                  device_version[DEVICE_VERSION_LEN];
   char                  device_name[DEVICE_NAME_MAX_LEN];
@@ -54,7 +56,18 @@ typedef struct
 extern device_info_t g_device_info;
 
 /* Public function prototypes ----------------------------------------- */
+/**
+ * @brief Initialize device information, read from flash, and set up logging
+ * @return none
+ */
 void device_info_init(void);
+
+/**
+ * @brief Update device state and persist to flash
+ * @param[in] new_state  New device state to update
+ * @return none
+ */
+void device_info_update_state(device_state_t new_state);
 
 #endif /*End file _DEVICE_INFO_H_*/
 

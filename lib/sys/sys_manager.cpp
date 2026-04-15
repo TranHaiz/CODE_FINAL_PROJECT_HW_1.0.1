@@ -109,13 +109,13 @@ void sys_manager_process(void)
 static void sys_manager_wakeup_handler(void)
 {
   LOG_DBG("Handling wakeup event");
-  g_device_info.state = DEVICE_STATE_LOCKED;
+  device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_wakeup();
 }
 
 static void sys_manager_lock_handler(void)
 {
-  g_device_info.state = DEVICE_STATE_LOCKED;
+  device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_lock();
 #if (DEVICE_IDLE_MODE_ENABLED)
   bsp_timer_start(&manager_handler.shutdown_timer);
@@ -130,7 +130,7 @@ static void sys_manager_active_handler(void)
   bsp_timer_stop(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
 
-  g_device_info.state = DEVICE_STATE_ACTIVE;
+  device_info_update_state(DEVICE_STATE_ACTIVE);
   sys_ui_wakeup();
   LOG_DBG("Handling active event");
 }
@@ -142,7 +142,7 @@ static void sys_manager_unlocked_handler(void)
   bsp_timer_stop(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
 
-  g_device_info.state = DEVICE_STATE_ACTIVE;
+  device_info_update_state(DEVICE_STATE_ACTIVE);
   sys_ui_unlock();
   LOG_DBG("Device unlocked and active");
 }
@@ -169,7 +169,7 @@ static void sys_manager_user_lock_handler(void)
 {
   LOG_DBG("Handling user lock event");
   sys_network_mqtt_publish_noti(NETWORK_NOTI_USERLOCK_PAYLOAD, strlen(NETWORK_NOTI_USERLOCK_PAYLOAD));
-  g_device_info.state = DEVICE_STATE_LOCKED;
+  device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_lock();
 
 #if (DEVICE_IDLE_MODE_ENABLED)
@@ -185,7 +185,7 @@ static void sys_manager_shutdown_timer_callback(TimerHandle_t xTimer)
 static void sys_manager_shutdown_handler(void)
 {
   bsp_device_flash_write(&g_device_info.nvs_info);
-  g_device_info.state = DEVICE_STATE_IDLE;
+  device_info_update_state(DEVICE_STATE_IDLE);
   bsp_acc_enable_interrupt(BSP_ACC_INT_PIN_1);
   LOG_INF("---------- Device go to idle mode ----------");
 }

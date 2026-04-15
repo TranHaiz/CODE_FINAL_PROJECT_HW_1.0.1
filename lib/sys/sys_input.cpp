@@ -120,7 +120,7 @@ void sys_input_init(void)
 
 status_function_t sys_input_process(void)
 {
-  switch (g_device_info.state)
+  switch (g_device_info.nvs_info.curr_state)
   {
   case DEVICE_STATE_ACTIVE:
   {
@@ -387,7 +387,7 @@ static void sys_input_process_locked(void)
 
 void sys_input_wakeup_acc_handler(void)
 {
-  if (g_device_info.state == DEVICE_STATE_IDLE)
+  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE)
   {
     OS_SEM_GIVE_FROM_ISR(sys_input_wakeup_sem);
   }

@@ -89,18 +89,18 @@ void device_info_init(void)
   case ESP_RST_BROWNOUT:
   case ESP_RST_SDIO:
   {
-    g_device_info.state = DEVICE_STATE_ERROR;
+    g_device_info.nvs_info.curr_state = DEVICE_STATE_ERROR;
     break;
   }
   case ESP_RST_SW:
   {
     if (g_device_info.nvs_info.last_state == DEVICE_STATE_ACTIVE)
     {
-      g_device_info.state = DEVICE_STATE_ACTIVE;
+      g_device_info.nvs_info.curr_state = DEVICE_STATE_ACTIVE;
     }
     else
     {
-      g_device_info.state = DEVICE_STATE_LOCKED;
+      g_device_info.nvs_info.curr_state = DEVICE_STATE_LOCKED;
     }
 
     break;
@@ -109,12 +109,12 @@ void device_info_init(void)
   case ESP_RST_POWERON:
   case ESP_RST_DEEPSLEEP:
   {
-    g_device_info.state = DEVICE_STATE_LOCKED;
+    g_device_info.nvs_info.curr_state = DEVICE_STATE_LOCKED;
     break;
   }
   default:
   {
-    g_device_info.state = DEVICE_STATE_ERROR;
+    g_device_info.nvs_info.curr_state = DEVICE_STATE_ERROR;
     break;
   }
   }
@@ -197,6 +197,13 @@ void device_info_init(void)
   LOG_INF("MQTT Cmd Topic: %s", g_device_info.mqtt_cmd_topic);
   LOG_INF("MQTT Data Topic: %s", g_device_info.mqtt_data_topic);
   LOG_INF("--------------------------------");
+}
+
+void device_info_update_state(device_state_t new_state)
+{
+  g_device_info.nvs_info.last_state = g_device_info.nvs_info.curr_state;
+  g_device_info.nvs_info.curr_state = new_state;
+  bsp_device_flash_write(&g_device_info.nvs_info);
 }
 
 /* Private definitions ----------------------------------------------- */

@@ -178,7 +178,7 @@ void sys_network_process(void *param)
 {
   while (1)
   {
-    switch (g_device_info.state)
+    switch (g_device_info.nvs_info.curr_state)
     {
     case DEVICE_STATE_LOCKED:
     case DEVICE_STATE_ACTIVE:
@@ -228,7 +228,7 @@ void sys_network_data_task(void *param)
       continue;
     }
 
-    if ((g_device_info.state == DEVICE_STATE_ACTIVE) && is_data_network_ready)
+    if ((g_device_info.nvs_info.curr_state == DEVICE_STATE_ACTIVE) && is_data_network_ready)
     {
       is_data_network_ready = false;
 
@@ -359,7 +359,7 @@ static void sys_network_run_mqtt_init(void)
 
 static void sys_network_run_online(void)
 {
-  if (g_device_info.state != DEVICE_STATE_ACTIVE)
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
   {
     if (COUNT_MS(network_ctx.last_keepalive_ms) >= MQTT_KEEPALIVE_MS)
     {
@@ -617,11 +617,11 @@ static void sys_network_process_active(void)
   {
     OS_DELAY_MS(ONLINE_FAST_POLL_MS);
   }
-  else if (g_device_info.state == DEVICE_STATE_LOCKED)
+  else if (g_device_info.nvs_info.curr_state == DEVICE_STATE_LOCKED)
   {
     OS_DELAY_MS(ONLINE_LOCKED_POLL_MS);
   }
-  else if (g_device_info.state == DEVICE_STATE_IDLE)
+  else if (g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE)
   {
     OS_DELAY_MS(ONLINE_IDLE_POLL_MS);
   }

@@ -651,7 +651,7 @@ void sys_ui_init(void)
 
 void sys_ui_process(void)
 {
-  switch (g_device_info.state)
+  switch (g_device_info.nvs_info.curr_state)
   {
   case DEVICE_STATE_IDLE:
   {
