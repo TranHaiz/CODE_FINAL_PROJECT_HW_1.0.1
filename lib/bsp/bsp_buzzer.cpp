@@ -20,7 +20,7 @@
 #include <Arduino.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_buzzer, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(bsp_buzzer, LOG_LEVEL_INFO);
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
@@ -45,7 +45,7 @@ typedef struct
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
 /* Private variables -------------------------------------------------- */
-static bsp_buzzer_ctx_t s_buzzer = {
+static bsp_buzzer_ctx_t buzzer_handler = {
   .state            = BSP_BUZZER_STATE_IDLE,
   .beep_start_ms    = 0,
   .beep_duration_ms = 0,
@@ -68,8 +68,8 @@ status_function_t bsp_buzzer_init(void)
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
 
-  s_buzzer.state          = BSP_BUZZER_STATE_IDLE;
-  s_buzzer.is_initialized = true;
+  buzzer_handler.state          = BSP_BUZZER_STATE_IDLE;
+  buzzer_handler.is_initialized = true;
 
   LOG_DBG("Buzzer initialized");
   return STATUS_OK;
@@ -77,21 +77,21 @@ status_function_t bsp_buzzer_init(void)
 
 void bsp_buzzer_process(void)
 {
-  if (!s_buzzer.is_initialized)
+  if (!buzzer_handler.is_initialized)
   {
     return;
   }
 
   size_t now = OS_GET_TICK();
 
-  switch (s_buzzer.state)
+  switch (buzzer_handler.state)
   {
   case BSP_BUZZER_STATE_BEEP_LONG:
   {
-    if ((now - s_buzzer.beep_start_ms) >= s_buzzer.beep_duration_ms)
+    if ((now - buzzer_handler.beep_start_ms) >= buzzer_handler.beep_duration_ms)
     {
       bsp_buzzer_set(false);
-      s_buzzer.state = BSP_BUZZER_STATE_IDLE;
+      buzzer_handler.state = BSP_BUZZER_STATE_IDLE;
       LOG_DBG("beep_long done");
     }
     break;
@@ -99,43 +99,43 @@ void bsp_buzzer_process(void)
 
   case BSP_BUZZER_STATE_BEEP_CYCLE:
   {
-    if (s_buzzer.cycle_remaining == 0)
+    if (buzzer_handler.cycle_remaining == 0)
     {
       bsp_buzzer_set(false);
-      s_buzzer.state = BSP_BUZZER_STATE_IDLE;
-      LOG_DBG("beep_cycle done (%d cycles)", s_buzzer.cycle_total);
+      buzzer_handler.state = BSP_BUZZER_STATE_IDLE;
+      LOG_DBG("beep_cycle done (%d cycles)", buzzer_handler.cycle_total);
       break;
     }
 
-    size_t elapsed = now - s_buzzer.cycle_step_ms;
+    size_t elapsed = now - buzzer_handler.cycle_step_ms;
 
-    if (s_buzzer.cycle_is_on)
+    if (buzzer_handler.cycle_is_on)
     {
       // Currently ON — check if beep_ms elapsed
-      if (elapsed >= s_buzzer.cycle_beep_ms)
+      if (elapsed >= buzzer_handler.cycle_beep_ms)
       {
         bsp_buzzer_set(false);
-        s_buzzer.cycle_is_on   = false;
-        s_buzzer.cycle_step_ms = now;
+        buzzer_handler.cycle_is_on   = false;
+        buzzer_handler.cycle_step_ms = now;
       }
     }
     else
     {
       // Currently OFF — check if rest of period elapsed
-      uint32_t off_ms = s_buzzer.cycle_period_ms - s_buzzer.cycle_beep_ms;
+      uint32_t off_ms = buzzer_handler.cycle_period_ms - buzzer_handler.cycle_beep_ms;
       if (elapsed >= off_ms)
       {
-        s_buzzer.cycle_remaining--;
-        if (s_buzzer.cycle_remaining > 0)
+        buzzer_handler.cycle_remaining--;
+        if (buzzer_handler.cycle_remaining > 0)
         {
           bsp_buzzer_set(true);
-          s_buzzer.cycle_is_on   = true;
-          s_buzzer.cycle_step_ms = now;
+          buzzer_handler.cycle_is_on   = true;
+          buzzer_handler.cycle_step_ms = now;
         }
         else
         {
-          s_buzzer.state = BSP_BUZZER_STATE_IDLE;
-          LOG_DBG("beep_cycle done (%d cycles)", s_buzzer.cycle_total);
+          buzzer_handler.state = BSP_BUZZER_STATE_IDLE;
+          LOG_DBG("beep_cycle done (%d cycles)", buzzer_handler.cycle_total);
         }
       }
     }
@@ -149,14 +149,14 @@ void bsp_buzzer_process(void)
 
 status_function_t bsp_buzzer_beep_long(uint32_t duration_ms)
 {
-  if (!s_buzzer.is_initialized)
+  if (!buzzer_handler.is_initialized)
   {
     return STATUS_ERROR;
   }
 
-  s_buzzer.beep_duration_ms = duration_ms;
-  s_buzzer.beep_start_ms    = OS_GET_TICK();
-  s_buzzer.state            = BSP_BUZZER_STATE_BEEP_LONG;
+  buzzer_handler.beep_duration_ms = duration_ms;
+  buzzer_handler.beep_start_ms    = OS_GET_TICK();
+  buzzer_handler.state            = BSP_BUZZER_STATE_BEEP_LONG;
 
   bsp_buzzer_set(true);
 
@@ -166,13 +166,13 @@ status_function_t bsp_buzzer_beep_long(uint32_t duration_ms)
 
 void bsp_buzzer_enable(bool enable)
 {
-  if (!s_buzzer.is_initialized)
+  if (!buzzer_handler.is_initialized)
   {
     return;
   }
 
   // Cancel any ongoing pattern
-  s_buzzer.state = BSP_BUZZER_STATE_IDLE;
+  buzzer_handler.state = BSP_BUZZER_STATE_IDLE;
   bsp_buzzer_set(enable);
 
   LOG_DBG("buzzer %s", enable ? "ON" : "OFF");
@@ -180,7 +180,7 @@ void bsp_buzzer_enable(bool enable)
 
 status_function_t bsp_buzzer_beep_cycle(uint8_t cycles, uint32_t beep_ms, uint32_t period_ms)
 {
-  if (!s_buzzer.is_initialized)
+  if (!buzzer_handler.is_initialized)
   {
     return STATUS_ERROR;
   }
@@ -191,13 +191,13 @@ status_function_t bsp_buzzer_beep_cycle(uint8_t cycles, uint32_t beep_ms, uint32
     return STATUS_ERROR;
   }
 
-  s_buzzer.cycle_total     = cycles;
-  s_buzzer.cycle_remaining = cycles;
-  s_buzzer.cycle_beep_ms   = beep_ms;
-  s_buzzer.cycle_period_ms = period_ms;
-  s_buzzer.cycle_step_ms   = OS_GET_TICK();
-  s_buzzer.cycle_is_on     = true;
-  s_buzzer.state           = BSP_BUZZER_STATE_BEEP_CYCLE;
+  buzzer_handler.cycle_total     = cycles;
+  buzzer_handler.cycle_remaining = cycles;
+  buzzer_handler.cycle_beep_ms   = beep_ms;
+  buzzer_handler.cycle_period_ms = period_ms;
+  buzzer_handler.cycle_step_ms   = OS_GET_TICK();
+  buzzer_handler.cycle_is_on     = true;
+  buzzer_handler.state           = BSP_BUZZER_STATE_BEEP_CYCLE;
 
   bsp_buzzer_set(true);
 
