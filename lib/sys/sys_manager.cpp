@@ -14,6 +14,7 @@
 #include "sys_manager.h"
 
 #include "bsp_acc.h"
+#include "bsp_buzzer.h"
 #include "bsp_device.h"
 #include "bsp_led.h"
 #include "bsp_sim.h"
@@ -24,8 +25,6 @@
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_DBG)
-
-#define NETWORK_NOTI_USERLOCK_PAYLOAD "USER_LOCKED"
 
 #if (DEVICE_IDLE_MODE_ENABLED)
 #define SHUTDOWN_TIMER_PERIOD_MS (30000)
@@ -59,6 +58,8 @@ static void sys_manager_user_lock_handler(void);
 static void sys_manager_shutdown_timer_callback(TimerHandle_t xTimer);
 static void sys_manager_shutdown_handler(void);
 static void sys_manager_device_danger_handler(void);
+static void sys_manager_unlock_from_network_handler(void);
+static void sys_manager_lock_from_network_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -81,6 +82,8 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_USER_LOCK            ,   sys_manager_user_lock_handler         );
   INFO(SYS_MANAGER_EVT_SHUTDOWN             ,   sys_manager_shutdown_handler          );
   INFO(SYS_MANAGER_EVT_DEVICE_DANGER        ,   sys_manager_device_danger_handler     );
+  INFO(SYS_MANAGER_EVT_UNLOCK_FROM_NETWORK  ,   sys_manager_unlock_from_network_handler );
+  INFO(SYS_MANAGER_EVT_LOCK_FROM_NETWORK    ,   sys_manager_lock_from_network_handler   );
   // clang-format on
 }
 #undef INFO
@@ -115,6 +118,7 @@ static void sys_manager_wakeup_handler(void)
 
 static void sys_manager_lock_handler(void)
 {
+  // TODO: NOTI state to server
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_lock();
 #if (DEVICE_IDLE_MODE_ENABLED)
@@ -142,9 +146,12 @@ static void sys_manager_unlocked_handler(void)
   bsp_timer_stop(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
 
-  device_info_update_state(DEVICE_STATE_ACTIVE);
-  sys_ui_unlock();
-  LOG_DBG("Device unlocked and active");
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
+  {
+    device_info_update_state(DEVICE_STATE_ACTIVE);
+    sys_ui_unlock();
+    LOG_DBG("Device unlocked and active");
+  }
 }
 
 static void sys_manager_change_topic_sub_handler(void)
@@ -192,7 +199,56 @@ static void sys_manager_shutdown_handler(void)
 
 static void sys_manager_device_danger_handler(void)
 {
-  bsp_led_set(BSP_LED_COLOR_RED, BSP_LED_MODE_FLASH_FAST, 100);
+  switch (g_device_info.nvs_info.curr_state)
+  {
+  case DEVICE_STATE_LOCKED:
+  case DEVICE_STATE_PAUSED:
+  {
+    bsp_buzzer_enable(true);
+    bsp_led_set(BSP_LED_COLOR_RED, BSP_LED_MODE_FLASH_FAST, 100);
+    break;
+  }
+  case DEVICE_STATE_ACTIVE:
+  {
+    // TODO: Noti to server
+    bsp_led_set(BSP_LED_COLOR_ORANGE, BSP_LED_MODE_PULSE, 100);
+    break;
+  }
+  default: break;
+  }
+}
+
+void sys_manager_unlock_from_network_handler(void)
+{
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
+  {
+#if (DEVICE_IDLE_MODE_ENABLED)
+    bsp_timer_reset(&manager_handler.shutdown_timer);
+    bsp_timer_stop(&manager_handler.shutdown_timer);
+#endif  // DEVICE_IDLE_MODE_ENABLED
+    device_info_update_state(DEVICE_STATE_ACTIVE);
+    if (g_device_info.nvs_info.last_state == DEVICE_STATE_IDLE)
+    {
+      sys_ui_wakeup();
+    }
+    sys_ui_unlock();
+    LOG_DBG("Device unlocked and active from network");
+  }
+  sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
+}
+
+void sys_manager_lock_from_network_handler(void)
+{
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_LOCKED)
+  {
+    device_info_update_state(DEVICE_STATE_LOCKED);
+    sys_ui_lock();
+#if (DEVICE_IDLE_MODE_ENABLED)
+    bsp_timer_start(&manager_handler.shutdown_timer);
+#endif  // DEVICE_IDLE_MODE_ENABLED
+    LOG_DBG("Device locked from network");
+  }
+  sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
 
 /* End of file -------------------------------------------------------- */

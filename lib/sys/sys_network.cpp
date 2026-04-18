@@ -20,6 +20,7 @@
 #include "os_lib.h"
 #include "sys_cmd.h"
 #include "sys_input.h"
+#include "sys_manager.h"
 #include "sys_ui_simple.h"
 
 /* Private defines ---------------------------------------------------- */
@@ -97,6 +98,7 @@ typedef struct
   bool mqtt_ready;
   bool is_data_sd_pending;
 
+  uint8_t   high_noti_request;
   cbuffer_t cbuffer;
 } net_ctx_t;
 
@@ -118,6 +120,7 @@ static char      req_pub_buffer[MQTT_REQUEST_PUBLISH_MAX * MQTT_REQUEST_PUBLISH_
 static char s_sd_line[SD_JSON_LINE_MAX_LEN];
 
 OS_MUTEX_DEFINE_STATIC(network_data_mutex);
+OS_MUTEX_DEFINE_STATIC(network_high_noti_mutex);
 OS_MUTEX_DEFINE_STATIC(network_noti_mutex);
 OS_SEM_DEFINE_STATIC(sys_network_wakeup_sem);
 
@@ -131,6 +134,7 @@ static void sys_network_run_mqtt_init(void);
 static void sys_network_run_online(void);
 static void sys_network_run_error_backoff(void);
 static void sys_network_run_sim_hard_reset(void);
+static bool sys_network_publish_message(mqtt_message_t *mes);
 
 static void sys_network_process_idle(void);
 static void sys_network_process_active(void);
@@ -156,6 +160,7 @@ void sys_network_init(void)
   network_ctx.prev_state = NETWORK_STATE_SIM_INIT;
 
   OS_SEM_CREATE(sys_network_wakeup_sem);
+  OS_MUTEX_CREATE(network_high_noti_mutex);
   OS_MUTEX_CREATE(network_noti_mutex);
   OS_MUTEX_CREATE(network_data_mutex);
 
@@ -202,6 +207,14 @@ void sys_network_mqtt_publish_noti(const char *payload, size_t payload_len)
   if (payload == NULL || payload_len == 0 || payload_len >= MQTT_REQUEST_PUBLISH_SIZE)
   {
     return;
+  }
+
+  if ((strncmp(NETWORK_DEVICE_RESP_OK_PAYLOAD, payload, payload_len) == 0)
+      && (network_ctx.state == NETWORK_STATE_ONLINE))
+  {
+    OS_MUTEX_LOCK(network_high_noti_mutex);
+    network_ctx.high_noti_request = 1;
+    OS_MUTEX_UNLOCK(network_high_noti_mutex);
   }
 
   char slot[MQTT_REQUEST_PUBLISH_SIZE];
@@ -359,6 +372,20 @@ static void sys_network_run_mqtt_init(void)
 
 static void sys_network_run_online(void)
 {
+  // 0. High-priority notification request (e.g. unlock response) from mqtt callback
+  if (network_ctx.high_noti_request)
+  {
+    mqtt_message_t mes = {
+      .topic   = g_device_info.mqtt_noti_topic,
+      .payload = NETWORK_DEVICE_RESP_OK_PAYLOAD,
+    };
+    sys_network_publish_message(&mes);
+    OS_MUTEX_LOCK(network_high_noti_mutex);
+    network_ctx.high_noti_request = 0;
+    OS_MUTEX_UNLOCK(network_high_noti_mutex);
+  }
+
+  // 1. Keepalive when idle
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
   {
     if (COUNT_MS(network_ctx.last_keepalive_ms) >= MQTT_KEEPALIVE_MS)
@@ -396,7 +423,7 @@ static void sys_network_run_online(void)
     return;
   }
 
-  // 1. Publish notifications or commands if pending
+  // 2. Publish notifications or commands if pending
   char     req_payload[MQTT_REQUEST_PUBLISH_SIZE] = { 0 };
   uint32_t req_count                              = 0;
   bool     is_pub_noti_ok                         = false;
@@ -435,14 +462,14 @@ static void sys_network_run_online(void)
     // Do nothing
   }
 
-  // 2. Publish mes in sd
+  // 3. Publish mes in sd
   if (network_ctx.is_data_sd_pending)
   {
     sys_network_push_sd_to_mqtt();
     return;
   }
 
-  // 3. Publish from cbuffer if available
+  // 4. Publish from cbuffer if available
   sys_network_publish_online();
 }
 
@@ -989,6 +1016,27 @@ static status_function_t sys_network_push_cbuffer(const char *payload)
   }
 
   return STATUS_OK;
+}
+
+static bool sys_network_publish_message(mqtt_message_t *mes)
+{
+  bool pub_ok = false;
+  for (uint8_t i = 0; i < MQTT_PUBLISH_RETRY; i++)
+  {
+    if (bsp_sim_mqtt_pub(mes) == STATUS_OK)
+    {
+      pub_ok = true;
+      break;
+    }
+  }
+  if (!pub_ok)
+  {
+    LOG_WRN("Publish failed — keeping in-flight slot for next retry");
+    sys_network_change_state(NETWORK_STATE_ERROR);
+    return false;
+  }
+
+  return true;
 }
 
 /* End of file -------------------------------------------------------- */

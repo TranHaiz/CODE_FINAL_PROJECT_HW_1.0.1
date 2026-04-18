@@ -101,12 +101,12 @@ static status_function_t sys_cmd_parse_and_execute(const char *input)
 
 static void sys_cmd_lock_device_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_LOCKED);
+  sys_manager_write_event(SYS_MANAGER_EVT_LOCK_FROM_NETWORK);
 }
 
 static void sys_cmd_unlock_device_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_UNLOCKED);
+  sys_manager_write_event(SYS_MANAGER_EVT_UNLOCK_FROM_NETWORK);
 }
 
 static void sys_cmd_set_time_handler(void)

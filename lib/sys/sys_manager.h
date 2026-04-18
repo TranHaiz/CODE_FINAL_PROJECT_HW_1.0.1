@@ -20,12 +20,17 @@
 #include "os_lib.h"
 
 /* Public defines ----------------------------------------------------- */
+#define NETWORK_NOTI_USERLOCK_PAYLOAD  "USER_LOCKED"
+#define NETWORK_DEVICE_RESP_OK_PAYLOAD "OK"
+
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
 {
   SYS_MANAGER_EVT_IDLE = 0,
   SYS_MANAGER_EVT_LOCKED,
   SYS_MANAGER_EVT_UNLOCKED,
+  SYS_MANAGER_EVT_LOCK_FROM_NETWORK,
+  SYS_MANAGER_EVT_UNLOCK_FROM_NETWORK,
   SYS_MANAGER_EVT_ACTIVE,
   SYS_MANAGER_EVT_WAKEUP,
   SYS_MANAGER_EVT_CHANGE_CMD_TOPIC,
