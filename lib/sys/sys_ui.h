@@ -75,6 +75,12 @@ void sys_ui_unlock(void);
  */
 void sys_ui_wakeup(void);
 
+/**
+ * @brief Change to main screen and update time (for rental start or resume)
+ * @return none
+ */
+void sys_ui_change_time_active(void);
+
 #endif /*End file _SYS_UI_H_*/
 
 /* End of file -------------------------------------------------------- */

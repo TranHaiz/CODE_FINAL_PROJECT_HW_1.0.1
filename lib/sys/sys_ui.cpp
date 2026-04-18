@@ -14,6 +14,7 @@
 
 #include "bsp_dust_sensor.h"
 #include "bsp_led.h"
+#include "bsp_rtc.h"
 #include "bsp_sdcard.h"
 #include "common_type.h"
 #include "fifo.h"
@@ -21,6 +22,7 @@
 #include "os_lib.h"
 #include "sys_input.h"
 #include "sys_manager.h"
+#include "sys_ui_widget.h"
 
 #include <math.h>
 #include <string.h>
@@ -123,14 +125,8 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_SWATCH_X                 (40)
 #define SYS_UI_SWATCH_LABEL_Y_OFFSET    (3)
 
-// Increase time button in time screen
-#define SYS_UI_EXTEND_BTN_TEXT          "+30 min"
-#define SYS_UI_EXTEND_BTN_X             (180)
-#define SYS_UI_EXTEND_BTN_Y             (180)
-#define SYS_UI_EXTEND_BTN_W             (120)
-#define SYS_UI_EXTEND_BTN_H             (30)
-#define SYS_UI_EXTEND_INC_BTN_COLOR     SYS_UI_COLOR_SUCCESS
-#define SYS_UI_EXTEND_LABEL             "RENTAL HISTORY"
+// Time screen title
+#define SYS_UI_EXTEND_LABEL             "ACTIVE HISTORY"
 #define SYS_UI_EXTEND_LABEL_FONT        (&lv_font_montserrat_18)
 #define SYS_UI_EXTEND_LABEL_X           (SYS_UI_BACK_BTN_X + SYS_UI_BACK_BTN_W + 10)
 #define SYS_UI_EXTEND_LABEL_Y           (SYS_UI_BACK_BTN_Y)
@@ -156,13 +152,13 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_COMPASS_DIR_SECTOR_DEG   (45.0f)
 #define SYS_UI_TIME_CARD_LABEL_X        (8)
 #define SYS_UI_TIME_CARD_LABEL_Y        (2)
-#define SYS_UI_TIME_CARD_LABEL          "REMAIN"
+#define SYS_UI_TIME_CARD_LABEL          "ACTIVE TIME"
 #define SYS_UI_TIME_LABEL_X             (5)
 #define SYS_UI_TIME_LABEL_Y             (16)
-#define SYS_UI_TIME_LABEL_INIT          "00:00"
+#define SYS_UI_TIME_LABEL_INIT          "0:00:00"
 #define SYS_UI_TIME_UNIT_X              (24)
 #define SYS_UI_TIME_UNIT_Y              (38)
-#define SYS_UI_TIME_UNIT_LABEL          "mins"
+#define SYS_UI_TIME_UNIT_LABEL          ""
 #define SYS_UI_DISTANCE_LABEL_X         (5)
 #define SYS_UI_DISTANCE_LABEL_Y         (16)
 #define SYS_UI_DISTANCE_LABEL_INIT      "0.00"
@@ -185,7 +181,7 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_AQI_LABEL_Y              (50)
 #define SYS_UI_AQI_LABEL_INIT           "AQI: --"
 #define SYS_UI_SPEED_LABEL_FORMAT       "%d"
-#define SYS_UI_TIME_LABEL_FORMAT        "%02d:%02d"
+#define SYS_UI_TIME_LABEL_FORMAT        "%d:%02d:%02d"
 #define SYS_UI_DISTANCE_LABEL_FORMAT    "%.2f"
 #define SYS_UI_TEMP_LABEL_FORMAT        "%.1f\xc2\xb0C"
 #define SYS_UI_HUM_LABEL_FORMAT         "%.0f%%"
@@ -403,9 +399,8 @@ typedef struct
   lv_obj_t *time_history_screen;
   lv_obj_t *time_history_title;
   lv_obj_t *time_back_btn;
-  lv_obj_t *time_remaining_label;
-  lv_obj_t *history_labels[SYS_UI_MAX_RENTAL_HISTORY];
-  lv_obj_t *extend_btn;
+  lv_obj_t *time_history_time_label;
+  lv_obj_t *time_history_date_label;
   // Fusion screen
   lv_obj_t          *fusion_screen;
   lv_obj_t          *distance_title;
@@ -465,8 +460,10 @@ typedef struct
   float             compass_heading_deg;
   sys_fusion_data_t fusion;
   // Rental time
-  int remaining_minutes;
-  int remaining_seconds;
+  int        active_hours;
+  int        active_minutes;
+  int        active_seconds;
+  timeline_t unlock_time;
   // Environment
   float    temperature_C;
   float    humidity;
@@ -475,6 +472,7 @@ typedef struct
   int    battery_percent;
   int    brightness_percent;
   size_t background_color;
+  int    last_device_state;
   // Navigation
   sys_ui_view_t view;
   sys_ui_view_t last_view;
@@ -542,12 +540,12 @@ static status_function_t sys_ui_image_draw(lv_obj_t     *parent,
 // Main screen
 static void sys_ui_main_screen_create(void);
 static void sys_ui_main_screen_update_speed(int speed_kph);
-static void sys_ui_main_screen_update_time(int minutes, int seconds);
+static void sys_ui_main_screen_update_time(int hours, int minutes, int seconds);
 static void sys_ui_main_screen_update_distance(float distance_km);
 static void sys_ui_main_screen_update_env(float temperature_C, float humidity, int air_quality);
 static void sys_ui_main_screen_update_compass(void);
 static void sys_ui_main_screen_update_speed_n_distance(void);
-static void sys_ui_main_screen_update_countdown(void);
+static void sys_ui_main_screen_update_countup(void);
 static void sys_ui_main_screen_cb_settings_btn(lv_event_t *event);
 static void sys_ui_main_screen_cb_out_btn(lv_event_t *event);
 static void sys_ui_main_screen_cb_time_card(lv_event_t *event);
@@ -574,7 +572,6 @@ static void sys_ui_lock_screen_cb_debug(lv_event_t *event);
 static void sys_ui_time_screen_create(void);
 static void sys_ui_time_screen_update(void);
 static void sys_ui_time_screen_cb_back_btn(lv_event_t *event);
-static void sys_ui_time_screen_cb_extend_btn(lv_event_t *event);
 // Fusion screen
 static void sys_ui_fusion_screen_create(void);
 static void sys_ui_fusion_screen_update(void);
@@ -618,6 +615,7 @@ void sys_ui_init(void)
   ui_ctx.brightness_percent  = 80;
   ui_ctx.background_color    = SYS_UI_COLOR_BG;
   ui_ctx.session_start_ms    = OS_GET_TICK();
+  ui_ctx.last_device_state   = g_device_info.nvs_info.curr_state;
   ui_ctx.view                = SYS_UI_VIEW_LOCK;
   ui_ctx.last_view           = SYS_UI_VIEW_UNKNOWN;
   ui_ctx.pending_main_redraw = false;
@@ -651,7 +649,27 @@ void sys_ui_init(void)
 
 void sys_ui_process(void)
 {
-  switch (g_device_info.nvs_info.curr_state)
+  int curr_state = g_device_info.nvs_info.curr_state;
+
+  if (curr_state != ui_ctx.last_device_state)
+  {
+    ui_ctx.last_device_state = curr_state;
+    if (curr_state == DEVICE_STATE_ACTIVE)
+    {
+      size_t now              = OS_GET_TICK();
+      ui_ctx.active_hours     = 0;
+      ui_ctx.active_minutes   = 0;
+      ui_ctx.active_seconds   = 0;
+      ui_ctx.last_second_tick = now;
+      ui_ctx.session_start_ms = now;
+      if (bsp_rtc_get(&ui_ctx.unlock_time) == STATUS_OK)
+      {
+        sys_ui_main_screen_update_time(ui_ctx.active_hours, ui_ctx.active_minutes, ui_ctx.active_seconds);
+      }
+    }
+  }
+
+  switch (curr_state)
   {
   case DEVICE_STATE_IDLE:
   {
@@ -699,6 +717,15 @@ void sys_ui_unlock(void)
 void sys_ui_wakeup(void)
 {
   OS_SEM_GIVE(sys_ui_wakeup_sem);
+}
+
+void sys_ui_change_time_active(void)
+{
+  timeline_t now;
+  if (bsp_rtc_get(&now) == STATUS_OK)
+  {
+    // TODO: handle time rental overflow
+  }
 }
 
 /* Private definitions ----------------------------------------------- */
@@ -783,10 +810,6 @@ static void sys_ui_change_screen(sys_ui_view_t view)
     {
       lv_obj_add_event_cb(ui_ctx.widgets.time_back_btn, sys_ui_time_screen_cb_back_btn, LV_EVENT_CLICKED, nullptr);
     }
-    if (ui_ctx.widgets.extend_btn != nullptr)
-    {
-      lv_obj_add_event_cb(ui_ctx.widgets.extend_btn, sys_ui_time_screen_cb_extend_btn, LV_EVENT_CLICKED, nullptr);
-    }
     break;
   }
   case SYS_UI_VIEW_DISTANCE:
@@ -862,22 +885,28 @@ static void sys_ui_change_screen(sys_ui_view_t view)
 
 static void sys_ui_init_data(void)
 {
-  ui_ctx.remaining_minutes = 45;
-  ui_ctx.remaining_seconds = 0;
-  ui_ctx.current_speed     = 0.0f;
-  ui_ctx.target_speed      = 12.0f;
-  ui_ctx.distance_km       = 0.0f;
+  ui_ctx.active_hours   = 0;
+  ui_ctx.active_minutes = 0;
+  ui_ctx.active_seconds = 0;
+  ui_ctx.current_speed  = 0.0f;
+  ui_ctx.target_speed   = 12.0f;
+  ui_ctx.distance_km    = 0.0f;
 
   ui_ctx.temperature_C   = 28.0f + static_cast<float>(random(0, 50)) / 10.0f;
   ui_ctx.humidity        = 60.0f + static_cast<float>(random(0, 300)) / 10.0f;
   ui_ctx.air_quality     = 70 + random(0, 30);
   ui_ctx.battery_percent = 80 + random(0, 20);
 
+  if (bsp_rtc_get(&ui_ctx.unlock_time) != STATUS_OK)
+  {
+    memset(&ui_ctx.unlock_time, 0, sizeof(ui_ctx.unlock_time));
+  }
+
   const char *seed[SYS_UI_MAX_RENTAL_HISTORY] = {
-    "2026-03-03 09:05 - B-1024",
-    "2026-03-02 17:40 - B-2201",
-    "2026-03-01 08:15 - B-3108",
-    "2026-02-29 19:50 - B-1876",
+    "Active 09:05",
+    "Active 17:40",
+    "Active 08:15",
+    "Active 19:50",
   };
   ui_ctx.rental_history_count = SYS_UI_MAX_RENTAL_HISTORY;
   for (int i = 0; i < SYS_UI_MAX_RENTAL_HISTORY; ++i)
@@ -924,7 +953,7 @@ static void sys_ui_init_all_widgets(void)
 
   sys_ui_show_screen(ui_ctx.widgets.main_screen);
   sys_ui_main_screen_update_compass();
-  sys_ui_main_screen_update_time(ui_ctx.remaining_minutes, ui_ctx.remaining_seconds);
+  sys_ui_main_screen_update_time(ui_ctx.active_hours, ui_ctx.active_minutes, ui_ctx.active_seconds);
   sys_ui_main_screen_update_distance(ui_ctx.distance_km);
   sys_ui_main_screen_update_env(ui_ctx.temperature_C, ui_ctx.humidity, ui_ctx.air_quality);
   sys_ui_main_screen_update_speed(static_cast<int>(ui_ctx.current_speed));
@@ -933,15 +962,6 @@ static void sys_ui_init_all_widgets(void)
 static void sys_ui_reset_all_widgets(sys_ui_widgets_t *screen)
 {
   memset(screen, 0, sizeof(sys_ui_widgets_t));
-
-  for (int i = 0; i < SYS_UI_BG_COLOR_COUNT; ++i)
-  {
-    screen->color_btns[i] = nullptr;
-  }
-  for (int i = 0; i < SYS_UI_MAX_RENTAL_HISTORY; ++i)
-  {
-    screen->history_labels[i] = nullptr;
-  }
 }
 
 static void sys_ui_register_callbacks(void)
@@ -1089,7 +1109,7 @@ static void sys_ui_main_screen_create(void)
                              SYS_UI_TIME_CARD_LABEL, SYS_UI_COLOR_PRIMARY, &lv_font_montserrat_10);
   ui_ctx.widgets.time_label =
     sys_ui_widget_create_label(ui_ctx.widgets.time_card, SYS_UI_TIME_LABEL_X, SYS_UI_TIME_LABEL_Y,
-                               SYS_UI_TIME_LABEL_INIT, SYS_UI_COLOR_SUCCESS, &lv_font_montserrat_18);
+                               SYS_UI_TIME_LABEL_INIT, SYS_UI_COLOR_SUCCESS, &lv_font_montserrat_20);
   ui_ctx.widgets.time_unit_label =
     sys_ui_widget_create_label(ui_ctx.widgets.time_card, SYS_UI_TIME_UNIT_X, SYS_UI_TIME_UNIT_Y, SYS_UI_TIME_UNIT_LABEL,
                                SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
@@ -1151,21 +1171,15 @@ static void sys_ui_main_screen_update_speed(int speed_kph)
   }
 }
 
-static void sys_ui_main_screen_update_time(int minutes, int seconds)
+static void sys_ui_main_screen_update_time(int hours, int minutes, int seconds)
 {
   if (ui_ctx.widgets.time_label == nullptr)
   {
     return;
   }
 
-  size_t color = SYS_UI_COLOR_SUCCESS;
-  if (minutes < SYS_UI_TIME_DANGER_MIN)
-    color = SYS_UI_COLOR_DANGER;
-  else if (minutes < SYS_UI_TIME_WARNING_MIN)
-    color = SYS_UI_COLOR_WARNING;
-
-  sys_ui_widget_set_label_text_format(ui_ctx.widgets.time_label, SYS_UI_TIME_LABEL_FORMAT, minutes, seconds);
-  sys_ui_widget_set_label_color(ui_ctx.widgets.time_label, color);
+  sys_ui_widget_set_label_text_format(ui_ctx.widgets.time_label, SYS_UI_TIME_LABEL_FORMAT, hours, minutes, seconds);
+  sys_ui_widget_set_label_color(ui_ctx.widgets.time_label, SYS_UI_COLOR_SUCCESS);
 }
 
 static void sys_ui_main_screen_update_distance(float distance_km)
@@ -1250,16 +1264,18 @@ static void sys_ui_main_screen_update_speed_n_distance(void)
   sys_ui_main_screen_update_distance(ui_ctx.distance_km);
 }
 
-static void sys_ui_main_screen_update_countdown(void)
+static void sys_ui_main_screen_update_countup(void)
 {
-  if (ui_ctx.remaining_seconds > 0)
+  ui_ctx.active_seconds++;
+  if (ui_ctx.active_seconds >= 60)
   {
-    --ui_ctx.remaining_seconds;
+    ui_ctx.active_seconds = 0;
+    ui_ctx.active_minutes++;
   }
-  else if (ui_ctx.remaining_minutes > 0)
+  if (ui_ctx.active_minutes >= 60)
   {
-    --ui_ctx.remaining_minutes;
-    ui_ctx.remaining_seconds = SYS_UI_COUNTDOWN_RESET_SEC;
+    ui_ctx.active_minutes = 0;
+    ui_ctx.active_hours++;
   }
 }
 
@@ -1439,28 +1455,27 @@ static void sys_ui_out_screen_cb_confirm_btn(lv_event_t *event)
 
 static void sys_ui_time_screen_create(void)
 {
-  ui_ctx.widgets.time_history_screen = sys_ui_widget_create_screen(ui_ctx.background_color);
+  if (ui_ctx.widgets.time_history_screen != nullptr)
+  {
+    return;
+  }
+
+  ui_ctx.widgets.time_history_screen = lv_obj_create(nullptr);
+  lv_obj_set_style_bg_color(ui_ctx.widgets.time_history_screen, lv_color_hex(ui_ctx.background_color), LV_PART_MAIN);
 
   ui_ctx.widgets.time_back_btn = sys_ui_widget_create_button(
     ui_ctx.widgets.time_history_screen, SYS_UI_BACK_BTN_X, SYS_UI_BACK_BTN_Y, SYS_UI_BACK_BTN_W, SYS_UI_BACK_BTN_H,
-    SYS_UI_BACK_BTN_LABEL, SYS_UI_COLOR_ACCENT, SYS_UI_COLOR_BG);
+    SYS_UI_BACK_BTN_LABEL, SYS_UI_BACK_BTN_COLOR, SYS_UI_BACK_BTN_TEXT_COLOR);
+
   ui_ctx.widgets.time_history_title =
     sys_ui_widget_create_label(ui_ctx.widgets.time_history_screen, SYS_UI_EXTEND_LABEL_X, SYS_UI_EXTEND_LABEL_Y,
                                SYS_UI_EXTEND_LABEL, SYS_UI_COLOR_TEXT, SYS_UI_EXTEND_LABEL_FONT);
 
-  for (int i = 0; i < SYS_UI_MAX_RENTAL_HISTORY; ++i)
-  {
-    ui_ctx.widgets.history_labels[i] = sys_ui_widget_create_label(
-      ui_ctx.widgets.time_history_screen, SYS_UI_HISTORY_LABEL_X,
-      SYS_UI_HISTORY_LABEL_Y + i * SYS_UI_HISTORY_LABEL_SPAN, "", SYS_UI_COLOR_TEXT, &lv_font_montserrat_12);
-  }
+  ui_ctx.widgets.time_history_time_label = sys_ui_widget_create_label(
+    ui_ctx.widgets.time_history_screen, 80, 80, "00:00:00", SYS_UI_COLOR_TEXT, &lv_font_montserrat_28);
 
-  ui_ctx.widgets.time_remaining_label =
-    sys_ui_widget_create_label(ui_ctx.widgets.time_history_screen, SYS_UI_REMAINING_LABEL_X, SYS_UI_REMAINING_LABEL_Y,
-                               SYS_UI_REMAINING_LABEL_INIT, SYS_UI_COLOR_TEXT, nullptr);
-  ui_ctx.widgets.extend_btn = sys_ui_widget_create_button(
-    ui_ctx.widgets.time_history_screen, SYS_UI_EXTEND_BTN_X, SYS_UI_EXTEND_BTN_Y, SYS_UI_EXTEND_BTN_W,
-    SYS_UI_EXTEND_BTN_H, SYS_UI_EXTEND_BTN_TEXT, SYS_UI_EXTEND_INC_BTN_COLOR, SYS_UI_COLOR_BG);
+  ui_ctx.widgets.time_history_date_label = sys_ui_widget_create_label(
+    ui_ctx.widgets.time_history_screen, 80, 120, "01/01/2024", SYS_UI_COLOR_TEXT, &lv_font_montserrat_28);
 }
 
 static void sys_ui_time_screen_update(void)
@@ -1470,21 +1485,14 @@ static void sys_ui_time_screen_update(void)
     sys_ui_time_screen_create();
   }
 
-  for (int i = 0; i < SYS_UI_MAX_RENTAL_HISTORY; ++i)
-  {
-    if (ui_ctx.widgets.history_labels[i] == nullptr)
-    {
-      continue;
-    }
-    const char *text = (i < ui_ctx.rental_history_count) ? ui_ctx.rental_history[i] : "";
-    sys_ui_widget_set_label_text(ui_ctx.widgets.history_labels[i], text);
-  }
+  char buf[32];
+  snprintf(buf, sizeof(buf), "%02d:%02d:%02d", ui_ctx.unlock_time.hour, ui_ctx.unlock_time.minute,
+           ui_ctx.unlock_time.second);
+  lv_label_set_text(ui_ctx.widgets.time_history_time_label, buf);
 
-  if (ui_ctx.widgets.time_remaining_label != nullptr)
-  {
-    sys_ui_widget_set_label_text_format(ui_ctx.widgets.time_remaining_label, SYS_UI_REMAINING_LABEL_FORMAT,
-                                        ui_ctx.remaining_minutes, ui_ctx.remaining_seconds);
-  }
+  snprintf(buf, sizeof(buf), "%02d/%02d/%04d", ui_ctx.unlock_time.day, ui_ctx.unlock_time.month,
+           ui_ctx.unlock_time.year);
+  lv_label_set_text(ui_ctx.widgets.time_history_date_label, buf);
 
   sys_ui_show_screen(ui_ctx.widgets.time_history_screen);
 }
@@ -1494,14 +1502,6 @@ static void sys_ui_time_screen_cb_back_btn(lv_event_t *event)
   (void) event;
   LOG_DBG("sys_ui_time_screen_cb_back_btn");
   sys_ui_change_screen(SYS_UI_VIEW_MAIN);
-}
-
-static void sys_ui_time_screen_cb_extend_btn(lv_event_t *event)
-{
-  (void) event;
-  LOG_DBG("sys_ui_time_screen_cb_extend_btn");
-  ui_ctx.remaining_minutes += 30;
-  sys_ui_time_screen_update();
 }
 
 static void sys_ui_fusion_screen_create(void)
@@ -2108,8 +2108,8 @@ static void sys_ui_process_active(void)
     if (now - ui_ctx.last_second_tick >= SYS_UI_COUNTDOWN_MS)
     {
       ui_ctx.last_second_tick = now;
-      sys_ui_main_screen_update_countdown();
-      sys_ui_main_screen_update_time(ui_ctx.remaining_minutes, ui_ctx.remaining_seconds);
+      sys_ui_main_screen_update_countup();
+      sys_ui_main_screen_update_time(ui_ctx.active_hours, ui_ctx.active_minutes, ui_ctx.active_seconds);
     }
 
     if (g_sys_ui_data_status.is_fusion_data_ready_for_ui)
@@ -2144,12 +2144,6 @@ static void sys_ui_process_active(void)
   }
   case SYS_UI_VIEW_TIME:
   {
-    if (now - ui_ctx.last_second_tick >= SYS_UI_COUNTDOWN_MS)
-    {
-      ui_ctx.last_second_tick = now;
-      sys_ui_main_screen_update_countdown();
-      sys_ui_time_screen_update();
-    }
     break;
   }
   case SYS_UI_VIEW_DISTANCE:
