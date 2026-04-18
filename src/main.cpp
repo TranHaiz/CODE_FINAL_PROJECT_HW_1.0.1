@@ -11,6 +11,8 @@
  */
 
 /* Includes ----------------------------------------------------------- */
+#include "bsp_buzzer.h"
+#include "bsp_io.h"
 #include "bsp_led.h"
 #include "bsp_rtc.h"
 #include "bsp_sdcard.h"
@@ -31,9 +33,10 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
 
-#define SYS_INPUT_UPDATE_RATE_MS   (20)
-#define SYS_UI_UPDATE_RATE_MS      (10)
-#define SYS_LOG_UPDATE_RATE_MS     (500)
+#define SYS_INPUT_UPDATE_RATE_MS (20)
+#define SYS_UI_UPDATE_RATE_MS    (10)
+#define SYS_LOG_UPDATE_RATE_MS   (500)
+#define SYS_MISC_UPDATE_RATE_MS  (500)
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -56,6 +59,7 @@ OS_THREAD_DECLARE(sys_ui_thread, tskIDLE_PRIORITY + 4, 16384);
 #endif
 
 OS_THREAD_DECLARE(sys_log_thread, tskIDLE_PRIORITY + 1, 4096);
+OS_THREAD_DECLARE(sys_misc_thread, tskIDLE_PRIORITY + 1, 4096);
 OS_THREAD_DECLARE(sys_cmd_thread, tskIDLE_PRIORITY + 5, 4096);
 OS_THREAD_DECLARE(sys_manager_thread, tskIDLE_PRIORITY + 5, 4096);
 
@@ -65,6 +69,8 @@ void sys_ui_thread_func(void *param);
 void sys_log_thread_func(void *param);
 void sys_cmd_thread_func(void *param);
 void sys_manager_thread_func(void *param);
+void sys_misc_thread_func(void *param);
+void callback_button_press(void);
 
 /* Function definitions ----------------------------------------------- */
 
@@ -94,6 +100,7 @@ void setup()
 #endif
 
   OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
+  OS_THREAD_CREATE(sys_misc_thread, sys_misc_thread_func);
   OS_THREAD_CREATE(sys_manager_thread, sys_manager_thread_func);
 }
 
@@ -168,6 +175,22 @@ void sys_manager_thread_func(void *param)
   {
     sys_manager_process();
   }
+}
+
+void sys_misc_thread_func(void *param)
+{
+  bsp_buzzer_init();
+  bsp_io_int_init(IO_BUTTON_PIN, BSP_IO_EVENT_FALLING, callback_button_press);
+  while (true)
+  {
+    bsp_buzzer_process();
+    OS_DELAY_MS(SYS_MISC_UPDATE_RATE_MS);
+  }
+}
+
+void callback_button_press(void)
+{
+  LOG_DBG("Button pressed!");
 }
 
 /* End of file -------------------------------------------------------- */

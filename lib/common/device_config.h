@@ -30,9 +30,9 @@
 #define DEVICE_SERIAL_NUMBER_MAX_LEN      (33)  // 32 chars + 1 null terminator
 #define DEVICE_MAGIC_NUMBER               (0xDEADBEEF)
 
-#define DEVICE_NORMAL_MODE                (false)
-#define DEVICE_FUSION_DEBUG_MODE          (true)
-#define DEVICE_IDLE_MODE_ENABLED          (true)
+#define DEVICE_NORMAL_MODE                (true)
+#define DEVICE_FUSION_DEBUG_MODE          (false)
+#define DEVICE_IDLE_MODE_ENABLED          (true)  // Return to idle mode after a period of inactivity
 #define DEVICE_NETWORK_ENABLED            (true)
 #define DEVICE_INPUT_ENABLED              (true)
 #define DEVICE_UI_ENABLED                 (true)
@@ -125,6 +125,7 @@
 // Other pin definitions
 #define LED_PIN                           (38)
 #define BUZZER_PIN                        (6)
+#define IO_BUTTON_PIN                     (17)
 
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
