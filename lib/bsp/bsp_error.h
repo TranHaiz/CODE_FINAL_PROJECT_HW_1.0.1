@@ -18,6 +18,8 @@
 #include "common_type.h"
 
 /* Public defines ----------------------------------------------------- */
+#define BSP_ERROR_MAX_COUNT (5)
+
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
 {
@@ -35,7 +37,19 @@ typedef enum
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
 /* Public function prototypes ----------------------------------------- */
+/**
+ * @brief Handle BSP errors based on error code
+ * @param[in] error_code The error code to handle
+ * @return None
+ */
 void bsp_error_handler(bsp_error_t error_code);
+
+/**
+ * @brief Enter error mode
+ * @param[in] err_cnt The current error count
+ * @return None
+ */
+void bsp_error_handle(void);
 
 #endif /*End file _BSP_ERROR_H_*/
 

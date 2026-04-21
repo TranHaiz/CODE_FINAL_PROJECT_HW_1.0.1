@@ -33,6 +33,7 @@ typedef enum
 typedef esp_reset_reason_t device_reset_reason_t;
 typedef struct
 {
+  uint8_t        err_count;
   uint8_t        device_id;
   device_state_t curr_state;
   device_state_t last_state;
@@ -53,7 +54,7 @@ typedef struct
 
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
-extern device_info_t g_device_info;
+extern RTC_DATA_ATTR device_info_t g_device_info;
 
 /* Public function prototypes ----------------------------------------- */
 /**
@@ -68,6 +69,18 @@ void device_info_init(void);
  * @return none
  */
 void device_info_update_state(device_state_t new_state);
+
+/**
+ * @brief Increment error count and persist to flash
+ * @return none
+ */
+void device_info_inc_error_count(void);
+
+/**
+ * @brief Reset error count to zero and persist to flash
+ * @return none
+ */
+void device_info_reset_error_count(void);
 
 #endif /*End file _DEVICE_INFO_H_*/
 

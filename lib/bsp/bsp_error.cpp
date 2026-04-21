@@ -13,6 +13,10 @@
 /* Includes ----------------------------------------------------------- */
 #include "bsp_error.h"
 
+#include "bsp_device.h"
+#include "bsp_sim.h"
+#include "device_info.h"
+
 /* Private defines ---------------------------------------------------- */
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -22,17 +26,38 @@
 /* Function definitions ----------------------------------------------- */
 void bsp_error_handler(bsp_error_t error_code)
 {
+  device_info_inc_error_count();
+
   switch (error_code)
   {
-  case BSP_ERROR_SIM_INIT:
+  case BSP_ERROR_SD_INIT:
+  case BSP_ERROR_SD_MOUNT:
+  case BSP_ERROR_SD_MKDIR:
+  case BSP_ERROR_SD_OPEN_FILE:
+  {
+    bsp_device_reboot();
+    break;
+  }
+#if (CONFIG_FIREBASE_SERVER)
   case BSP_ERROR_SIM_GET_DATA_FIREBASE:
   case BSP_ERROR_SIM_SEND_DATA_FIREBASE:
   {
     bsp_sim_reset_http();
     break;
   }
+#endif
   default: break;
   }
 }
+
+void bsp_error_handle(void)
+{
+  if (g_device_info.nvs_info.err_count == BSP_ERROR_MAX_COUNT)
+  {
+    device_info_reset_error_count();
+    g_device_info.nvs_info.curr_state = DEVICE_STATE_ERROR;
+  }
+}
+
 /* Private definitions ----------------------------------------------- */
 /* End of file -------------------------------------------------------- */

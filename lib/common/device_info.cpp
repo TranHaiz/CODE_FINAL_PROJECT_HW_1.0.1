@@ -29,7 +29,7 @@ LOG_MODULE_REGISTER(device_info, LOG_LEVEL_DBG)
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
-device_info_t g_device_info;
+RTC_DATA_ATTR device_info_t g_device_info;
 
 // clang-format off
 #define INFO(id, str) [id] = str
@@ -193,6 +193,7 @@ void device_info_init(void)
   LOG_INF("Device Name: %s", g_device_info.device_name);
   LOG_INF("MQTT Cmd Topic: %s", g_device_info.mqtt_cmd_topic);
   LOG_INF("MQTT Data Topic: %s", g_device_info.mqtt_data_topic);
+  LOG_INF("Error Count: %d", g_device_info.nvs_info.err_count);
   LOG_INF("--------------------------------");
 }
 
@@ -200,6 +201,18 @@ void device_info_update_state(device_state_t new_state)
 {
   g_device_info.nvs_info.last_state = g_device_info.nvs_info.curr_state;
   g_device_info.nvs_info.curr_state = new_state;
+  bsp_device_flash_write(&g_device_info.nvs_info);
+}
+
+void device_info_inc_error_count(void)
+{
+  g_device_info.nvs_info.err_count++;
+  bsp_device_flash_write(&g_device_info.nvs_info);
+}
+
+void device_info_reset_error_count(void)
+{
+  g_device_info.nvs_info.err_count = 0;
   bsp_device_flash_write(&g_device_info.nvs_info);
 }
 
