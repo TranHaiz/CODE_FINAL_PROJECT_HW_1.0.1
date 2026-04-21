@@ -30,6 +30,7 @@ typedef enum
   CMD_SET_DEVICE,
   CMD_REBOOT,
   CMD_STOP_RENTAL_FAIL,
+  CMD_STOP_RENTAL_SUCCESS,
   CMD_MAX
 } sys_command_id_t;
 
@@ -39,7 +40,11 @@ OS_SEM_DECLARE(sys_cmd_req_sem)
 extern char g_cmd_input_buffer[CMD_INPUT_MAX_LEN];
 
 /* Public function prototypes ----------------------------------------- */
-void sys_cmd_process();
+/**
+ * @brief Process incoming command - call from a task loop
+ * @return none
+ */
+void sys_cmd_process(void);
 
 #endif /*End file _SYS_CMD_H_*/
 

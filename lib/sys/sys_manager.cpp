@@ -62,6 +62,7 @@ static void sys_manager_device_danger_handler(void);
 static void sys_manager_unlock_from_network_handler(void);
 static void sys_manager_lock_from_network_handler(void);
 static void sys_manager_stop_rental_fail_handler(void);
+static void sys_manager_stop_rental_success_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -88,6 +89,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_UNLOCK_FROM_NETWORK  ,   sys_manager_unlock_from_network_handler );
   INFO(SYS_MANAGER_EVT_LOCK_FROM_NETWORK    ,   sys_manager_lock_from_network_handler   );
   INFO(SYS_MANAGER_EVT_STOP_RENTAL_FAIL     ,   sys_manager_stop_rental_fail_handler    );
+  INFO(SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS  ,   sys_manager_stop_rental_success_handler );
   // clang-format on
 }
 #undef INFO
@@ -273,6 +275,13 @@ static void sys_manager_stop_rental_fail_handler(void)
 {
   device_info_update_state(DEVICE_STATE_ACTIVE);
   sys_ui_warning_out_of_zone(true);
+}
+
+static void sys_manager_stop_rental_success_handler(void)
+{
+  sys_ui_warning_out_of_zone(false);
+  device_info_update_state(DEVICE_STATE_LOCKED);
+  sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
 
 /* End of file -------------------------------------------------------- */
