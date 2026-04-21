@@ -37,7 +37,7 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
 #define SYS_INPUT_UPDATE_RATE_MS (20)
 #define SYS_UI_UPDATE_RATE_MS    (10)
 #define SYS_LOG_UPDATE_RATE_MS   (500)
-#define SYS_MISC_UPDATE_RATE_MS  (500)
+#define SYS_MISC_UPDATE_RATE_MS  (100)
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -60,7 +60,7 @@ OS_THREAD_DECLARE(sys_ui_thread, tskIDLE_PRIORITY + 4, 16384);
 #endif
 
 OS_THREAD_DECLARE(sys_log_thread, tskIDLE_PRIORITY + 1, 4096);
-OS_THREAD_DECLARE(sys_misc_thread, tskIDLE_PRIORITY + 1, 4096);
+OS_THREAD_DECLARE(sys_misc_thread, tskIDLE_PRIORITY + 4, 4096);
 OS_THREAD_DECLARE(sys_cmd_thread, tskIDLE_PRIORITY + 5, 4096);
 OS_THREAD_DECLARE(sys_cmd_usb_thread, tskIDLE_PRIORITY + 5, 4096);
 OS_THREAD_DECLARE(sys_manager_thread, tskIDLE_PRIORITY + 5, 4096);
@@ -88,6 +88,7 @@ void setup()
   sys_network_init();
   delay(1000);
   OS_THREAD_CREATE(sys_cmd_thread, sys_cmd_thread_func);
+  OS_THREAD_CREATE(sys_cmd_usb_thread, sys_cmd_usb_thread_func);
 
 #if (DEVICE_INPUT_ENABLED)
   OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
@@ -193,6 +194,7 @@ void sys_misc_thread_func(void *param)
 {
   bsp_buzzer_init();
   bsp_io_int_init(IO_BUTTON_PIN, BSP_IO_EVENT_FALLING, callback_button_press);
+  bsp_buzzer_beep_cycle(3, 200, 500);
   while (true)
   {
     bsp_usb_process();

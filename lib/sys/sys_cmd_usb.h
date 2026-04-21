@@ -22,6 +22,10 @@
 typedef enum
 {
   SYS_CMD_USB_CMD_RESET = 0,
+  SYS_CMD_USB_CMD_UNLOCK,
+  SYS_CMD_USB_CMD_LOCK,
+  SYS_CMD_USB_CMD_SET_TIME,
+  SYS_CMD_USB_CMD_SET_ID,
   SYS_CMD_USB_CMD_MAX
 } sys_cmd_usb_cmd_t;
 

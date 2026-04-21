@@ -91,6 +91,7 @@ void bsp_usb_process(void)
   {
     if (usb_ctx.callback)
       usb_ctx.callback(BSP_USB_EVENT_DATA_RX, nullptr);
+    LOG_INF("DATA from USB");
   }
 }
 
