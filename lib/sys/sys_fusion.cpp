@@ -43,12 +43,15 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_INFO)
 #define ACC_FORWARD_MAX_MS2         (6.0f)
 
 // Gyro Kalman filter — low Q = trust smoothed estimate; raise Q if attitude lags fast turns
-#define GYRO_KF_E_MEA               (0.5f)   // measurement noise (dps units)
-#define GYRO_KF_E_EST               (0.5f)   // initial estimate error
-#define GYRO_KF_Q                   (0.05f)  // process noise: lower = smoother, higher = more responsive
+#define GYRO_KF_E_MEA               (0.5f)  // measurement noise (dps units)
+#define GYRO_KF_E_EST               (0.5f)  // initial estimate error
+#define GYRO_KF_Q                   (0.5f)  // process noise: lower = smoother, higher = more responsive
 
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 #define CF_WC                       (1.0f)
+#define INS_BLEND_ACTIVE            (0.3f)  // GPS ACTIVE + reliable
+#define INS_BLEND_FADING            (0.1f)  // GPS FADING — cautious
+#define INS_BLEND_INVALID           (0.0f)  // GPS lost — pure CF
 
 #if (DEMO_VEHICLE)
 #define ZUPT_ACC_THRESHOLD          (0.03f)
@@ -206,37 +209,20 @@ typedef struct
 /* Private variables -------------------------------------------------- */
 static sys_fusion_context_t fusion_ctx = { 0 };
 
-/* The upstream SimpleKalmanFilter (denyssene, v1.x) does NOT zero-initialize
- * _last_estimate / _current_estimate / _kalman_gain in its constructor.
- * On ESP32, heap memory returned by `new` can contain NaN bit-patterns;
- * the update formula  `_current_estimate = _last_estimate + gain*(mea - _last_estimate)`
- * then propagates NaN permanently — calling updateEstimate() never recovers
- * because NaN arithmetic always returns NaN.
- *
- * Fix: allocate with calloc (zeroes every byte) then use placement-new so
- * the constructor only fills the fields it knows about (_err_measure etc.)
- * while _last_estimate and friends remain 0.0f from calloc. */
-static SimpleKalmanFilter *kf_new(float e_mea, float e_est, float q)
-{
-  void *mem = calloc(1, sizeof(SimpleKalmanFilter));
-  if (mem == NULL)
-    return NULL;
-  return new (mem) SimpleKalmanFilter(e_mea, e_est, q);
-}
-
 /* Private function prototypes ---------------------------------------- */
-static float       sys_fusion_calculate_magnitude(float x, float y, float z);
-static void        sys_fusion_calculate_offset_mag(void);
-static void        sys_fusion_calibrate_gyro_bias(void);
-static void        sys_fusion_update_ins_velocity(float dt);
-static void        sys_fusion_update_gps_data(void);
-static void        sys_fusion_update_gps_state(size_t current_ms);
-static void        sys_fusion_detect_zupt(float accel_ms2, float dt);
-static void        sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt);
-static void        sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms);
-static const char *sys_fusion_deg_to_direction_str(float deg);
-static void        sys_fusion_gps_callback(bsp_gps_data_t *gps_data);
-static float       sys_fusion_caculate_dis_gps(float lat1, float lon1, float lat2, float lon2);
+static float               sys_fusion_calculate_magnitude(float x, float y, float z);
+static void                sys_fusion_calculate_offset_mag(void);
+static void                sys_fusion_calibrate_gyro_bias(void);
+static void                sys_fusion_update_ins_velocity(float dt);
+static void                sys_fusion_update_gps_data(void);
+static void                sys_fusion_update_gps_state(size_t current_ms);
+static void                sys_fusion_detect_zupt(float accel_ms2, float dt);
+static void                sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt);
+static void                sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms);
+static const char         *sys_fusion_deg_to_direction_str(float deg);
+static void                sys_fusion_gps_callback(bsp_gps_data_t *gps_data);
+static float               sys_fusion_caculate_dis_gps(float lat1, float lon1, float lat2, float lon2);
+static SimpleKalmanFilter *kf_new(float e_mea, float e_est, float q);
 
 /* Function definitions ----------------------------------------------- */
 void sys_fusion_init(void)
@@ -728,9 +714,11 @@ static void sys_fusion_update_gps_state(size_t current_ms)
     }
     else if ((current_ms - fusion_ctx.gps_lost_ms) >= GPS_FADE_TIMEOUT_MS)
     {
-      fusion_ctx.gps_state    = GPS_STATE_INVALID;
-      fusion_ctx.velocity_gps = 0.0f;
-      fusion_ctx.gps_reliable = false;
+      fusion_ctx.gps_state             = GPS_STATE_INVALID;
+      fusion_ctx.velocity_gps          = 0.0f;
+      fusion_ctx.gps_reliable          = false;
+      fusion_ctx.distance_ins          = 0.0f;
+      fusion_ctx.has_last_gps_position = false;
       LOG_DBG("GPS: FADING -> INVALID");
     }
     break;
@@ -798,6 +786,19 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
     gamma_adj = 0.0f;
 
   fusion_ctx.velocity_out = gamma_adj * fusion_ctx.velocity_out + alpha * fusion_ctx.velocity_ins + beta * v_gps_eff;
+
+  if (fusion_ctx.velocity_out < 0.0f)
+    fusion_ctx.velocity_out = 0.0f;
+
+  float ins_blend;
+  if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.gps_reliable)
+    ins_blend = INS_BLEND_ACTIVE;
+  else if (fusion_ctx.gps_state == GPS_STATE_FADING)
+    ins_blend = INS_BLEND_FADING;
+  else
+    ins_blend = INS_BLEND_INVALID;
+
+  fusion_ctx.velocity_out = (1.0f - ins_blend) * fusion_ctx.velocity_out + ins_blend * fusion_ctx.velocity_ins;
 
   if (fusion_ctx.velocity_out < 0.0f)
     fusion_ctx.velocity_out = 0.0f;
@@ -978,6 +979,14 @@ bool sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
   }
 
   return (flags != SYS_FUSION_DANGER_MOTION_NONE);
+}
+
+static SimpleKalmanFilter *kf_new(float e_mea, float e_est, float q)
+{
+  void *mem = calloc(1, sizeof(SimpleKalmanFilter));
+  if (mem == NULL)
+    return NULL;
+  return new (mem) SimpleKalmanFilter(e_mea, e_est, q);
 }
 
 /* End of file -------------------------------------------------------- */

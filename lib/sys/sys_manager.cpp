@@ -55,11 +55,13 @@ static void sys_manager_unlocked_handler(void);
 static void sys_manager_change_topic_sub_handler(void);
 static void sys_manager_reboot_handler(void);
 static void sys_manager_user_lock_handler(void);
+static void sys_manager_user_pause_handler(void);
 static void sys_manager_shutdown_timer_callback(TimerHandle_t xTimer);
 static void sys_manager_shutdown_handler(void);
 static void sys_manager_device_danger_handler(void);
 static void sys_manager_unlock_from_network_handler(void);
 static void sys_manager_lock_from_network_handler(void);
+static void sys_manager_stop_rental_fail_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -73,17 +75,19 @@ void sys_manager_init(void)
   manager_handler.current_event = SYS_MANAGER_EVT_IDLE;
   // clang-format off
   /*   Event                                |   Handlers*/
-  INFO(SYS_MANAGER_EVT_WAKEUP               ,   sys_manager_wakeup_handler            );
-  INFO(SYS_MANAGER_EVT_LOCKED               ,   sys_manager_lock_handler              );
-  INFO(SYS_MANAGER_EVT_UNLOCKED             ,   sys_manager_unlocked_handler          );
-  INFO(SYS_MANAGER_EVT_ACTIVE               ,   sys_manager_active_handler            );
-  INFO(SYS_MANAGER_EVT_CHANGE_CMD_TOPIC     ,   sys_manager_change_topic_sub_handler  );
-  INFO(SYS_MANAGER_EVT_REBOOT               ,   sys_manager_reboot_handler            );
-  INFO(SYS_MANAGER_EVT_USER_LOCK            ,   sys_manager_user_lock_handler         );
-  INFO(SYS_MANAGER_EVT_SHUTDOWN             ,   sys_manager_shutdown_handler          );
-  INFO(SYS_MANAGER_EVT_DEVICE_DANGER        ,   sys_manager_device_danger_handler     );
+  INFO(SYS_MANAGER_EVT_WAKEUP               ,   sys_manager_wakeup_handler              );
+  INFO(SYS_MANAGER_EVT_LOCKED               ,   sys_manager_lock_handler                );
+  INFO(SYS_MANAGER_EVT_UNLOCKED             ,   sys_manager_unlocked_handler            );
+  INFO(SYS_MANAGER_EVT_ACTIVE               ,   sys_manager_active_handler              );
+  INFO(SYS_MANAGER_EVT_CHANGE_CMD_TOPIC     ,   sys_manager_change_topic_sub_handler    );
+  INFO(SYS_MANAGER_EVT_REBOOT               ,   sys_manager_reboot_handler              );
+  INFO(SYS_MANAGER_EVT_USER_LOCK            ,   sys_manager_user_lock_handler           );
+  INFO(SYS_MANAGER_EVT_USER_PAUSE           ,   sys_manager_user_pause_handler          );
+  INFO(SYS_MANAGER_EVT_SHUTDOWN             ,   sys_manager_shutdown_handler            );
+  INFO(SYS_MANAGER_EVT_DEVICE_DANGER        ,   sys_manager_device_danger_handler       );
   INFO(SYS_MANAGER_EVT_UNLOCK_FROM_NETWORK  ,   sys_manager_unlock_from_network_handler );
   INFO(SYS_MANAGER_EVT_LOCK_FROM_NETWORK    ,   sys_manager_lock_from_network_handler   );
+  INFO(SYS_MANAGER_EVT_STOP_RENTAL_FAIL     ,   sys_manager_stop_rental_fail_handler    );
   // clang-format on
 }
 #undef INFO
@@ -184,6 +188,20 @@ static void sys_manager_user_lock_handler(void)
 #endif  // DEVICE_IDLE_MODE_ENABLED
 }
 
+static void sys_manager_user_pause_handler(void)
+{
+  LOG_DBG("Handling user pause event");
+  sys_network_mqtt_publish_noti(NETWORK_NOTI_USERPAUSE_PAYLOAD, strlen(NETWORK_NOTI_USERPAUSE_PAYLOAD));
+  // TODO: implement pause functionality, for now just lock and send noti
+  device_info_update_state(DEVICE_STATE_LOCKED);
+  // device_info_update_state(DEVICE_STATE_PAUSED);
+  sys_ui_lock();
+
+#if (DEVICE_IDLE_MODE_ENABLED)
+  bsp_timer_start(&manager_handler.shutdown_timer);
+#endif  // DEVICE_IDLE_MODE_ENABLED
+}
+
 static void sys_manager_shutdown_timer_callback(TimerHandle_t xTimer)
 {
   sys_manager_write_event(SYS_MANAGER_EVT_SHUTDOWN);
@@ -249,6 +267,12 @@ void sys_manager_lock_from_network_handler(void)
     LOG_DBG("Device locked from network");
   }
   sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
+}
+
+static void sys_manager_stop_rental_fail_handler(void)
+{
+  device_info_update_state(DEVICE_STATE_ACTIVE);
+  sys_ui_warning_out_of_zone(true);
 }
 
 /* End of file -------------------------------------------------------- */

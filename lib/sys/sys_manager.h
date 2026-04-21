@@ -20,7 +20,8 @@
 #include "os_lib.h"
 
 /* Public defines ----------------------------------------------------- */
-#define NETWORK_NOTI_USERLOCK_PAYLOAD  "USER_LOCKED"
+#define NETWORK_NOTI_USERLOCK_PAYLOAD  "STOP_RENTAL"
+#define NETWORK_NOTI_USERPAUSE_PAYLOAD "NOTI_PAUSE"
 #define NETWORK_DEVICE_RESP_OK_PAYLOAD "OK"
 
 /* Public enumerate/structure ----------------------------------------- */
@@ -36,8 +37,10 @@ typedef enum
   SYS_MANAGER_EVT_CHANGE_CMD_TOPIC,
   SYS_MANAGER_EVT_REBOOT,
   SYS_MANAGER_EVT_USER_LOCK,
+  SYS_MANAGER_EVT_USER_PAUSE,
   SYS_MANAGER_EVT_SHUTDOWN,
   SYS_MANAGER_EVT_DEVICE_DANGER,
+  SYS_MANAGER_EVT_STOP_RENTAL_FAIL,
   SYS_MANAGER_EVT_MAX
 } sys_manager_event_t;
 

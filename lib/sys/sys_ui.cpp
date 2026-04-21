@@ -87,6 +87,13 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_COMPASS_DEG_Y            (SYS_UI_COMPASS_CY + 5)
 #define SYS_UI_COMPASS_PANEL_BG_COLOR   (0x0A1520)
 
+// Warning label
+#define SYS_UI_WARNING_LABEL_X          (SYS_UI_MAP_PANEL_X + SYS_UI_MAP_PANEL_W + 10)
+#define SYS_UI_WARNING_LABEL_Y          (SYS_UI_MAP_PANEL_Y)
+#define SYS_UI_WARNING_LABEL_TEXT       "OUT OF ZONE"
+#define SYS_UI_WARNING_LABEL_TEXT_COLOR SYS_UI_WIDGET_COLOR_RED
+#define SYS_UI_WARNING_LABEL_FONT       (&lv_font_montserrat_14)
+
 // Right panel info cards
 #define SYS_UI_CARD_X                   (218)
 #define SYS_UI_CARD_W                   (100)
@@ -107,13 +114,20 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 #define SYS_UI_BACK_BTN_TEXT_COLOR      SYS_UI_COLOR_TEXT
 
 // Screen out
-#define SYS_UI_CONFIRM_BTN_X            (75)
-#define SYS_UI_CONFIRM_BTN_Y            (105)
-#define SYS_UI_CONFIRM_BTN_W            (120)
-#define SYS_UI_CONFIRM_BTN_H            (50)
-#define SYS_UI_CONFIRM_BTN_LABEL        "CONFIRM"
-#define SYS_UI_CONFIRM_BTN_COLOR        SYS_UI_COLOR_SUCCESS
-#define SYS_UI_CONFIRM_BTN_TEXT_COLOR   SYS_UI_COLOR_TEXT
+#define SYS_UI_PAUSE_BTN_X              (10)
+#define SYS_UI_PAUSE_BTN_Y              (105)
+#define SYS_UI_PAUSE_BTN_W              (120)
+#define SYS_UI_PAUSE_BTN_H              (50)
+#define SYS_UI_PAUSE_BTN_LABEL          "PAUSE"
+#define SYS_UI_PAUSE_BTN_COLOR          SYS_UI_WIDGET_COLOR_ORANGE
+#define SYS_UI_PAUSE_BTN_TEXT_COLOR     SYS_UI_COLOR_TEXT
+#define SYS_UI_STOP_BTN_X               (SYS_UI_PAUSE_BTN_X + SYS_UI_PAUSE_BTN_W + 50)
+#define SYS_UI_STOP_BTN_Y               (105)
+#define SYS_UI_STOP_BTN_W               (120)
+#define SYS_UI_STOP_BTN_H               (50)
+#define SYS_UI_STOP_BTN_LABEL           "STOP"
+#define SYS_UI_STOP_BTN_COLOR           SYS_UI_COLOR_SUCCESS
+#define SYS_UI_STOP_BTN_TEXT_COLOR      SYS_UI_COLOR_TEXT
 #define SYS_UI_OUT_LABEL_X              (50)
 #define SYS_UI_OUT_LABEL_Y              (81)
 #define SYS_UI_OUT_LABEL_TEXT           "Do you want to quit the bike?"
@@ -380,6 +394,7 @@ typedef struct
   lv_obj_t *aqi_label;
   lv_obj_t *settings_btn;
   lv_obj_t *out_btn;
+  lv_obj_t *warning_label;
   // Settings screen
   lv_obj_t *settings_screen;
   lv_obj_t *settings_title;
@@ -390,7 +405,8 @@ typedef struct
   // Out screen
   lv_obj_t *out_screen;
   lv_obj_t *out_back_btn;
-  lv_obj_t *out_confirm_btn;
+  lv_obj_t *out_stop_btn;
+  lv_obj_t *out_pause_btn;
   // Lock screen
   lv_obj_t      *lock_screen;
   lv_obj_t      *lock_qr_img;
@@ -492,6 +508,8 @@ typedef struct
   int    env_tab;  // 0=TEMP, 1=HUM, 2=DUST
   int    fusion_zoom;
   int    fusion_graph_offset;
+
+  bool is_warning_active;
 } sys_ui_context_t;
 
 /* Public variables --------------------------------------------------- */
@@ -544,6 +562,7 @@ static void sys_ui_main_screen_update_time(int hours, int minutes, int seconds);
 static void sys_ui_main_screen_update_distance(float distance_km);
 static void sys_ui_main_screen_update_env(float temperature_C, float humidity, int air_quality);
 static void sys_ui_main_screen_update_compass(void);
+static void sys_ui_main_screen_update_warning(void);
 static void sys_ui_main_screen_update_speed_n_distance(void);
 static void sys_ui_main_screen_update_countup(void);
 static void sys_ui_main_screen_cb_settings_btn(lv_event_t *event);
@@ -561,7 +580,8 @@ static void sys_ui_settings_screen_cb_color_btn(lv_event_t *event);
 static void sys_ui_out_screen_create(void);
 static void sys_ui_out_screen_draw(void);
 static void sys_ui_out_screen_cb_back_btn(lv_event_t *event);
-static void sys_ui_out_screen_cb_confirm_btn(lv_event_t *event);
+static void sys_ui_out_screen_cb_stop_btn(lv_event_t *event);
+static void sys_ui_out_screen_cb_pause_btn(lv_event_t *event);
 // Lock screen
 static void sys_ui_lock_screen_create(void);
 static void sys_ui_lock_screen_draw(void);
@@ -728,6 +748,12 @@ void sys_ui_change_time_active(void)
   }
 }
 
+void sys_ui_warning_out_of_zone(bool is_active)
+{
+  ui_ctx.is_warning_active = is_active;
+  sys_ui_main_screen_update_warning();
+}
+
 /* Private definitions ----------------------------------------------- */
 static void sys_ui_show_screen(lv_obj_t *screen)
 {
@@ -799,7 +825,8 @@ static void sys_ui_change_screen(sys_ui_view_t view)
     if (ui_ctx.widgets.out_back_btn != nullptr)
     {
       lv_obj_add_event_cb(ui_ctx.widgets.out_back_btn, sys_ui_out_screen_cb_back_btn, LV_EVENT_CLICKED, nullptr);
-      lv_obj_add_event_cb(ui_ctx.widgets.out_confirm_btn, sys_ui_out_screen_cb_confirm_btn, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ui_ctx.widgets.out_stop_btn, sys_ui_out_screen_cb_stop_btn, LV_EVENT_CLICKED, nullptr);
+      lv_obj_add_event_cb(ui_ctx.widgets.out_pause_btn, sys_ui_out_screen_cb_pause_btn, LV_EVENT_CLICKED, nullptr);
     }
     break;
   }
@@ -1102,6 +1129,12 @@ static void sys_ui_main_screen_create(void)
     sys_ui_widget_create_label(ui_ctx.widgets.main_screen, SYS_UI_COMPASS_DEG_X, SYS_UI_COMPASS_DEG_Y,
                                SYS_UI_COMPASS_DIR_LABEL_INIT, SYS_UI_COLOR_ACCENT, &lv_font_montserrat_18);
 
+  // Warning label
+  ui_ctx.widgets.warning_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.main_screen, SYS_UI_WARNING_LABEL_X, SYS_UI_WARNING_LABEL_Y,
+                               SYS_UI_WARNING_LABEL_TEXT, SYS_UI_WARNING_LABEL_TEXT_COLOR, SYS_UI_WARNING_LABEL_FONT);
+  sys_ui_main_screen_update_warning();
+
   // Time card
   ui_ctx.widgets.time_card = sys_ui_widget_create_card(ui_ctx.widgets.main_screen, SYS_UI_CARD_X, SYS_UI_TIME_CARD_Y,
                                                        SYS_UI_CARD_W, SYS_UI_TIME_CARD_H, SYS_UI_COLOR_PRIMARY);
@@ -1251,6 +1284,23 @@ static void sys_ui_main_screen_update_compass(void)
       { x2, y2 },
     };
     lv_line_set_points(ui_ctx.widgets.compass_needle, points, 2);
+  }
+}
+
+static void sys_ui_main_screen_update_warning(void)
+{
+  if (ui_ctx.widgets.warning_label == nullptr)
+  {
+    return;
+  }
+
+  if (ui_ctx.is_warning_active)
+  {
+    lv_obj_clear_flag(ui_ctx.widgets.warning_label, LV_OBJ_FLAG_HIDDEN);
+  }
+  else
+  {
+    lv_obj_add_flag(ui_ctx.widgets.warning_label, LV_OBJ_FLAG_HIDDEN);
   }
 }
 
@@ -1424,9 +1474,13 @@ static void sys_ui_out_screen_create(void)
                                 SYS_UI_BACK_BTN_H, SYS_UI_BACK_BTN_LABEL, SYS_UI_BACK_BTN_COLOR, SYS_UI_COLOR_BG);
   sys_ui_widget_create_label(ui_ctx.widgets.out_screen, SYS_UI_OUT_LABEL_X, SYS_UI_OUT_LABEL_Y, SYS_UI_OUT_LABEL_TEXT,
                              SYS_UI_COLOR_TEXT, nullptr);
-  ui_ctx.widgets.out_confirm_btn = sys_ui_widget_create_button(
-    ui_ctx.widgets.out_screen, SYS_UI_CONFIRM_BTN_X, SYS_UI_CONFIRM_BTN_Y, SYS_UI_CONFIRM_BTN_W, SYS_UI_CONFIRM_BTN_H,
-    SYS_UI_CONFIRM_BTN_LABEL, SYS_UI_CONFIRM_BTN_COLOR, SYS_UI_COLOR_BG);
+  ui_ctx.widgets.out_stop_btn =
+    sys_ui_widget_create_button(ui_ctx.widgets.out_screen, SYS_UI_STOP_BTN_X, SYS_UI_STOP_BTN_Y, SYS_UI_STOP_BTN_W,
+                                SYS_UI_STOP_BTN_H, SYS_UI_STOP_BTN_LABEL, SYS_UI_STOP_BTN_COLOR, SYS_UI_COLOR_BG);
+
+  ui_ctx.widgets.out_pause_btn =
+    sys_ui_widget_create_button(ui_ctx.widgets.out_screen, SYS_UI_PAUSE_BTN_X, SYS_UI_PAUSE_BTN_Y, SYS_UI_PAUSE_BTN_W,
+                                SYS_UI_PAUSE_BTN_H, SYS_UI_PAUSE_BTN_LABEL, SYS_UI_PAUSE_BTN_COLOR, SYS_UI_COLOR_BG);
 }
 
 static void sys_ui_out_screen_draw(void)
@@ -1446,11 +1500,18 @@ static void sys_ui_out_screen_cb_back_btn(lv_event_t *event)
   sys_ui_change_screen(SYS_UI_VIEW_MAIN);
 }
 
-static void sys_ui_out_screen_cb_confirm_btn(lv_event_t *event)
+static void sys_ui_out_screen_cb_stop_btn(lv_event_t *event)
 {
   (void) event;
-  LOG_DBG("sys_ui_out_screen_cb_confirm_btn");
+  LOG_DBG("sys_ui_out_screen_cb_stop_btn");
   sys_manager_write_event(SYS_MANAGER_EVT_USER_LOCK);
+}
+
+static void sys_ui_out_screen_cb_pause_btn(lv_event_t *event)
+{
+  (void) event;
+  LOG_DBG("sys_ui_out_screen_cb_pause_btn");
+  sys_manager_write_event(SYS_MANAGER_EVT_USER_PAUSE);
 }
 
 static void sys_ui_time_screen_create(void)

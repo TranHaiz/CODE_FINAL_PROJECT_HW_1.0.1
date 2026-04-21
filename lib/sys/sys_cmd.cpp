@@ -19,6 +19,7 @@
 #include "bsp_sim.h"
 #include "log_service.h"
 #include "sys_manager.h"
+#include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_cmd, LOG_LEVEL_DBG)
@@ -40,6 +41,7 @@ static void sys_cmd_unlock_device_handler(void);
 static void sys_cmd_set_time_handler(void);
 static void sys_cmd_set_device_id_handler(void);
 static void sys_cmd_reboot_handler(void);
+static void sys_cmd_stop_rental_fail_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -54,7 +56,8 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("UNLOCK",    sys_cmd_unlock_device_handler),
   INFO("SET_TIME",  sys_cmd_set_time_handler),
   INFO("SET_DEVICE",  sys_cmd_set_device_id_handler),
-  INFO("RESET",    sys_cmd_reboot_handler)
+  INFO("RESET",    sys_cmd_reboot_handler),
+  INFO("STOP_RENTAL_FAIL", sys_cmd_stop_rental_fail_handler)
 };
 #undef INFO
 // clang-format on
@@ -253,6 +256,11 @@ static void sys_cmd_set_device_id_handler(void)
 static void sys_cmd_reboot_handler(void)
 {
   sys_manager_write_event(SYS_MANAGER_EVT_REBOOT);
+}
+
+static void sys_cmd_stop_rental_fail_handler(void)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_STOP_RENTAL_FAIL);
 }
 
 /* End of file -------------------------------------------------------- */

@@ -29,6 +29,7 @@ typedef enum
   CMD_SET_TIME,
   CMD_SET_DEVICE,
   CMD_REBOOT,
+  CMD_STOP_RENTAL_FAIL,
   CMD_MAX
 } sys_command_id_t;
 

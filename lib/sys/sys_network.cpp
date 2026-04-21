@@ -385,45 +385,7 @@ static void sys_network_run_online(void)
     OS_MUTEX_UNLOCK(network_high_noti_mutex);
   }
 
-  // 1. Keepalive when idle
-  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
-  {
-    if (COUNT_MS(network_ctx.last_keepalive_ms) >= MQTT_KEEPALIVE_MS)
-    {
-      if (!bsp_sim_is_ready())
-      {
-        LOG_WRN("Keepalive: SIM or network lost");
-        sys_network_change_state(NETWORK_STATE_ERROR);
-        return;
-      }
-      mqtt_message_t mes = {
-        .topic   = g_device_info.mqtt_noti_topic,
-        .payload = NETWORK_KEEPALIVE_MES,
-      };
-
-      bool publish_ok = false;
-      for (uint8_t i = 0; i < MQTT_PUBLISH_RETRY; i++)
-      {
-        if (bsp_sim_mqtt_pub(&mes) == STATUS_OK)
-        {
-          LOG_DBG("Keepalive OK");
-          publish_ok = true;
-          break;
-        }
-        OS_DELAY_MS(MQTT_PUBLISH_RETRY_DELAY_MS);
-      }
-      if (!publish_ok)
-      {
-        LOG_WRN("Keepalive failed after %d attempts", MQTT_PUBLISH_RETRY);
-        sys_network_change_state(NETWORK_STATE_ERROR);
-        return;
-      }
-      network_ctx.last_keepalive_ms = OS_GET_TICK();
-    }
-    return;
-  }
-
-  // 2. Publish notifications or commands if pending
+  // 1. Publish notifications or commands if pending
   char     req_payload[MQTT_REQUEST_PUBLISH_SIZE] = { 0 };
   uint32_t req_count                              = 0;
   bool     is_pub_noti_ok                         = false;
@@ -460,6 +422,44 @@ static void sys_network_run_online(void)
   else
   {
     // Do nothing
+  }
+
+  // 2. Keepalive when idle
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
+  {
+    if (COUNT_MS(network_ctx.last_keepalive_ms) >= MQTT_KEEPALIVE_MS)
+    {
+      if (!bsp_sim_is_ready())
+      {
+        LOG_WRN("Keepalive: SIM or network lost");
+        sys_network_change_state(NETWORK_STATE_ERROR);
+        return;
+      }
+      mqtt_message_t mes = {
+        .topic   = g_device_info.mqtt_noti_topic,
+        .payload = NETWORK_KEEPALIVE_MES,
+      };
+
+      bool publish_ok = false;
+      for (uint8_t i = 0; i < MQTT_PUBLISH_RETRY; i++)
+      {
+        if (bsp_sim_mqtt_pub(&mes) == STATUS_OK)
+        {
+          LOG_DBG("Keepalive OK");
+          publish_ok = true;
+          break;
+        }
+        OS_DELAY_MS(MQTT_PUBLISH_RETRY_DELAY_MS);
+      }
+      if (!publish_ok)
+      {
+        LOG_WRN("Keepalive failed after %d attempts", MQTT_PUBLISH_RETRY);
+        sys_network_change_state(NETWORK_STATE_ERROR);
+        return;
+      }
+      network_ctx.last_keepalive_ms = OS_GET_TICK();
+    }
+    return;
   }
 
   // 3. Publish mes in sd
