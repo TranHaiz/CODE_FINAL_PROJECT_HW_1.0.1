@@ -42,6 +42,7 @@ static void sys_cmd_set_time_handler(void);
 static void sys_cmd_set_device_id_handler(void);
 static void sys_cmd_reboot_handler(void);
 static void sys_cmd_stop_rental_fail_handler(void);
+static void sys_cmd_stop_rental_success_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -57,13 +58,14 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("SET_TIME",  sys_cmd_set_time_handler),
   INFO("SET_DEVICE",  sys_cmd_set_device_id_handler),
   INFO("RESET",    sys_cmd_reboot_handler),
-  INFO("STOP_RENTAL_FAIL", sys_cmd_stop_rental_fail_handler)
+  INFO("STOP_RENTAL_FAIL", sys_cmd_stop_rental_fail_handler),
+  INFO("STOP_RENTAL_SUCCESS", sys_cmd_stop_rental_success_handler)
 };
 #undef INFO
 // clang-format on
 
 /* Function definitions ----------------------------------------------- */
-void sys_cmd_process()
+void sys_cmd_process(void)
 {
   OS_SEM_TAKE(sys_cmd_req_sem, OS_MAX_DELAY);
   char cmd_buffer[CMD_INPUT_MAX_LEN];
@@ -261,6 +263,11 @@ static void sys_cmd_reboot_handler(void)
 static void sys_cmd_stop_rental_fail_handler(void)
 {
   sys_manager_write_event(SYS_MANAGER_EVT_STOP_RENTAL_FAIL);
+}
+
+static void sys_cmd_stop_rental_success_handler(void)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS);
 }
 
 /* End of file -------------------------------------------------------- */

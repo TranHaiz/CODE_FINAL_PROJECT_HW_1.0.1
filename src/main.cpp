@@ -23,6 +23,7 @@
 #include "log_service.h"
 #include "os_lib.h"
 #include "sys_cmd.h"
+#include "sys_cmd_usb.h"
 #include "sys_input.h"
 #include "sys_log.h"
 #include "sys_manager.h"
@@ -61,6 +62,7 @@ OS_THREAD_DECLARE(sys_ui_thread, tskIDLE_PRIORITY + 4, 16384);
 OS_THREAD_DECLARE(sys_log_thread, tskIDLE_PRIORITY + 1, 4096);
 OS_THREAD_DECLARE(sys_misc_thread, tskIDLE_PRIORITY + 1, 4096);
 OS_THREAD_DECLARE(sys_cmd_thread, tskIDLE_PRIORITY + 5, 4096);
+OS_THREAD_DECLARE(sys_cmd_usb_thread, tskIDLE_PRIORITY + 5, 4096);
 OS_THREAD_DECLARE(sys_manager_thread, tskIDLE_PRIORITY + 5, 4096);
 
 /* Private function prototypes ---------------------------------------- */
@@ -68,6 +70,7 @@ void sys_input_thread_func(void *param);
 void sys_ui_thread_func(void *param);
 void sys_log_thread_func(void *param);
 void sys_cmd_thread_func(void *param);
+void sys_cmd_usb_thread_func(void *param);
 void sys_manager_thread_func(void *param);
 void sys_misc_thread_func(void *param);
 void callback_button_press(void);
@@ -167,6 +170,15 @@ void sys_cmd_thread_func(void *param)
   }
 }
 
+void sys_cmd_usb_thread_func(void *param)
+{
+  sys_cmd_usb_init();
+  while (true)
+  {
+    sys_cmd_usb_process();
+  }
+}
+
 void sys_manager_thread_func(void *param)
 {
   sys_manager_init();
@@ -183,6 +195,7 @@ void sys_misc_thread_func(void *param)
   bsp_io_int_init(IO_BUTTON_PIN, BSP_IO_EVENT_FALLING, callback_button_press);
   while (true)
   {
+    bsp_usb_process();
     bsp_buzzer_process();
     OS_DELAY_MS(SYS_MISC_UPDATE_RATE_MS);
   }
