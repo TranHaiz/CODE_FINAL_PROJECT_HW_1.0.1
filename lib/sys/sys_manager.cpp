@@ -19,6 +19,7 @@
 #include "bsp_led.h"
 #include "bsp_sim.h"
 #include "bsp_timer.h"
+#include "device_info.h"
 #include "sys_input.h"
 #include "sys_network.h"
 #include "sys_ui.h"
@@ -69,7 +70,9 @@ void sys_manager_init(void)
 {
 #if (DEVICE_IDLE_MODE_ENABLED)
   bsp_timer_init(&manager_handler.shutdown_timer, SHUTDOWN_TIMER_PERIOD_MS, false, sys_manager_shutdown_timer_callback);
-  bsp_timer_start(&manager_handler.shutdown_timer);
+  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_LOCKED
+      || g_device_info.nvs_info.curr_state == DEVICE_STATE_PAUSED)
+    bsp_timer_start(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
 
   OS_SEM_CREATE(sys_manager_event_sem);
