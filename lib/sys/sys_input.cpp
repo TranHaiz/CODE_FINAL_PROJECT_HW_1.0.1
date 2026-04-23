@@ -22,7 +22,6 @@
 #include "bsp_io.h"
 #include "bsp_temp_hum.h"
 #include "log_service.h"
-#include "os_lib.h"
 #include "sys_manager.h"
 #include "sys_ui.h"
 
@@ -60,7 +59,7 @@ typedef struct
 /* Public variables --------------------------------------------------- */
 /* Private variables -------------------------------------------------- */
 static sys_input_context_t input_ctx = { 0 };
-OS_SEM_DEFINE_STATIC(sys_input_wakeup_sem);
+OS_SEM_DEFINE_GLOBAL(sys_input_wakeup_sem);
 
 /* Private function prototypes ---------------------------------------- */
 static status_function_t sys_input_process_active(void);

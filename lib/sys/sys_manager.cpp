@@ -123,6 +123,9 @@ static void sys_manager_wakeup_handler(void)
   LOG_DBG("Handling wakeup event");
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_wakeup();
+#if (DEVICE_IDLE_MODE_ENABLED)
+  bsp_timer_start(&manager_handler.shutdown_timer);
+#endif  // DEVICE_IDLE_MODE_ENABLED
 }
 
 static void sys_manager_lock_handler(void)
@@ -285,6 +288,9 @@ static void sys_manager_stop_rental_success_handler(void)
   sys_ui_warning_out_of_zone(false);
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
+#if (DEVICE_IDLE_MODE_ENABLED)
+  bsp_timer_start(&manager_handler.shutdown_timer);
+#endif  // DEVICE_IDLE_MODE_ENABLED
 }
 
 /* End of file -------------------------------------------------------- */

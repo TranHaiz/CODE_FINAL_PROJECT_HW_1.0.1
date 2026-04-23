@@ -2119,6 +2119,11 @@ static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
   {
     data->state = LV_INDEV_STATE_RELEASED;
   }
+
+  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE)
+  {
+    OS_SEM_GIVE_FROM_ISR(sys_input_wakeup_sem);
+  }
 }
 
 static void sys_ui_lock_screen_create(void)

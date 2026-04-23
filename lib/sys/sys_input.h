@@ -19,6 +19,7 @@
 
 /* Includes ----------------------------------------------------------- */
 #include "common_type.h"
+#include "os_lib.h"
 #include "sys_fusion.h"
 
 /* Public defines ----------------------------------------------------- */
@@ -52,6 +53,8 @@ typedef struct
 
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
+OS_SEM_DECLARE(sys_input_wakeup_sem);
+
 /* Public function prototypes ----------------------------------------- */
 /**
  * @brief Initialize system input with sensors
