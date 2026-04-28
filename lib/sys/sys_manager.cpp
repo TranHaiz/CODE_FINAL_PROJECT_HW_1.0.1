@@ -253,7 +253,7 @@ void sys_manager_unlock_from_network_handler(void)
     bsp_timer_stop(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
     device_info_update_state(DEVICE_STATE_ACTIVE);
-    if (g_device_info.nvs_info.last_state == DEVICE_STATE_IDLE)
+    if (g_device_info.nvs_info.prev_state == DEVICE_STATE_IDLE)
     {
       sys_ui_wakeup();
     }

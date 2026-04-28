@@ -36,7 +36,8 @@ typedef struct
   uint8_t        err_count;
   uint8_t        device_id;
   device_state_t curr_state;
-  device_state_t last_state;
+  device_state_t prev_state;
+  float          total_km;
   char           serial_number[DEVICE_SERIAL_NUMBER_MAX_LEN];
 } device_nvs_info_t;
 typedef struct

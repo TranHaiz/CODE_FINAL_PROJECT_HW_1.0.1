@@ -70,6 +70,7 @@ void device_info_init(void)
   {
     LOG_INF("No NVS data found, initializing with default values");
     // Initial default device info
+    memset(&g_device_info.nvs_info, 0, sizeof(g_device_info.nvs_info));
     g_device_info.nvs_info.device_id = 0;
     snprintf(g_device_info.device_version, sizeof(g_device_info.device_version), "%d.%d.%d", FIRRMWARE_MAJOR_VERSION,
              FIRRMWARE_MINOR_VERSION, FIRRMWARE_PATCH_VERSION);
@@ -77,44 +78,9 @@ void device_info_init(void)
              random(1, 0xFFFFFFFF));
 
     bsp_device_flash_write(&g_device_info.nvs_info);
-
-    g_device_info.last_reset_reason = bsp_device_get_reset_reason();
-    switch (g_device_info.last_reset_reason)
-    {
-    case ESP_RST_EXT:
-    case ESP_RST_PANIC:
-    case ESP_RST_INT_WDT:
-    case ESP_RST_TASK_WDT:
-    case ESP_RST_WDT:
-    case ESP_RST_SDIO:
-    {
-      g_device_info.nvs_info.curr_state = DEVICE_STATE_ERROR;
-      break;
-    }
-    case ESP_RST_DEEPSLEEP:
-    case ESP_RST_BROWNOUT:
-    case ESP_RST_UNKNOWN:
-    case ESP_RST_POWERON:
-    case ESP_RST_SW:
-    {
-      if (g_device_info.nvs_info.last_state == DEVICE_STATE_ACTIVE)
-      {
-        g_device_info.nvs_info.curr_state = DEVICE_STATE_ACTIVE;
-      }
-      else
-      {
-        g_device_info.nvs_info.curr_state = DEVICE_STATE_LOCKED;
-      }
-
-      break;
-    }
-    default:
-    {
-      g_device_info.nvs_info.curr_state = DEVICE_STATE_ERROR;
-      break;
-    }
-    }
   }
+
+  g_device_info.last_reset_reason = bsp_device_get_reset_reason();
 
   snprintf(g_device_info.device_version, sizeof(g_device_info.device_version), "%d.%d.%d", FIRRMWARE_MAJOR_VERSION,
            FIRRMWARE_MINOR_VERSION, FIRRMWARE_PATCH_VERSION);
@@ -199,7 +165,7 @@ void device_info_init(void)
 
 void device_info_update_state(device_state_t new_state)
 {
-  g_device_info.nvs_info.last_state = g_device_info.nvs_info.curr_state;
+  g_device_info.nvs_info.prev_state = g_device_info.nvs_info.curr_state;
   g_device_info.nvs_info.curr_state = new_state;
   bsp_device_flash_write(&g_device_info.nvs_info);
 }
