@@ -295,6 +295,7 @@ static void sys_cmd_set_danger_noti_handler(void)
   else if (strcmp(value_str, "0") == 0)
   {
     g_device_info.danger_noti_enabled = false;
+    g_device_info.danger_level        = DEVICE_DANGER_LEVEL_LOW;
     LOG_DBG("Danger notification disabled");
   }
   else

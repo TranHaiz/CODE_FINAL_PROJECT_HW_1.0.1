@@ -30,6 +30,12 @@ typedef enum
   DEVICE_STATE_NOTI,
   DEVICE_STATE_MAX
 } device_state_t;
+typedef enum
+{
+  DEVICE_DANGER_LEVEL_LOW = 0,
+  DEVICE_DANGER_LEVEL_HIGH
+} device_danger_level_t;
+
 typedef esp_reset_reason_t device_reset_reason_t;
 typedef struct
 {
@@ -52,6 +58,7 @@ typedef struct
   char                  log_sd_path[DEVICE_LOG_SD_PATH_MAX_LEN];
   device_nvs_info_t     nvs_info;
   bool                  danger_noti_enabled;
+  device_danger_level_t danger_level;
 } device_info_t;
 
 /* Public macros ------------------------------------------------------ */

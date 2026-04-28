@@ -38,6 +38,7 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
 #define SYS_UI_UPDATE_RATE_MS    (10)
 #define SYS_LOG_UPDATE_RATE_MS   (500)
 #define SYS_MISC_UPDATE_RATE_MS  (100)
+#define LED_RGB_TASK_MS          (100)
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -194,10 +195,14 @@ void sys_misc_thread_func(void *param)
   bsp_buzzer_init();
   bsp_io_int_init(IO_BUTTON_PIN, BSP_IO_EVENT_FALLING, callback_button_press);
   bsp_buzzer_beep_cycle(3, 200, 500);
+  bsp_led_init(LED_RGB_TASK_MS);
+  bsp_led_off();
+
   while (true)
   {
     bsp_usb_process();
     bsp_buzzer_process();
+    bsp_led_task();
     OS_DELAY_MS(SYS_MISC_UPDATE_RATE_MS);
   }
 }

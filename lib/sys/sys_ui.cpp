@@ -34,7 +34,6 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
 
-#define SYS_UI_LED_RGB_TASK_MS          (100)
 #define SYS_UI_LED_DEFAULT_BRIGHTNESS   (80)
 
 // Platform UI settings
@@ -662,8 +661,6 @@ void sys_ui_init(void)
   ui_ctx.last_time_update_screen = now;
 
   bsp_touch_init();
-  bsp_led_init(SYS_UI_LED_RGB_TASK_MS);
-  bsp_led_off();
 
   LOG_DBG("sys_ui_init: complete");
 }
@@ -721,7 +718,6 @@ void sys_ui_process(void)
   }
   default: break;
   }
-  bsp_led_task();
 }
 
 void sys_ui_lock(void)

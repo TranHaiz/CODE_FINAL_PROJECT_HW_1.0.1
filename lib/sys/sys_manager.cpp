@@ -160,6 +160,8 @@ static void sys_manager_active_handler(void)
 
   device_info_update_state(DEVICE_STATE_ACTIVE);
   sys_ui_wakeup();
+  g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
+  sys_manager_stop_danger_noti();
   LOG_DBG("Handling active event");
 }
 
@@ -176,6 +178,8 @@ static void sys_manager_unlocked_handler(void)
     sys_ui_unlock();
     LOG_DBG("Device unlocked and active");
   }
+  g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
+  sys_manager_stop_danger_noti();
 }
 
 static void sys_manager_change_topic_sub_handler(void)
@@ -240,8 +244,12 @@ static void sys_manager_device_danger_handler(void)
   if (!g_device_info.danger_noti_enabled)
     return;
 
+  g_device_info.danger_level = DEVICE_DANGER_LEVEL_HIGH;
+  bsp_acc_enable_interrupt(BSP_ACC_INT_PIN_1);
+
   switch (g_device_info.nvs_info.curr_state)
   {
+  case DEVICE_STATE_IDLE:
   case DEVICE_STATE_LOCKED:
   case DEVICE_STATE_PAUSED:
   {
@@ -276,6 +284,8 @@ void sys_manager_unlock_from_network_handler(void)
     sys_ui_unlock();
     LOG_DBG("Device unlocked and active from network");
   }
+  g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
+  sys_manager_stop_danger_noti();
   sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
 
@@ -328,6 +338,7 @@ static void sys_manager_danger_noti_timer_callback(TimerHandle_t xTimer)
 static void sys_manager_stop_danger_noti(void)
 {
   bsp_led_off();
+  sys_ui_wakeup();
   bsp_buzzer_enable(false);
 }
 

@@ -44,6 +44,7 @@ typedef struct
   bool dust_ready;
   bool temp_hum_ready;
   bool initialized;
+  bool danger_noti_high_level;
 
   uint32_t last_dust_update_ms;
   uint32_t last_temp_hum_update_ms;
@@ -381,6 +382,12 @@ static void sys_input_process_idle(void)
 
 static void sys_input_process_locked(void)
 {
+  if (input_ctx.danger_noti_high_level)
+  {
+    sys_manager_write_event(SYS_MANAGER_EVT_DEVICE_DANGER);
+    input_ctx.danger_noti_high_level = false;
+  }
+
   sys_fusion_danger_motion_flag_t flag = SYS_FUSION_DANGER_MOTION_NONE;
   sys_fusion_detect_danger_motion(&flag);
   switch (flag)
@@ -401,6 +408,10 @@ void sys_input_wakeup_acc_handler(void)
   if (g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE)
   {
     OS_SEM_GIVE_FROM_ISR(sys_input_wakeup_sem);
+  }
+  if (g_device_info.danger_noti_enabled && (g_device_info.danger_level == DEVICE_DANGER_LEVEL_HIGH))
+  {
+    input_ctx.danger_noti_high_level = true;
   }
 }
 
