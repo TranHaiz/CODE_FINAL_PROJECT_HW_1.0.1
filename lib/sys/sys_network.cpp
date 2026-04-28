@@ -33,40 +33,36 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
 #define MQTT_PUBLISH_RETRY          (3)
 #define MQTT_PUBLISH_RETRY_DELAY_MS (100)
 #define MQTT_REQUEST_PUBLISH_MAX    (10)
-#if (DEVICE_FUSION_DEBUG_MODE == 1)
-#define MQTT_MESSAGE_MAX_LEN (1024)
-#else
-#define MQTT_MESSAGE_MAX_LEN (1024)
-#endif
+#define MQTT_MESSAGE_MAX_LEN        (1024)
 
 // Timming
-#define OFFLINE_POLL_MS            (100)
-#define ONLINE_FAST_POLL_MS        (50)
-#define ONLINE_POLL_MS             (500)
-#define ONLINE_LOCKED_POLL_MS      (2000)
-#define ONLINE_IDLE_POLL_MS        (10000)
-#define NETWORK_DATA_TASK_POLL_MS  (700)
-#define SIM_READY_TIMEOUT_MS       (10000)
-#define SIM_HARD_RESET_DELAY_MS    (2000)
-#define MQTT_INIT_TIMEOUT_MS       (15000)
+#define OFFLINE_POLL_MS             (100)
+#define ONLINE_FAST_POLL_MS         (50)
+#define ONLINE_POLL_MS              (500)
+#define ONLINE_LOCKED_POLL_MS       (2000)
+#define ONLINE_IDLE_POLL_MS         (10000)
+#define NETWORK_DATA_TASK_POLL_MS   (700)
+#define SIM_READY_TIMEOUT_MS        (10000)
+#define SIM_HARD_RESET_DELAY_MS     (2000)
+#define MQTT_INIT_TIMEOUT_MS        (15000)
 
 // Retry, backoff, and reset
-#define BACKOFF_BASE_MS            (2000)
-#define BACKOFF_MAX_MS             (32000)
-#define RETRY_MAX_BEFORE_RESET     (3)
+#define BACKOFF_BASE_MS             (2000)
+#define BACKOFF_MAX_MS              (32000)
+#define RETRY_MAX_BEFORE_RESET      (3)
 
-#define NETWORK_CBUFF_SLOT_SIZE    (MQTT_MESSAGE_MAX_LEN)
-#define NETWORK_CBUFF_COUNT        (100)
-#define NETWORK_BYTES              (NETWORK_CBUFF_COUNT * NETWORK_CBUFF_SLOT_SIZE)
-#define NETWORK_CBUFF_FLUSH_THRESH (80)
-#define CBUFFER_FAST_MSG_THRESHOLD (2)
+#define NETWORK_CBUFF_SLOT_SIZE     (MQTT_MESSAGE_MAX_LEN)
+#define NETWORK_CBUFF_COUNT         (100)
+#define NETWORK_BYTES               (NETWORK_CBUFF_COUNT * NETWORK_CBUFF_SLOT_SIZE)
+#define NETWORK_CBUFF_FLUSH_THRESH  (80)
+#define CBUFFER_FAST_MSG_THRESHOLD  (2)
 
-#define SD_OFFLINE_DIR             "/buff"
-#define SD_JSON_LINE_MAX_LEN       (MQTT_MESSAGE_MAX_LEN + 2)  // 1 line JSON + <CRLF>
-#define SD_CARD_RETRY_COUNT        (3)
-#define SD_CARD_RETRY_DELAY_MS     (100)
+#define SD_OFFLINE_DIR              "/buff"
+#define SD_JSON_LINE_MAX_LEN        (MQTT_MESSAGE_MAX_LEN + 2)  // 1 line JSON + <CRLF>
+#define SD_CARD_RETRY_COUNT         (3)
+#define SD_CARD_RETRY_DELAY_MS      (100)
 
-#define NETWORK_KEEPALIVE_MES      "KEEPALIVE"
+#define NETWORK_KEEPALIVE_MES       "KEEPALIVE"
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
@@ -554,9 +550,10 @@ static bool sys_network_build_payload(sys_input_data_t *data, char *buf, size_t 
                          "\"position\":[%.6f,%.6f],"
                          "\"dust\":%.1f,"
                          "\"temp\":%.1f,"
-                         "\"hum\":%.1f",
-                         "\totalKm\":%.2f", data->battery_level, now.year, now.month, now.date, now.hour, now.minute,
-                         now.second, data->velocity_ms, data->velocity_kmh, data->distance_m, data->heading_deg,
+                         "\"hum\":%.1f,"
+                         "\"totalKm\":%.2f",
+                         data->battery_level, now.year, now.month, now.date, now.hour, now.minute, now.second,
+                         data->velocity_ms, data->velocity_kmh, data->distance_m, data->heading_deg,
                          (data->direction_str != NULL) ? data->direction_str : "?", data->gps_position.latitude,
                          data->gps_position.longitude, data->dust_value, data->temp_hum.temperature,
                          data->temp_hum.humidity, g_device_info.nvs_info.total_km);
