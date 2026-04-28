@@ -298,7 +298,12 @@ static void sys_manager_stop_rental_success_handler(void)
 
 static void sys_manager_reset_offline_data_handler(void)
 {
-  bsp_sdcard_delete(SD_OFFLINE_LOG_PATH);
+  status_function_t ret = bsp_sdcard_delete(SD_OFFLINE_LOG_PATH);
+  if (ret != STATUS_OK)
+  {
+    LOG_ERR("Failed to delete offline data");
+  }
+  OS_DELAY_MS(1000);
   bsp_device_reboot();
 }
 
