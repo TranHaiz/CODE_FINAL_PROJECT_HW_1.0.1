@@ -237,6 +237,9 @@ static void sys_manager_shutdown_handler(void)
 
 static void sys_manager_device_danger_handler(void)
 {
+  if (!g_device_info.danger_noti_enabled)
+    return;
+
   switch (g_device_info.nvs_info.curr_state)
   {
   case DEVICE_STATE_LOCKED:

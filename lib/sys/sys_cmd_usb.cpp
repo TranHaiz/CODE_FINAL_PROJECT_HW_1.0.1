@@ -43,7 +43,7 @@ static void              sys_cmd_usb_lock_handler(void);
 static void              sys_cmd_usb_set_time_handler(void);
 static void              sys_cmd_usb_set_device_id_handler(void);
 static void              sys_cmd_usb_reset_offline_data_handler(void);
-
+static void              sys_cmd_usb_set_danger_noti_handler(void);
 #if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
 static void sys_cmd_usb_reset_distance_handler(void);
 #endif
@@ -61,6 +61,7 @@ static sys_cmd_usb_t CMD_USB_INFO[SYS_CMD_USB_CMD_MAX] = {
   #if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
   INFO("CLEAR_TOTAL_DISTANCE", sys_cmd_usb_reset_distance_handler),
   #endif
+  INFO("SET_DANGER_NOTI",   sys_cmd_usb_set_danger_noti_handler)
 };
 #undef INFO
 // clang-format on
@@ -301,6 +302,35 @@ static void sys_cmd_usb_reset_distance_handler(void)
 static void sys_cmd_usb_reset_offline_data_handler(void)
 {
   sys_manager_write_event(SYS_MANAGER_EVT_RESET_OFFLINE_DATA);
+}
+
+static void sys_cmd_usb_set_danger_noti_handler(void)
+{
+  const char *cmd = cmd_usb_buffer;
+  const char *eq  = strchr(cmd, '=');
+  const char *val = (eq && strlen(eq + 1) > 0) ? eq + 1 : NULL;
+
+  if (val)
+  {
+    if (strcmp(val, "1") == 0 || strcasecmp(val, "true") == 0)
+    {
+      g_device_info.danger_noti_enabled = true;
+      LOG_DBG("Danger notification enabled");
+    }
+    else if (strcmp(val, "0") == 0 || strcasecmp(val, "false") == 0)
+    {
+      g_device_info.danger_noti_enabled = false;
+      LOG_DBG("Danger notification disabled");
+    }
+    else
+    {
+      LOG_WRN("Invalid value for SET_DANGER_NOTI: %s", val);
+    }
+  }
+  else
+  {
+    LOG_WRN("No value provided for SET_DANGER_NOTI, expected SET_DANGER_NOTI=<0|1|true|false>");
+  }
 }
 
 /* End of file -------------------------------------------------------- */

@@ -43,6 +43,7 @@ static void sys_cmd_set_device_id_handler(void);
 static void sys_cmd_reboot_handler(void);
 static void sys_cmd_stop_rental_fail_handler(void);
 static void sys_cmd_stop_rental_success_handler(void);
+static void sys_cmd_set_danger_noti_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -59,7 +60,8 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("SET_DEVICE",  sys_cmd_set_device_id_handler),
   INFO("RESET",    sys_cmd_reboot_handler),
   INFO("STOP_RENTAL_FAIL", sys_cmd_stop_rental_fail_handler),
-  INFO("STOP_RENTAL_SUCCESS", sys_cmd_stop_rental_success_handler)
+  INFO("STOP_RENTAL_SUCCESS", sys_cmd_stop_rental_success_handler),
+  INFO("SET_DANGER_NOTI", sys_cmd_set_danger_noti_handler)
 };
 #undef INFO
 // clang-format on
@@ -268,6 +270,38 @@ static void sys_cmd_stop_rental_fail_handler(void)
 static void sys_cmd_stop_rental_success_handler(void)
 {
   sys_manager_write_event(SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS);
+}
+
+static void sys_cmd_set_danger_noti_handler(void)
+{
+  const char *cmd = g_cmd_input_buffer;
+  const char *eq  = strchr(cmd, '=');
+
+  if (!eq || strlen(eq + 1) == 0)
+  {
+    LOG_WRN("SET_DANGER_NOTI: Invalid format, expected SET_DANGER_NOTI=<0|1>");
+    return;
+  }
+
+  char value_str[4] = { 0 };
+  strncpy(value_str, eq + 1, sizeof(value_str) - 1);
+  value_str[sizeof(value_str) - 1] = '\0';
+
+  if (strcmp(value_str, "1") == 0)
+  {
+    g_device_info.danger_noti_enabled = true;
+    LOG_DBG("Danger notification enabled");
+  }
+  else if (strcmp(value_str, "0") == 0)
+  {
+    g_device_info.danger_noti_enabled = false;
+    LOG_DBG("Danger notification disabled");
+  }
+  else
+  {
+    LOG_WRN("SET_DANGER_NOTI: Invalid value, expected '0' or '1'");
+    return;
+  }
 }
 
 /* End of file -------------------------------------------------------- */

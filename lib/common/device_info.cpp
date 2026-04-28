@@ -80,7 +80,8 @@ void device_info_init(void)
     bsp_device_flash_write(&g_device_info.nvs_info);
   }
 
-  g_device_info.last_reset_reason = bsp_device_get_reset_reason();
+  g_device_info.last_reset_reason   = bsp_device_get_reset_reason();
+  g_device_info.danger_noti_enabled = true;  // Default enabled
 
   snprintf(g_device_info.device_version, sizeof(g_device_info.device_version), "%d.%d.%d", FIRRMWARE_MAJOR_VERSION,
            FIRRMWARE_MINOR_VERSION, FIRRMWARE_PATCH_VERSION);

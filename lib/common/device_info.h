@@ -51,6 +51,7 @@ typedef struct
   char                  mqtt_noti_topic[MQTT_MAX_TOPIC_LEN];
   char                  log_sd_path[DEVICE_LOG_SD_PATH_MAX_LEN];
   device_nvs_info_t     nvs_info;
+  bool                  danger_noti_enabled;
 } device_info_t;
 
 /* Public macros ------------------------------------------------------ */

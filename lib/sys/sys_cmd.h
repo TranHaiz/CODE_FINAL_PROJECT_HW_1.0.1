@@ -31,6 +31,7 @@ typedef enum
   CMD_REBOOT,
   CMD_STOP_RENTAL_FAIL,
   CMD_STOP_RENTAL_SUCCESS,
+  CMD_SET_DANGER_NOTI,
   CMD_MAX
 } sys_command_id_t;
 
