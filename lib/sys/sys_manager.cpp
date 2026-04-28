@@ -258,10 +258,13 @@ static void sys_manager_shutdown_timer_callback(TimerHandle_t xTimer)
 
 static void sys_manager_shutdown_handler(void)
 {
-  bsp_device_flash_write(&g_device_info.nvs_info);
-  device_info_update_state(DEVICE_STATE_IDLE);
-  bsp_acc_enable_interrupt(BSP_ACC_INT_PIN_1);
-  LOG_INF("---------- Device go to idle mode ----------");
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_IDLE)
+  {
+    bsp_device_flash_write(&g_device_info.nvs_info);
+    device_info_update_state(DEVICE_STATE_IDLE);
+    bsp_acc_enable_interrupt(BSP_ACC_INT_PIN_1);
+    LOG_INF("---------- Device go to idle mode ----------");
+  }
 }
 
 static void sys_manager_device_danger_handler(void)

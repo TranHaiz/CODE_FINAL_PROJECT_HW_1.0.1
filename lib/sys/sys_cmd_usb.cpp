@@ -47,6 +47,7 @@ static void              sys_cmd_usb_set_danger_noti_handler(void);
 #if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
 static void sys_cmd_usb_reset_distance_handler(void);
 #endif
+static void sys_cmd_usb_sleep_handler(void);
 
 /* Private variables -------------------------------------------------- */
 // clang-format off
@@ -61,7 +62,8 @@ static sys_cmd_usb_t CMD_USB_INFO[SYS_CMD_USB_CMD_MAX] = {
   #if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
   INFO("CLEAR_TOTAL_DISTANCE", sys_cmd_usb_reset_distance_handler),
   #endif
-  INFO("SET_DANGER_NOTI",   sys_cmd_usb_set_danger_noti_handler)
+  INFO("SET_DANGER_NOTI",   sys_cmd_usb_set_danger_noti_handler),
+  INFO("SLEEP",             sys_cmd_usb_sleep_handler)
 };
 #undef INFO
 // clang-format on
@@ -332,6 +334,11 @@ static void sys_cmd_usb_set_danger_noti_handler(void)
   {
     LOG_WRN("No value provided for SET_DANGER_NOTI, expected SET_DANGER_NOTI=<0|1|true|false>");
   }
+}
+
+static void sys_cmd_usb_sleep_handler(void)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_SHUTDOWN);
 }
 
 /* End of file -------------------------------------------------------- */
