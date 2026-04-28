@@ -57,10 +57,9 @@ static sys_cmd_usb_t CMD_USB_INFO[SYS_CMD_USB_CMD_MAX] = {
   INFO("LOCK",               sys_cmd_usb_lock_handler),
   INFO("SET_TIME",           sys_cmd_usb_set_time_handler),
   INFO("SET_DEVICE",         sys_cmd_usb_set_device_id_handler),
-  INFO("RESET_OFFLINE_DATA", sys_cmd_usb_reset_offline_data_handler),
-
+  INFO("CLEAR_OFFLINE_DATA", sys_cmd_usb_reset_offline_data_handler),
   #if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
-  INFO("RESET_DISTANCE", sys_cmd_usb_reset_distance_handler),
+  INFO("CLEAR_TOTAL_DISTANCE", sys_cmd_usb_reset_distance_handler),
   #endif
 };
 #undef INFO

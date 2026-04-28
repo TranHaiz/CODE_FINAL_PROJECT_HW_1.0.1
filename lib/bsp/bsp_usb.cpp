@@ -18,7 +18,7 @@
 #include <Arduino.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_usb, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(bsp_usb, LOG_LEVEL_INFO);
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
@@ -55,7 +55,7 @@ void bsp_usb_init(bsp_usb_callback_t callback)
   usb_ctx.is_initialized = true;
   usb_ctx.is_connected   = (bool) Serial;  // true if host already connected
 
-  LOG_INF("USB CDC initialized");
+  LOG_DBG("USB CDC initialized");
   return;
 }
 
@@ -74,7 +74,7 @@ void bsp_usb_process(void)
     usb_ctx.is_connected = true;
     if (usb_ctx.callback)
       usb_ctx.callback(BSP_USB_EVENT_CONNECTED, nullptr);
-    LOG_INF("CDC connected");
+    LOG_DBG("CDC connected");
   }
 
   // Detect disconnect
@@ -83,7 +83,7 @@ void bsp_usb_process(void)
     usb_ctx.is_connected = false;
     if (usb_ctx.callback)
       usb_ctx.callback(BSP_USB_EVENT_DISCONNECTED, nullptr);
-    LOG_INF("CDC disconnected");
+    LOG_DBG("CDC disconnected");
   }
 
   // Detect incoming data
@@ -91,7 +91,7 @@ void bsp_usb_process(void)
   {
     if (usb_ctx.callback)
       usb_ctx.callback(BSP_USB_EVENT_DATA_RX, nullptr);
-    LOG_INF("DATA from USB");
+    LOG_DBG("DATA from USB");
   }
 }
 
@@ -105,7 +105,7 @@ status_function_t bsp_usb_deinit(void)
   usb_ctx.is_initialized = false;
   usb_ctx.is_connected   = false;
 
-  LOG_INF("USB deinitialized");
+  LOG_DBG("USB deinitialized");
   return STATUS_OK;
 }
 
