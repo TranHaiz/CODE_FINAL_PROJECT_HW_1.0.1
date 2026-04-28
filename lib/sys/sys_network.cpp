@@ -36,7 +36,7 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
 #define MQTT_MESSAGE_MAX_LEN (1024)
 #else
-#define MQTT_MESSAGE_MAX_LEN (512)
+#define MQTT_MESSAGE_MAX_LEN (1024)
 #endif
 
 // Timming
@@ -62,7 +62,6 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_DBG)
 #define CBUFFER_FAST_MSG_THRESHOLD (2)
 
 #define SD_OFFLINE_DIR             "/buff"
-#define SD_OFFLINE_LOG_PATH        "/buff/offline_log.json"
 #define SD_JSON_LINE_MAX_LEN       (MQTT_MESSAGE_MAX_LEN + 2)  // 1 line JSON + <CRLF>
 #define SD_CARD_RETRY_COUNT        (3)
 #define SD_CARD_RETRY_DELAY_MS     (100)
@@ -543,6 +542,25 @@ static bool sys_network_build_payload(sys_input_data_t *data, char *buf, size_t 
   memset(&now, 0, sizeof(now));
   bsp_rtc_get(&now);
 
+#if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
+  int written = snprintf(buf, buf_len,
+                         "{"
+                         "\"battery\":%.1f,"
+                         "\"time\":\"%d/%02d/%02d-%02d:%02d:%02d\","
+                         "\"velocity_ms\":%.2f,"
+                         "\"velocity_kmh\":%.2f,"
+                         "\"distance_m\":%.1f,"
+                         "\"direction\":\"%.1f %s\","
+                         "\"position\":[%.6f,%.6f],"
+                         "\"dust\":%.1f,"
+                         "\"temp\":%.1f,"
+                         "\"hum\":%.1f",
+                         "\totalKm\":%.2f", data->battery_level, now.year, now.month, now.date, now.hour, now.minute,
+                         now.second, data->velocity_ms, data->velocity_kmh, data->distance_m, data->heading_deg,
+                         (data->direction_str != NULL) ? data->direction_str : "?", data->gps_position.latitude,
+                         data->gps_position.longitude, data->dust_value, data->temp_hum.temperature,
+                         data->temp_hum.humidity, g_device_info.nvs_info.total_km);
+#else
   int written =
     snprintf(buf, buf_len,
              "{"
@@ -560,7 +578,7 @@ static bool sys_network_build_payload(sys_input_data_t *data, char *buf, size_t 
              data->velocity_kmh, data->distance_m, data->heading_deg,
              (data->direction_str != NULL) ? data->direction_str : "?", data->gps_position.latitude,
              data->gps_position.longitude, data->dust_value, data->temp_hum.temperature, data->temp_hum.humidity);
-
+#endif
   if (written < 0 || written >= (int) buf_len)
   {
     LOG_WRN("Payload truncated: need %d, buf %u", written, (unsigned) buf_len);

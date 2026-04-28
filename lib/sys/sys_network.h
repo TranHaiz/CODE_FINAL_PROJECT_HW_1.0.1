@@ -21,6 +21,7 @@
 
 /* Public defines ----------------------------------------------------- */
 #define MQTT_REQUEST_PUBLISH_SIZE (128)
+#define SD_OFFLINE_LOG_PATH       "/buff/offline_log.json"
 
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */

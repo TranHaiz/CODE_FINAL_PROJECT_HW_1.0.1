@@ -42,17 +42,26 @@ static void              sys_cmd_usb_unlock_handler(void);
 static void              sys_cmd_usb_lock_handler(void);
 static void              sys_cmd_usb_set_time_handler(void);
 static void              sys_cmd_usb_set_device_id_handler(void);
+static void              sys_cmd_usb_reset_offline_data_handler(void);
+
+#if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
+static void sys_cmd_usb_reset_distance_handler(void);
+#endif
 
 /* Private variables -------------------------------------------------- */
 // clang-format off
 #define INFO(name, handler) { name, handler }
 static sys_cmd_usb_t CMD_USB_INFO[SYS_CMD_USB_CMD_MAX] = {
-  INFO("RESET",      sys_cmd_usb_reset_handler),
-  INFO("UNLOCK",     sys_cmd_usb_unlock_handler),
-  INFO("LOCK",       sys_cmd_usb_lock_handler),
-  INFO("SET_TIME",   sys_cmd_usb_set_time_handler),
-  INFO("SET_DEVICE",     sys_cmd_usb_set_device_id_handler),
+  INFO("RESET",              sys_cmd_usb_reset_handler),
+  INFO("UNLOCK",             sys_cmd_usb_unlock_handler),
+  INFO("LOCK",               sys_cmd_usb_lock_handler),
+  INFO("SET_TIME",           sys_cmd_usb_set_time_handler),
+  INFO("SET_DEVICE",         sys_cmd_usb_set_device_id_handler),
+  INFO("RESET_OFFLINE_DATA", sys_cmd_usb_reset_offline_data_handler),
 
+  #if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
+  INFO("RESET_DISTANCE", sys_cmd_usb_reset_distance_handler),
+  #endif
 };
 #undef INFO
 // clang-format on
@@ -279,6 +288,20 @@ static void sys_cmd_usb_set_device_id_handler(void)
 
   LOG_DBG("SET_DEVICE: id=%s serial=%s name=%s cmd=%s data=%s", id_str, g_device_info.nvs_info.serial_number,
           g_device_info.device_name, g_device_info.mqtt_cmd_topic, g_device_info.mqtt_data_topic);
+}
+
+#if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
+static void sys_cmd_usb_reset_distance_handler(void)
+{
+  g_device_info.nvs_info.total_km = 0.0f;
+  bsp_device_flash_write(&g_device_info.nvs_info);
+  LOG_DBG("Distance reset to 0 km");
+}
+#endif
+
+static void sys_cmd_usb_reset_offline_data_handler(void)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_RESET_OFFLINE_DATA);
 }
 
 /* End of file -------------------------------------------------------- */

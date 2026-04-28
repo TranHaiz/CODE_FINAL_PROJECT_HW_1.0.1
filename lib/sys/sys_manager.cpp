@@ -17,6 +17,7 @@
 #include "bsp_buzzer.h"
 #include "bsp_device.h"
 #include "bsp_led.h"
+#include "bsp_sdcard.h"
 #include "bsp_sim.h"
 #include "bsp_timer.h"
 #include "device_info.h"
@@ -64,6 +65,7 @@ static void sys_manager_unlock_from_network_handler(void);
 static void sys_manager_lock_from_network_handler(void);
 static void sys_manager_stop_rental_fail_handler(void);
 static void sys_manager_stop_rental_success_handler(void);
+static void sys_manager_reset_offline_data_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -93,6 +95,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_LOCK_FROM_NETWORK    ,   sys_manager_lock_from_network_handler   );
   INFO(SYS_MANAGER_EVT_STOP_RENTAL_FAIL     ,   sys_manager_stop_rental_fail_handler    );
   INFO(SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS  ,   sys_manager_stop_rental_success_handler );
+  INFO(SYS_MANAGER_EVT_RESET_OFFLINE_DATA   ,   sys_manager_reset_offline_data_handler  );
   // clang-format on
 }
 #undef INFO
@@ -291,6 +294,12 @@ static void sys_manager_stop_rental_success_handler(void)
 #if (DEVICE_IDLE_MODE_ENABLED)
   bsp_timer_start(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
+}
+
+static void sys_manager_reset_offline_data_handler(void)
+{
+  bsp_sdcard_delete(SD_OFFLINE_LOG_PATH);
+  bsp_device_reboot();
 }
 
 /* End of file -------------------------------------------------------- */
