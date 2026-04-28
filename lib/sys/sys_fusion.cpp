@@ -16,6 +16,7 @@
 #include "bsp_acc.h"
 #include "bsp_compass.h"
 #include "bsp_gps.h"
+#include "device_info.h"
 #include "log_service.h"
 #include "os_lib.h"
 
@@ -77,33 +78,41 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_INFO)
 #error "Must define either DEMO_VEHICLE or DEMO_WALKING"
 #endif
 
-#define GPS_HDOP_MAX                  (3.0f)
-#define GPS_SATELLITES_MIN            (4)
-#define GPS_EMA_ALPHA                 (0.6f)
-#define GPS_MAX_STEP_M                (50.0f)
-#define GPS_VALID_TIMEOUT_MS          (2000)
-#define GPS_FADE_TIMEOUT_MS           (1000)
+#define GPS_HDOP_MAX                       (3.0f)
+#define GPS_SATELLITES_MIN                 (4)
+#define GPS_EMA_ALPHA                      (0.6f)
+#define GPS_MAX_STEP_M                     (50.0f)
+#define GPS_VALID_TIMEOUT_MS               (2000)
+#define GPS_FADE_TIMEOUT_MS                (1000)
 
 // Compass Kalman filter — low Q suppresses magnetic noise; raise Q if heading reacts too slowly
-#define COMPASS_KF_E_MEA              (2.0f)   // measurement noise (raw counts)
-#define COMPASS_KF_E_EST              (2.0f)   // initial estimate error
-#define COMPASS_KF_Q                  (0.02f)  // process noise: very low — heading changes slowly
-#define COMPASS_UPDATE_MS             (100)
+#define COMPASS_KF_E_MEA                   (2.0f)   // measurement noise (raw counts)
+#define COMPASS_KF_E_EST                   (2.0f)   // initial estimate error
+#define COMPASS_KF_Q                       (0.02f)  // process noise: very low — heading changes slowly
+#define COMPASS_UPDATE_MS                  (100)
 
-#define GRAVITY_MS2                   (9.806f)
-#define KMH_TO_MS                     (1.0f / 3.6f)
-#define MS_TO_KMH                     (3.6f)
-#define US_TO_S                       (1000000.0f)
-#define DEG_TO_RAD                    (0.01745329252f)
+#define GRAVITY_MS2                        (9.806f)
+#define KMH_TO_MS                          (1.0f / 3.6f)
+#define MS_TO_KMH                          (3.6f)
+#define US_TO_S                            (1000000.0f)
+#define DEG_TO_RAD                         (0.01745329252f)
 
 // Avoid stolen
-#define DANGER_TILT_THRESHOLD_DEG     (30.0f)
-#define DANGER_TILT_CONFIRM_MS        (800)
-#define DANGER_MOTION_THRESHOLD_G     (0.18f)
-#define DANGER_MOTION_CONFIRM_MS      (1200)
-#define DANGER_VIBRATION_THRESHOLD_G  (0.35f)
-#define DANGER_VIBRATION_WINDOW_MS    (3000)
-#define DANGER_VIBRATION_COUNT_THRESH (5)
+#define DANGER_TILT_THRESHOLD_DEG          (30.0f)  // If device tilted >30° for certain time
+#define DANGER_TILT_CONFIRM_MS             (800)    // Must be tilted for at least 800ms to confirm
+#define DANGER_MOTION_THRESHOLD_G          (0.18f)  // If strong motion >0.18g for certain time
+#define DANGER_MOTION_CONFIRM_MS           (1200)   // Must have strong motion for at least 1200ms to confirm
+#define DANGER_VIBRATION_THRESHOLD_G       (0.35f)  // If vibration magnitude >0.35g for certain time
+#define DANGER_VIBRATION_WINDOW_MS         (3000)   // Count how many strong vibration events in this rolling window
+#define DANGER_VIBRATION_COUNT_THRESH      (5)  // If strong vibration events exceed this count in the window, confirm danger
+
+#define DANGER_TILT_THRESHOLD_DEG_HIGH     (10.0f)
+#define DANGER_TILT_CONFIRM_MS_HIGH        (200)
+#define DANGER_MOTION_THRESHOLD_G_HIGH     (0.10f)
+#define DANGER_MOTION_CONFIRM_MS_HIGH      (400)
+#define DANGER_VIBRATION_THRESHOLD_G_HIGH  (0.10f)
+#define DANGER_VIBRATION_WINDOW_MS_HIGH    (2000)
+#define DANGER_VIBRATION_COUNT_THRESH_HIGH (2)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
@@ -912,6 +921,15 @@ void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
   bsp_acc_raw_data_t              raw;
   size_t                          now = OS_GET_TICK();
 
+  bool    is_high_danger   = (g_device_info.danger_level == DEVICE_DANGER_LEVEL_HIGH);
+  float   tilt_thresh_deg  = is_high_danger ? DANGER_TILT_THRESHOLD_DEG_HIGH : DANGER_TILT_THRESHOLD_DEG;
+  size_t  tilt_conf_ms     = is_high_danger ? DANGER_TILT_CONFIRM_MS_HIGH : DANGER_TILT_CONFIRM_MS;
+  float   motion_thresh_g  = is_high_danger ? DANGER_MOTION_THRESHOLD_G_HIGH : DANGER_MOTION_THRESHOLD_G;
+  size_t  motion_conf_ms   = is_high_danger ? DANGER_MOTION_CONFIRM_MS_HIGH : DANGER_MOTION_CONFIRM_MS;
+  float   vib_thresh_g     = is_high_danger ? DANGER_VIBRATION_THRESHOLD_G_HIGH : DANGER_VIBRATION_THRESHOLD_G;
+  size_t  vib_window_ms    = is_high_danger ? DANGER_VIBRATION_WINDOW_MS_HIGH : DANGER_VIBRATION_WINDOW_MS;
+  uint8_t vib_count_thresh = is_high_danger ? DANGER_VIBRATION_COUNT_THRESH_HIGH : DANGER_VIBRATION_COUNT_THRESH;
+
   if (bsp_acc_get_raw_data(&raw) != STATUS_OK)
   {
     return;
@@ -923,13 +941,13 @@ void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
   {
     float tilt_angle_deg = acosf(fabsf(raw.acc_z) / magnitude) * (180.0f / (float) M_PI);
 
-    if (tilt_angle_deg > DANGER_TILT_THRESHOLD_DEG)
+    if (tilt_angle_deg > tilt_thresh_deg)
     {
       if (tilt_start_ms == 0)
       {
         tilt_start_ms = now;
       }
-      else if ((now - tilt_start_ms) >= DANGER_TILT_CONFIRM_MS)
+      else if ((now - tilt_start_ms) >= tilt_conf_ms)
       {
         flags = SYS_FUSION_DANGER_MOTION_TILT;
         return;
@@ -942,13 +960,13 @@ void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
   }
 
   float lateral_g = sqrtf(raw.acc_x * raw.acc_x + raw.acc_y * raw.acc_y);
-  if (lateral_g > DANGER_MOTION_THRESHOLD_G)
+  if (lateral_g > motion_thresh_g)
   {
     if (motion_start_ms == 0)
     {
       motion_start_ms = now;
     }
-    else if ((now - motion_start_ms) >= DANGER_MOTION_CONFIRM_MS)
+    else if ((now - motion_start_ms) >= motion_conf_ms)
     {
       flags = SYS_FUSION_DANGER_MOTION_MOVING;
     }
@@ -958,18 +976,18 @@ void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
     motion_start_ms = 0;
   }
 
-  if ((now - vibration_ms) >= DANGER_VIBRATION_WINDOW_MS)
+  if ((now - vibration_ms) >= vib_window_ms)
   {
     vibration_ms    = now;
     vibration_count = 0;
   }
 
-  if (magnitude > DANGER_VIBRATION_THRESHOLD_G + 1.0f)
+  if (magnitude > vib_thresh_g + 1.0f)
   {
     vibration_count++;
   }
 
-  if (vibration_count >= DANGER_VIBRATION_COUNT_THRESH)
+  if (vibration_count >= vib_count_thresh)
   {
     flags = SYS_FUSION_DANGER_MOTION_VIBRATION;
   }
