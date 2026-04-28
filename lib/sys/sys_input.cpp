@@ -382,9 +382,17 @@ static void sys_input_process_idle(void)
 static void sys_input_process_locked(void)
 {
   sys_fusion_danger_motion_flag_t flag = SYS_FUSION_DANGER_MOTION_NONE;
-  if (sys_fusion_detect_danger_motion(&flag))
+  sys_fusion_detect_danger_motion(&flag);
+  switch (flag)
+  {
+  case SYS_FUSION_DANGER_MOTION_TILT:
+  case SYS_FUSION_DANGER_MOTION_MOVING:
+  case SYS_FUSION_DANGER_MOTION_VIBRATION:
   {
     sys_manager_write_event(SYS_MANAGER_EVT_DEVICE_DANGER);
+    break;
+  }
+  default: break;
   }
 }
 

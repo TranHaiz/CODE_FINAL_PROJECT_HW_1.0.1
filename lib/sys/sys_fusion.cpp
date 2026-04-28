@@ -901,7 +901,7 @@ static float sys_fusion_caculate_dis_gps(float lat1, float lon1, float lat2, flo
   return R * 2.0f * atan2f(sqrtf(a), sqrtf(1.0f - a));
 }
 
-bool sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
+void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
 {
   static size_t  tilt_start_ms   = 0;
   static size_t  motion_start_ms = 0;
@@ -914,7 +914,7 @@ bool sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
 
   if (bsp_acc_get_raw_data(&raw) != STATUS_OK)
   {
-    return false;
+    return;
   }
 
   float magnitude = sqrtf(raw.acc_x * raw.acc_x + raw.acc_y * raw.acc_y + raw.acc_z * raw.acc_z);
@@ -931,7 +931,8 @@ bool sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
       }
       else if ((now - tilt_start_ms) >= DANGER_TILT_CONFIRM_MS)
       {
-        flags = (sys_fusion_danger_motion_flag_t) (flags | SYS_FUSION_DANGER_MOTION_TILT);
+        flags = SYS_FUSION_DANGER_MOTION_TILT;
+        return;
       }
     }
     else
@@ -978,7 +979,7 @@ bool sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
     *out_flags = flags;
   }
 
-  return (flags != SYS_FUSION_DANGER_MOTION_NONE);
+  return;
 }
 
 static SimpleKalmanFilter *kf_new(float e_mea, float e_est, float q)

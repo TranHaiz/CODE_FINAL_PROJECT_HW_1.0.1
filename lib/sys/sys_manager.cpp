@@ -32,6 +32,8 @@ LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_DBG)
 #define SHUTDOWN_TIMER_PERIOD_MS (30000)
 #endif  // DEVICE_IDLE_MODE_ENABLED
 
+#define DEVICE_DANGER_NOTI_INTERVAL_MS (15000)
+
 /* Private enumerate/structure ---------------------------------------- */
 typedef void (*sys_manager_process_handler_t)(void);
 typedef struct
@@ -39,6 +41,7 @@ typedef struct
   sys_manager_event_t           current_event;
   sys_manager_process_handler_t handler[SYS_MANAGER_EVT_MAX];
   bsp_timer_t                   shutdown_timer;
+  bsp_timer_t                   danger_noti_timer;
 } sys_manager_handler_t;
 
 /* Private macros ----------------------------------------------------- */
@@ -66,6 +69,8 @@ static void sys_manager_lock_from_network_handler(void);
 static void sys_manager_stop_rental_fail_handler(void);
 static void sys_manager_stop_rental_success_handler(void);
 static void sys_manager_reset_offline_data_handler(void);
+static void sys_manager_danger_noti_timer_callback(TimerHandle_t xTimer);
+static void sys_manager_stop_danger_noti(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -76,6 +81,9 @@ void sys_manager_init(void)
       || g_device_info.nvs_info.curr_state == DEVICE_STATE_PAUSED)
     bsp_timer_start(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
+
+  bsp_timer_init(&manager_handler.danger_noti_timer, DEVICE_DANGER_NOTI_INTERVAL_MS, false,
+                 sys_manager_danger_noti_timer_callback);
 
   OS_SEM_CREATE(sys_manager_event_sem);
   manager_handler.current_event = SYS_MANAGER_EVT_IDLE;
@@ -96,6 +104,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_STOP_RENTAL_FAIL     ,   sys_manager_stop_rental_fail_handler    );
   INFO(SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS  ,   sys_manager_stop_rental_success_handler );
   INFO(SYS_MANAGER_EVT_RESET_OFFLINE_DATA   ,   sys_manager_reset_offline_data_handler  );
+  INFO(SYS_MANAGER_EVT_STOP_DANGER_NOTI     ,   sys_manager_stop_danger_noti            );
   // clang-format on
 }
 #undef INFO
@@ -245,6 +254,7 @@ static void sys_manager_device_danger_handler(void)
   }
   default: break;
   }
+  bsp_timer_start(&manager_handler.danger_noti_timer);
 }
 
 void sys_manager_unlock_from_network_handler(void)
@@ -305,6 +315,17 @@ static void sys_manager_reset_offline_data_handler(void)
   }
   OS_DELAY_MS(1000);
   bsp_device_reboot();
+}
+
+static void sys_manager_danger_noti_timer_callback(TimerHandle_t xTimer)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_STOP_DANGER_NOTI);
+}
+
+static void sys_manager_stop_danger_noti(void)
+{
+  bsp_led_off();
+  bsp_buzzer_enable(false);
 }
 
 /* End of file -------------------------------------------------------- */

@@ -663,6 +663,7 @@ void sys_ui_init(void)
 
   bsp_touch_init();
   bsp_led_init(SYS_UI_LED_RGB_TASK_MS);
+  bsp_led_off();
 
   LOG_DBG("sys_ui_init: complete");
 }
@@ -720,6 +721,7 @@ void sys_ui_process(void)
   }
   default: break;
   }
+  bsp_led_task();
 }
 
 void sys_ui_lock(void)

@@ -142,7 +142,6 @@ void sys_input_thread_func(void *param)
 void sys_ui_thread_func(void *param)
 {
   sys_ui_init();
-  bsp_led_set(BSP_LED_COLOR_PURPLE, BSP_LED_MODE_PULSE, 50);
 
   while (true)
   {

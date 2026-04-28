@@ -105,9 +105,9 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data);
 /**
  * @brief Detect dangerous motion patterns (e.g. fall, collision) using accelerometer data
  * @param[out] out_flags Optional pointer to receive detailed flags for detected motion types
- * @return true if dangerous motion is detected, false otherwise
+ * @return none
  */
-bool sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags);
+void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags);
 
 #endif /*End file _SYS_FUSION_H_*/
 

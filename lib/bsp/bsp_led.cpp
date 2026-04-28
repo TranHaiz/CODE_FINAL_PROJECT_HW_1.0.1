@@ -117,8 +117,7 @@ void bsp_led_task(void)
 
 void bsp_led_off(void)
 {
-  led_strip.setPixelColor(0, 0);
-  led_strip.show();
+  led_mode = BSP_LED_MODE_OFF;
 }
 
 /* Private definitions ----------------------------------------------- */
@@ -138,9 +137,24 @@ static uint32_t bsp_led_make_color(bsp_led_color_t color, uint8_t brightness)
 static void bsp_led_update_task(void)
 {
   static uint32_t last_tick_ms = 0;
+  static bool     is_off       = false;
   uint32_t        now_ms       = OS_GET_TICK();
   uint32_t        delta_ms     = now_ms - last_tick_ms;
   last_tick_ms                 = now_ms;
+
+  if (led_mode == BSP_LED_MODE_OFF)
+  {
+    if (!is_off)
+    {
+      led_strip.setPixelColor(0, 0);
+      is_off = true;
+    }
+    return;
+  }
+  else
+  {
+    is_off = false;
+  }
 
   switch (led_mode)
   {
