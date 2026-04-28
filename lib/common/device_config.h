@@ -33,7 +33,7 @@
 #define DEVICE_NORMAL_MODE                (true)
 #define DEVICE_FUSION_DEBUG_MODE          (false)
 #define DEVICE_IDLE_MODE_ENABLED          (true)  // Return to idle mode after a period of inactivity
-#define DEVICE_NETWORK_ENABLED            (true)
+#define DEVICE_NETWORK_ENABLED            (false)
 #define DEVICE_NETWORK_TOTAL_KM_ENABLED   (true)  // Enable total km in network messages
 #define DEVICE_INPUT_ENABLED              (true)
 #define DEVICE_UI_ENABLED                 (true)

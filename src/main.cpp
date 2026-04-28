@@ -22,6 +22,7 @@
 #include "device_info.h"
 #include "log_service.h"
 #include "os_lib.h"
+#include "sys_button.h"
 #include "sys_cmd.h"
 #include "sys_cmd_usb.h"
 #include "sys_input.h"
@@ -65,6 +66,7 @@ OS_THREAD_DECLARE(sys_misc_thread, tskIDLE_PRIORITY + 4, 4096);
 OS_THREAD_DECLARE(sys_cmd_thread, tskIDLE_PRIORITY + 5, 4096);
 OS_THREAD_DECLARE(sys_cmd_usb_thread, tskIDLE_PRIORITY + 5, 4096);
 OS_THREAD_DECLARE(sys_manager_thread, tskIDLE_PRIORITY + 5, 4096);
+OS_THREAD_DECLARE(sys_button_thread, tskIDLE_PRIORITY + 4, 4096);
 
 /* Private function prototypes ---------------------------------------- */
 void sys_input_thread_func(void *param);
@@ -74,7 +76,7 @@ void sys_cmd_thread_func(void *param);
 void sys_cmd_usb_thread_func(void *param);
 void sys_manager_thread_func(void *param);
 void sys_misc_thread_func(void *param);
-void callback_button_press(void);
+void sys_button_thread_func(void *param);
 
 /* Function definitions ----------------------------------------------- */
 
@@ -107,6 +109,7 @@ void setup()
   OS_THREAD_CREATE(sys_log_thread, sys_log_thread_func);
   OS_THREAD_CREATE(sys_misc_thread, sys_misc_thread_func);
   OS_THREAD_CREATE(sys_manager_thread, sys_manager_thread_func);
+  OS_THREAD_CREATE(sys_button_thread, sys_button_thread_func);
 }
 
 void loop()
@@ -193,7 +196,6 @@ void sys_manager_thread_func(void *param)
 void sys_misc_thread_func(void *param)
 {
   bsp_buzzer_init();
-  bsp_io_int_init(IO_BUTTON_PIN, BSP_IO_EVENT_FALLING, callback_button_press);
   bsp_buzzer_beep_cycle(3, 200, 500);
   bsp_led_init(LED_RGB_TASK_MS);
   bsp_led_off();
@@ -207,9 +209,15 @@ void sys_misc_thread_func(void *param)
   }
 }
 
-void callback_button_press(void)
+void sys_button_thread_func(void *param)
 {
-  LOG_DBG("Button pressed!");
+  sys_button_init();
+
+  while (true)
+  {
+    sys_button_process();
+    OS_DELAY_MS(10);
+  }
 }
 
 /* End of file -------------------------------------------------------- */
