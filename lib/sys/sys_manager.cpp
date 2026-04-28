@@ -20,6 +20,7 @@
 #include "bsp_sdcard.h"
 #include "bsp_sim.h"
 #include "bsp_timer.h"
+#include "cbuffer.h"
 #include "device_info.h"
 #include "sys_input.h"
 #include "sys_network.h"
@@ -36,9 +37,12 @@ LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_DBG)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef void (*sys_manager_process_handler_t)(void);
+
+#define SYS_MANAGER_EVENT_QUEUE_SIZE 20
+
 typedef struct
 {
-  sys_manager_event_t           current_event;
+  cbuffer_t                     event_cb;
   sys_manager_process_handler_t handler[SYS_MANAGER_EVT_MAX];
   bsp_timer_t                   shutdown_timer;
   bsp_timer_t                   danger_noti_timer;
@@ -50,7 +54,9 @@ typedef struct
 /* Public variables --------------------------------------------------- */
 /* Private variables -------------------------------------------------- */
 OS_SEM_DEFINE_STATIC(sys_manager_event_sem);
+OS_MUTEX_DEFINE_STATIC(sys_manager_event_mutex);
 static sys_manager_handler_t manager_handler;
+static sys_manager_event_t   s_event_buffer[SYS_MANAGER_EVENT_QUEUE_SIZE];
 
 /* Private function prototypes ---------------------------------------- */
 static void sys_manager_wakeup_handler(void);
@@ -86,7 +92,9 @@ void sys_manager_init(void)
                  sys_manager_danger_noti_timer_callback);
 
   OS_SEM_CREATE(sys_manager_event_sem);
-  manager_handler.current_event = SYS_MANAGER_EVT_IDLE;
+  OS_MUTEX_CREATE(sys_manager_event_mutex);
+  cb_init(&manager_handler.event_cb, s_event_buffer, sizeof(s_event_buffer));
+
   // clang-format off
   /*   Event                                |   Handlers*/
   INFO(SYS_MANAGER_EVT_WAKEUP               ,   sys_manager_wakeup_handler              );
@@ -113,8 +121,18 @@ void sys_manager_write_event(sys_manager_event_t event)
 {
   if (event < SYS_MANAGER_EVT_MAX)
   {
-    manager_handler.current_event = event;
-    OS_SEM_GIVE(sys_manager_event_sem);
+    OS_MUTEX_LOCK(sys_manager_event_mutex);
+    size_t written = cb_write(&manager_handler.event_cb, &event, sizeof(sys_manager_event_t));
+    if (written == sizeof(sys_manager_event_t))
+    {
+      OS_MUTEX_UNLOCK(sys_manager_event_mutex);
+      OS_SEM_GIVE(sys_manager_event_sem);
+    }
+    else
+    {
+      OS_MUTEX_UNLOCK(sys_manager_event_mutex);
+      LOG_WRN("sys_manager event_cb FULL!");
+    }
   }
 }
 
@@ -122,10 +140,17 @@ void sys_manager_process(void)
 {
   OS_SEM_TAKE(sys_manager_event_sem, OS_MAX_DELAY);
 
-  if (manager_handler.handler[manager_handler.current_event] != nullptr)
+  sys_manager_event_t event_to_process = SYS_MANAGER_EVT_MAX;
+
+  OS_MUTEX_LOCK(sys_manager_event_mutex);
+  size_t read = cb_read(&manager_handler.event_cb, &event_to_process, sizeof(sys_manager_event_t));
+  OS_MUTEX_UNLOCK(sys_manager_event_mutex);
+
+  if (read == sizeof(sys_manager_event_t) && event_to_process < SYS_MANAGER_EVT_MAX
+      && manager_handler.handler[event_to_process] != nullptr)
   {
-    LOG_DBG("Processed event: %d", manager_handler.current_event);
-    manager_handler.handler[manager_handler.current_event]();
+    LOG_DBG("Processed event: %d", event_to_process);
+    manager_handler.handler[event_to_process]();
   }
 }
 
