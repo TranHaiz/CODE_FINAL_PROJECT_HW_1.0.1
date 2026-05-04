@@ -19,7 +19,7 @@
 
 #include <Arduino.h>
 
-LOG_MODULE_REGISTER(bsp_sdcard, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(bsp_sdcard, LOG_LEVEL_BSP_SDCARD);
 
 /* Private defines ---------------------------------------------------- */
 #define SDCARD_MOUNT_RETRIES (3)

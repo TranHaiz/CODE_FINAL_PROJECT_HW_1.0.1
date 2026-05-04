@@ -20,7 +20,7 @@
 #include "sys_manager.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_cmd_usb, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(sys_cmd_usb, LOG_LEVEL_SYS_CMD_USB);
 
 #define CMD_USB_MAX_LEN               (128)
 #define CMD_USB_TIME_VALID_FORMAT_LEN (17)  // "HH:MM:SS-DD/MM/YYYY"

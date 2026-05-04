@@ -18,7 +18,7 @@
 #include <Arduino.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_usb, LOG_LEVEL_INFO);
+LOG_MODULE_REGISTER(bsp_usb, LOG_LEVEL_BSP_USB);
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct

@@ -20,7 +20,7 @@
 #include <Adafruit_NeoPixel.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_led, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(bsp_led, LOG_LEVEL_BSP_LED);
 
 #define LED_MAX_VALUE                 (255)
 #define LED_OFF_VALUE                 (0)

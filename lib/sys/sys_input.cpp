@@ -26,7 +26,7 @@
 #include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_DBG)
+LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_SYS_INPUT)
 
 #define SYS_INPUT_DUST_EMA_ALPHA       (0.2f)
 

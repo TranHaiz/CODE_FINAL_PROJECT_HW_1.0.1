@@ -25,7 +25,7 @@
 #include <stdlib.h>  // calloc
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_INFO)
+LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 #define DEMO_VEHICLE                (true)
 #define DEMO_WALKING                (false)

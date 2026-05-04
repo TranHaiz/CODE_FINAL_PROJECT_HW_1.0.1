@@ -44,6 +44,29 @@
 #define LOG_SDCARD_ENABLE                 (1)
 #define LOG_TIMESTAMP_ENABLE              (1)
 
+// Log levels
+#define LOG_LEVEL_SYS_INPUT               LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_FUSION              LOG_LEVEL_INFO
+#define LOG_LEVEL_MAIN                    LOG_LEVEL_INFO
+#define LOG_LEVEL_BSP_BATT                LOG_LEVEL_WARN
+#define LOG_LEVEL_BSP_ACC                 LOG_LEVEL_ERROR
+#define LOG_LEVEL_DEVICE_INFO             LOG_LEVEL_DBG
+#define LOG_LEVEL_BSP_COMPASS             LOG_LEVEL_ERROR
+#define LOG_LEVEL_BSP_BUZZER              LOG_LEVEL_INFO
+#define LOG_LEVEL_BSP_DUST_SENSOR         LOG_LEVEL_WARN
+#define LOG_LEVEL_BSP_LED                 LOG_LEVEL_DBG
+#define LOG_LEVEL_BSP_SDCARD              LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_BUTTON              LOG_LEVEL_DBG
+#define LOG_LEVEL_BSP_SIM                 LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_CMD                 LOG_LEVEL_DBG
+#define LOG_LEVEL_BSP_TEMP_HUM            LOG_LEVEL_DBG
+#define LOG_LEVEL_BSP_RTC                 LOG_LEVEL_DBG
+#define LOG_LEVEL_BSP_USB                 LOG_LEVEL_INFO
+#define LOG_LEVEL_SYS_CMD_USB             LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_NETWORK             LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_MANAGER             LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_UI                  LOG_LEVEL_DBG
+
 // Network configuration
 #define CONFIG_FIREBASE_SERVER            (false)
 #define CONFIG_MQTT_SERVER                (true)

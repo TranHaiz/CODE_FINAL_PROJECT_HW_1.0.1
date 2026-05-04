@@ -20,7 +20,7 @@
 #include <Wire.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_compass, LOG_LEVEL_ERROR);
+LOG_MODULE_REGISTER(bsp_compass, LOG_LEVEL_BSP_COMPASS);
 #define BSP_COMPASS_REG_CONFIG_A   (0x00)
 #define BSP_COMPASS_REG_CONFIG_B   (0x01)
 #define BSP_COMPASS_REG_MODE       (0x02)

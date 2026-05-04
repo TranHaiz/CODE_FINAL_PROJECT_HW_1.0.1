@@ -33,7 +33,7 @@
 #include "sys_ui_simple.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(main, LOG_LEVEL_INFO)
+LOG_MODULE_REGISTER(main, LOG_LEVEL_MAIN)
 
 #define SYS_INPUT_UPDATE_RATE_MS (20)
 #define SYS_UI_UPDATE_RATE_MS    (10)

@@ -17,7 +17,7 @@
 #include "log_service.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_button, LOG_LEVEL_DBG)
+LOG_MODULE_REGISTER(sys_button, LOG_LEVEL_SYS_BUTTON)
 #define SYS_BUTTON_MAX_EVENTS 10
 
 /* Private enumerate/structure ---------------------------------------- */

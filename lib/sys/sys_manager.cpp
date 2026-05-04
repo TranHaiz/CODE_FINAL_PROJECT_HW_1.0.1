@@ -27,7 +27,7 @@
 #include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_DBG)
+LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_SYS_MANAGER)
 
 #if (DEVICE_IDLE_MODE_ENABLED)
 #define SHUTDOWN_TIMER_PERIOD_MS (30000)

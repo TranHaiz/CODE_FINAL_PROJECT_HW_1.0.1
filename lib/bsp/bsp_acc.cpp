@@ -22,7 +22,7 @@
 #include <math.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_acc, LOG_LEVEL_ERROR);
+LOG_MODULE_REGISTER(bsp_acc, LOG_LEVEL_BSP_ACC);
 
 #define LSM6DS3_REG_INT1_CTRL (0x0D)
 #define LSM6DS3_REG_INT2_CTRL (0x0E)

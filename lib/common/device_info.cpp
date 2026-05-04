@@ -19,7 +19,7 @@
 #include "log_service.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(device_info, LOG_LEVEL_DBG)
+LOG_MODULE_REGISTER(device_info, LOG_LEVEL_DEVICE_INFO)
 
 #define DEVICE_INIT_NEW_LOG_RETRIES    (3)
 #define DEVICE_INIT_NEW_FOLDER_RETRIES (3)

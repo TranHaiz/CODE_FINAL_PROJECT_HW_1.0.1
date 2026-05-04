@@ -32,7 +32,7 @@
 #endif
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 
 #define SYS_UI_LED_DEFAULT_BRIGHTNESS   (80)
 

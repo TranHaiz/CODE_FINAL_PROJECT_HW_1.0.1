@@ -15,9 +15,8 @@
 
 #include "log_service.h"
 
-
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_temp_hum, LOG_LEVEL_DBG)
+LOG_MODULE_REGISTER(bsp_temp_hum, LOG_LEVEL_BSP_TEMP_HUM)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct

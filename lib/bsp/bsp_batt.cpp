@@ -27,7 +27,7 @@
 #endif
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_batt, LOG_LEVEL_WARN);
+LOG_MODULE_REGISTER(bsp_batt, LOG_LEVEL_BSP_BATT);
 
 #ifdef BATT_MONITOR_INA226
 #define INA226_I2C_ADDR      (0x40)

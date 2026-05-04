@@ -22,7 +22,7 @@
 #include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_cmd, LOG_LEVEL_DBG)
+LOG_MODULE_REGISTER(sys_cmd, LOG_LEVEL_SYS_CMD)
 
 #define CMD_TIME_VALID_FORMAT_LEN (17)  // "HH:MM:SS-DD/MM/YYYY"
 

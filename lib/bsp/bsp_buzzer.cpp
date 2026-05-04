@@ -20,7 +20,7 @@
 #include <Arduino.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(bsp_buzzer, LOG_LEVEL_INFO);
+LOG_MODULE_REGISTER(bsp_buzzer, LOG_LEVEL_BSP_BUZZER);
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
