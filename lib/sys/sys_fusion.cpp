@@ -425,6 +425,21 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   fusion_ctx.last_update_us            = current_time_us;
   fusion_ctx.is_new_gps_data_available = false;
 
+#if (DEVICE_FUSION_DEBUG_MODE && DEVICE_FUSION_DEBUG_LOG_ENABLED)
+  LOG_INF("------------------------------Fusion debug------------------------------");
+  LOG_INF("Acc raw: %.2f, %.2f, %.2f m/s²", fusion_ctx.acc_raw_x, fusion_ctx.acc_raw_y, fusion_ctx.acc_raw_z);
+  LOG_INF("Acc filt: %.2f, %.2f, %.2f m/s²", fusion_ctx.acc_kf_filtered_x, fusion_ctx.acc_kf_filtered_y,
+          fusion_ctx.acc_kf_filtered_z);
+  LOG_INF("Gyro raw: %.2f, %.2f, %.2f dps", fusion_ctx.gyro_raw_x, fusion_ctx.gyro_raw_y, fusion_ctx.gyro_raw_z);
+  LOG_INF("Gyro filt: %.2f, %.2f, %.2f dps", fusion_ctx.gyro_kf_filtered_x, fusion_ctx.gyro_kf_filtered_y,
+          fusion_ctx.gyro_kf_filtered_z);
+  LOG_INF("Compass raw: %.2f, %.2f, %.2f", fusion_ctx.compass_raw_x, fusion_ctx.compass_raw_y,
+          fusion_ctx.compass_raw_z);
+  LOG_INF("Compass filt: %.2f, %.2f, %.2f", fusion_ctx.compass_kf_filtered_x, fusion_ctx.compass_kf_filtered_y,
+          fusion_ctx.compass_kf_filtered_z);
+  LOG_INF("Vins = %.2f m/s, Dins = %0.2f m", fusion_ctx.velocity_ins, fusion_ctx.distance_ins);
+  LOG_INF("Vgps = %.2f m/s, Dgps = %0.2f m", fusion_ctx.velocity_gps, fusion_ctx.distance_gps);
+#endif
   return STATUS_OK;
 }
 
@@ -471,7 +486,7 @@ static void sys_fusion_calibrate_gyro_bias(void)
     fusion_ctx.gyro_bias_x = sum_x / (float) valid;
     fusion_ctx.gyro_bias_y = sum_y / (float) valid;
     fusion_ctx.gyro_bias_z = sum_z / (float) valid;
-    LOG_INF("[FUSION] Gyro bias: x=%.4f y=%.4f z=%.4f rad/s", fusion_ctx.gyro_bias_x, fusion_ctx.gyro_bias_y,
+    LOG_DBG("[FUSION] Gyro bias: x=%.4f y=%.4f z=%.4f rad/s", fusion_ctx.gyro_bias_x, fusion_ctx.gyro_bias_y,
             fusion_ctx.gyro_bias_z);
   }
 }

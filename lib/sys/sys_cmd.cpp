@@ -44,6 +44,8 @@ static void sys_cmd_reboot_handler(void);
 static void sys_cmd_stop_rental_fail_handler(void);
 static void sys_cmd_stop_rental_success_handler(void);
 static void sys_cmd_set_danger_noti_handler(void);
+static void sys_cmd_clear_distance_handler(void);
+static void sys_cmd_log_deinit_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -61,7 +63,9 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("RESET",    sys_cmd_reboot_handler),
   INFO("STOP_RENTAL_FAIL", sys_cmd_stop_rental_fail_handler),
   INFO("STOP_RENTAL_SUCCESS", sys_cmd_stop_rental_success_handler),
-  INFO("SET_DANGER_NOTI", sys_cmd_set_danger_noti_handler)
+  INFO("SET_DANGER_NOTI", sys_cmd_set_danger_noti_handler),
+  INFO("CLEAR_TOTAL_DISTANCE", sys_cmd_clear_distance_handler),
+  INFO("LOG_DEINIT", sys_cmd_log_deinit_handler)
 };
 #undef INFO
 // clang-format on
@@ -303,6 +307,22 @@ static void sys_cmd_set_danger_noti_handler(void)
     LOG_WRN("SET_DANGER_NOTI: Invalid value, expected '0' or '1'");
     return;
   }
+}
+
+static void sys_cmd_clear_distance_handler(void)
+{
+#if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
+  g_device_info.nvs_info.total_km = 0.0f;
+  bsp_device_flash_write(&g_device_info.nvs_info);
+}
+#else
+  LOG_WRN("CLEAR_TOTAL_DISTANCE command is not enabled in this build");
+}
+#endif
+
+static void sys_cmd_log_deinit_handler(void)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_FLUSH_LOG);
 }
 
 /* End of file -------------------------------------------------------- */

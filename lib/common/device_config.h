@@ -31,7 +31,9 @@
 #define DEVICE_MAGIC_NUMBER               (0xDEADBEEF)
 
 #define DEVICE_NORMAL_MODE                (true)
-#define DEVICE_FUSION_DEBUG_MODE          (false)
+#define DEVICE_FUSION_DEBUG_MODE          (true)
+#define DEVICE_FUSION_DEBUG_VIA_NETWORK   (false)
+#define DEVICE_FUSION_DEBUG_LOG_ENABLED   (true)
 #define DEVICE_IDLE_MODE_ENABLED          (true)  // Return to idle mode after a period of inactivity
 #define DEVICE_NETWORK_ENABLED            (true)
 #define DEVICE_NETWORK_TOTAL_KM_ENABLED   (true)  // Enable total km in network messages
@@ -45,8 +47,6 @@
 #define LOG_TIMESTAMP_ENABLE              (1)
 
 // Log levels
-#define LOG_LEVEL_SYS_INPUT               LOG_LEVEL_DBG
-#define LOG_LEVEL_SYS_FUSION              LOG_LEVEL_INFO
 #define LOG_LEVEL_MAIN                    LOG_LEVEL_INFO
 #define LOG_LEVEL_BSP_BATT                LOG_LEVEL_WARN
 #define LOG_LEVEL_BSP_ACC                 LOG_LEVEL_ERROR
@@ -56,16 +56,18 @@
 #define LOG_LEVEL_BSP_DUST_SENSOR         LOG_LEVEL_WARN
 #define LOG_LEVEL_BSP_LED                 LOG_LEVEL_DBG
 #define LOG_LEVEL_BSP_SDCARD              LOG_LEVEL_DBG
-#define LOG_LEVEL_SYS_BUTTON              LOG_LEVEL_DBG
 #define LOG_LEVEL_BSP_SIM                 LOG_LEVEL_DBG
-#define LOG_LEVEL_SYS_CMD                 LOG_LEVEL_DBG
 #define LOG_LEVEL_BSP_TEMP_HUM            LOG_LEVEL_DBG
 #define LOG_LEVEL_BSP_RTC                 LOG_LEVEL_DBG
 #define LOG_LEVEL_BSP_USB                 LOG_LEVEL_INFO
 #define LOG_LEVEL_SYS_CMD_USB             LOG_LEVEL_DBG
-#define LOG_LEVEL_SYS_NETWORK             LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_NETWORK             LOG_LEVEL_INFO
 #define LOG_LEVEL_SYS_MANAGER             LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_UI                  LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_INPUT               LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_FUSION              LOG_LEVEL_INFO
+#define LOG_LEVEL_SYS_BUTTON              LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_CMD                 LOG_LEVEL_DBG
 
 // Network configuration
 #define CONFIG_FIREBASE_SERVER            (false)

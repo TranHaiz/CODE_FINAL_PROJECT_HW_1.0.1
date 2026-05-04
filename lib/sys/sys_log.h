@@ -19,7 +19,7 @@
 #include "log_service.h"
 
 /* Public defines ----------------------------------------------------- */
-#define SYS_LOG_BUFFER_SIZE       (4096)
+#define SYS_LOG_BUFFER_SIZE       (2048)
 #define SYS_LOG_BUFFER_THRESHOLD  (80)  // Percent
 #define SYS_LOG_FLUSH_INTERVAL_MS (30000)
 #define SYS_LOG_FILE_PATH         "/logs/system.log"
@@ -38,9 +38,14 @@ void sys_log_init(void);
 
 /**
  * @brief Process function, call in thread loop
+ * @return none
  */
 void sys_log_process(void);
 
+/**
+ * @brief Deinitialize logging, flush remaining logs
+ * @return none
+ */
 void sys_log_deinit(void);
 
 #endif /*End file _SYS_LOG_H_*/

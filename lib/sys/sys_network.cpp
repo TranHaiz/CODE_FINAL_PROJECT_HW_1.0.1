@@ -583,7 +583,7 @@ static bool sys_network_build_payload(sys_input_data_t *data, char *buf, size_t 
     return false;
   }
 
-#if (DEVICE_FUSION_DEBUG_MODE == 1)
+#if (DEVICE_FUSION_DEBUG_MODE && DEVICE_FUSION_DEBUG_VIA_NETWORK)
   int dbg_written =
     snprintf(buf + written, buf_len - written,
              ","

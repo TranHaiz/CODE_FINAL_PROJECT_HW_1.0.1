@@ -163,7 +163,7 @@ status_function_t sys_input_get_fusion_data(sys_fusion_data_t *data)
 #endif
 
 #if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
-  g_device_info.nvs_info.total_km += input_ctx.data.distance_m / 1000.0f;
+  g_device_info.nvs_info.total_km += (input_ctx.data.distance_m / 1000.0f);
 #endif
 
   return STATUS_OK;

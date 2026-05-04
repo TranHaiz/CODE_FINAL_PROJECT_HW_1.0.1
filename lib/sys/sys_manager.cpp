@@ -23,6 +23,7 @@
 #include "cbuffer.h"
 #include "device_info.h"
 #include "sys_input.h"
+#include "sys_log.h"
 #include "sys_network.h"
 #include "sys_ui.h"
 
@@ -77,6 +78,7 @@ static void sys_manager_stop_rental_success_handler(void);
 static void sys_manager_reset_offline_data_handler(void);
 static void sys_manager_danger_noti_timer_callback(TimerHandle_t xTimer);
 static void sys_manager_stop_danger_noti(void);
+static void sys_manager_flush_log(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -113,6 +115,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS  ,   sys_manager_stop_rental_success_handler );
   INFO(SYS_MANAGER_EVT_RESET_OFFLINE_DATA   ,   sys_manager_reset_offline_data_handler  );
   INFO(SYS_MANAGER_EVT_STOP_DANGER_NOTI     ,   sys_manager_stop_danger_noti            );
+  INFO(SYS_MANAGER_EVT_FLUSH_LOG            ,   sys_manager_flush_log                   );
   // clang-format on
 }
 #undef INFO
@@ -368,6 +371,12 @@ static void sys_manager_stop_danger_noti(void)
   bsp_led_off();
   sys_ui_wakeup();
   bsp_buzzer_enable(false);
+}
+
+static void sys_manager_flush_log(void)
+{
+  sys_log_deinit();
+  sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
 
 /* End of file -------------------------------------------------------- */
