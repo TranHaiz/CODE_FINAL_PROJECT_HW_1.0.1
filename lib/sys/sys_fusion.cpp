@@ -558,8 +558,8 @@ static void sys_fusion_update_ins_velocity(float dt)
   float acc_z = fusion_ctx.acc_ema_z;
 
   // 2. Update attitude: roll, pitch
-  float roll_acc  = atan2f(acc_y, acc_z);
-  float pitch_acc = atan2f(-acc_x, hypotf(acc_y, acc_z));
+  float roll_acc  = atan2f(imu.acc_y, imu.acc_z);
+  float pitch_acc = atan2f(-imu.acc_x, hypotf(imu.acc_y, imu.acc_z));
 
   float gyro_x_rads = (imu.gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x;
   float gyro_y_rads = (imu.gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y;
@@ -605,7 +605,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   fusion_ctx.acc_raw = mag_g - fusion_ctx.offset_magnitude;
 
   float alpha = ACC_EMA_ALPHA;
-  float delta = fabsf(acc_forward_raw - fusion_ctx.acc_forward);
+  float delta = fabsf(acc_forward_raw - fusion_ctx.prev_acc_forward);
   if (delta > 1.2f)
   {
     alpha = ACC_EMA_ALPHA_FAST;
@@ -618,7 +618,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   {
     alpha = ACC_EMA_ALPHA_SLOW;
   }
-  fusion_ctx.acc_forward      = alpha * acc_forward_raw + (1.0f - alpha) * fusion_ctx.acc_forward;
+  fusion_ctx.acc_forward      = alpha * acc_forward_raw + (1.0f - alpha) * fusion_ctx.prev_acc_forward;
   fusion_ctx.prev_acc_forward = fusion_ctx.acc_forward;
 
   // 5. INS velocity integration
@@ -734,10 +734,13 @@ static void sys_fusion_update_gps_state(size_t current_ms)
   bool gps_recently_updated =
     (fusion_ctx.last_gps_ms > 0) && ((current_ms - fusion_ctx.last_gps_ms) < GPS_VALID_TIMEOUT_MS);
 
+  bool is_gps_data_ok = fusion_ctx.gps_data_buffer.location_valid && (fusion_ctx.gps_data_buffer.hdop < GPS_HDOP_MAX)
+                        && (fusion_ctx.gps_data_buffer.satellites >= GPS_SATELLITES_MIN);
+
   switch (fusion_ctx.gps_state)
   {
   case GPS_STATE_INVALID:
-    if (gps_recently_updated && fusion_ctx.velocity_gps > 0.0f)
+    if (gps_recently_updated && is_gps_data_ok)
     {
       fusion_ctx.gps_state = GPS_STATE_ACTIVE;
       LOG_DBG("GPS: INVALID -> ACTIVE");
@@ -745,7 +748,7 @@ static void sys_fusion_update_gps_state(size_t current_ms)
     break;
 
   case GPS_STATE_ACTIVE:
-    if (!gps_recently_updated)
+    if (!gps_recently_updated || !is_gps_data_ok)
     {
       fusion_ctx.gps_state   = GPS_STATE_FADING;
       fusion_ctx.gps_lost_ms = current_ms;
@@ -754,7 +757,7 @@ static void sys_fusion_update_gps_state(size_t current_ms)
     break;
 
   case GPS_STATE_FADING:
-    if (gps_recently_updated && fusion_ctx.velocity_gps > 0.0f)
+    if (gps_recently_updated && is_gps_data_ok)
     {
       fusion_ctx.gps_state = GPS_STATE_ACTIVE;
       LOG_DBG("GPS: FADING -> ACTIVE");
@@ -908,7 +911,19 @@ static void sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms)
       COMPASS_EMA_ALPHA * (float) raw_data.raw_z + (1.0f - COMPASS_EMA_ALPHA) * fusion_ctx.compass_ema_z;
   }
 
-  float heading_rad = atan2f(fusion_ctx.compass_ema_y, fusion_ctx.compass_ema_x);
+  float mag_x = fusion_ctx.compass_ema_x;
+  float mag_y = fusion_ctx.compass_ema_y;
+  float mag_z = fusion_ctx.compass_ema_z;
+
+  float cos_roll  = cosf(fusion_ctx.roll_rad);
+  float sin_roll  = sinf(fusion_ctx.roll_rad);
+  float cos_pitch = cosf(fusion_ctx.pitch_rad);
+  float sin_pitch = sinf(fusion_ctx.pitch_rad);
+
+  float Xh = mag_x * cos_pitch + mag_y * sin_roll * sin_pitch + mag_z * cos_roll * sin_pitch;
+  float Yh = mag_y * cos_roll - mag_z * sin_roll;
+
+  float heading_rad = atan2f(Yh, Xh);
   float heading_deg = heading_rad * 180.0f / (float) M_PI;
   if (heading_deg < 0.0f)
     heading_deg += 360.0f;
