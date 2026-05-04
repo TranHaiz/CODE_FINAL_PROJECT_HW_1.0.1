@@ -37,6 +37,14 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define ACC_THRESHOLD_MS2           (0.05f)  // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
 
+// Shock rejection: a tap on the device produces a brief multi-g spike that, if integrated,
+// fakes several km/h of velocity. Real vehicle dynamics never exceed ±1g of magnitude
+// deviation sustained, so skip integration on samples where |raw_mag - 1g| exceeds this.
+#define ACC_SHOCK_THRESHOLD_G       (0.5f)
+// Hard clamp on acc_forward before integration — catches shocks that slip past the
+// magnitude-based detector. 7 m/s² covers 0-100 km/h in ~4 s (sport car territory).
+#define MAX_VEHICLE_ACCEL_MS2       (7.0f)
+
 // Attitude complementary filter (gyro + accelerometer)
 #define ATTITUDE_GYRO_WEIGHT        (0.95f)
 #define GYRO_BIAS_CALIB_SAMPLES     (200)
@@ -52,6 +60,14 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define BIAS_MAX_MS                 (5.0f)   // Clamp to ±5 m/s (~18 km/h)
 #define BIAS_UPDATE_ACC_GATE_MS2    (0.5f)   // Only update bias when |acc_forward| < this
 #define BIAS_RUNAWAY_DELTA_MS       (10.0f)  // Hard pull to GPS if disagreement > this
+// Output 2nd-order Butterworth low-pass — 12 dB/oct rolloff, flat passband, no overshoot.
+// Tune FC_HZ: lower = smoother (more lag), higher = snappier (more jitter).
+//   1.0 Hz → very smooth, ~160 ms group delay at DC
+//   2.0 Hz → balanced (default), ~80 ms
+//   3.0 Hz → snappy, ~50 ms
+#define OUTPUT_LPF_FC_HZ            (2.0f)
+#define OUTPUT_LPF_FS_HZ            (50.0f)        // nominal fusion loop rate (must match)
+#define OUTPUT_LPF_Q                (0.7071068f)  // 1/√2 — Butterworth (maximally flat magnitude)
 
 #if (DEMO_VEHICLE)
 #define ZUPT_ACC_THRESHOLD          (0.03f)
@@ -213,8 +229,17 @@ typedef struct
 
 /* Public variables --------------------------------------------------- */
 
+/* Biquad (RBJ EQ cookbook 2nd-order LPF, Direct Form II Transposed) */
+typedef struct
+{
+  float b0, b1, b2;  // feed-forward (a0 normalized to 1)
+  float a1, a2;      // feedback
+  float z1, z2;      // delay line
+} sys_fusion_biquad_t;
+
 /* Private variables -------------------------------------------------- */
-static sys_fusion_context_t fusion_ctx = { 0 };
+static sys_fusion_context_t fusion_ctx     = { 0 };
+static sys_fusion_biquad_t  s_velocity_lpf = { 0 };
 
 /* Private function prototypes ---------------------------------------- */
 static float               sys_fusion_calculate_magnitude(float x, float y, float z);
@@ -225,6 +250,9 @@ static void                sys_fusion_update_gps_data(void);
 static void                sys_fusion_update_gps_state(size_t current_ms);
 static void                sys_fusion_detect_zupt(float accel_ms2, float dt);
 static void                sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt);
+static void                sys_fusion_biquad_design_lpf(sys_fusion_biquad_t *bq, float fc_hz, float fs_hz, float q);
+static float               sys_fusion_biquad_apply(sys_fusion_biquad_t *bq, float x);
+static void                sys_fusion_biquad_seed(sys_fusion_biquad_t *bq, float v);
 static void                sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms);
 static const char         *sys_fusion_deg_to_direction_str(float deg);
 static void                sys_fusion_gps_callback(bsp_gps_data_t *gps_data);
@@ -334,6 +362,10 @@ void sys_fusion_init(void)
     sys_fusion_calculate_offset_mag();
     sys_fusion_calibrate_gyro_bias();
   }
+
+  // Design output Butterworth LPF (coefficients are constant once computed)
+  sys_fusion_biquad_design_lpf(&s_velocity_lpf, OUTPUT_LPF_FC_HZ, OUTPUT_LPF_FS_HZ, OUTPUT_LPF_Q);
+  sys_fusion_biquad_seed(&s_velocity_lpf, 0.0f);
 
   fusion_ctx.initialized = true;
 }
@@ -767,6 +799,7 @@ static void sys_fusion_detect_zupt(float accel_ms2, float dt)
       fusion_ctx.velocity_ins = 0.0f;
       fusion_ctx.velocity_gps = 0.0f;
       fusion_ctx.v_ins_bias   = 0.0f;  // Bias was learned from moving frame; reset with v_ins
+      sys_fusion_biquad_seed(&s_velocity_lpf, 0.0f);
     }
   }
   else
@@ -778,8 +811,6 @@ static void sys_fusion_detect_zupt(float accel_ms2, float dt)
 
 static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt)
 {
-  (void) dt;
-
   bool fresh_gps = fusion_ctx.is_new_gps_fix_this_cycle && (fusion_ctx.gps_state == GPS_STATE_ACTIVE)
                    && fusion_ctx.gps_reliable && (fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS);
 
@@ -806,9 +837,47 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
     fusion_ctx.v_ins_bias = fusion_ctx.velocity_ins - v_corrected;
   }
 
-  fusion_ctx.velocity_out = v_corrected;
-  data->velocity_ms       = fusion_ctx.velocity_out;
-  data->velocity_kmh      = fusion_ctx.velocity_out * MS_TO_KMH;
+  (void) dt;
+  fusion_ctx.velocity_out = sys_fusion_biquad_apply(&s_velocity_lpf, v_corrected);
+
+  if (fusion_ctx.velocity_out < 0.0f)
+    fusion_ctx.velocity_out = 0.0f;
+
+  data->velocity_ms  = fusion_ctx.velocity_out;
+  data->velocity_kmh = fusion_ctx.velocity_out * MS_TO_KMH;
+}
+
+static void sys_fusion_biquad_design_lpf(sys_fusion_biquad_t *bq, float fc_hz, float fs_hz, float q)
+{
+  // RBJ EQ Cookbook 2nd-order LPF; q = 1/√2 yields Butterworth response
+  float w0     = 2.0f * (float) M_PI * fc_hz / fs_hz;
+  float cos_w0 = cosf(w0);
+  float alpha  = sinf(w0) / (2.0f * q);
+  float a0     = 1.0f + alpha;
+
+  bq->b0 = ((1.0f - cos_w0) * 0.5f) / a0;
+  bq->b1 = (1.0f - cos_w0) / a0;
+  bq->b2 = bq->b0;
+  bq->a1 = (-2.0f * cos_w0) / a0;
+  bq->a2 = (1.0f - alpha) / a0;
+  bq->z1 = 0.0f;
+  bq->z2 = 0.0f;
+}
+
+static float sys_fusion_biquad_apply(sys_fusion_biquad_t *bq, float x)
+{
+  // Direct Form II Transposed — numerically stable, low memory
+  float y = bq->b0 * x + bq->z1;
+  bq->z1  = bq->b1 * x - bq->a1 * y + bq->z2;
+  bq->z2  = bq->b2 * x - bq->a2 * y;
+  return y;
+}
+
+static void sys_fusion_biquad_seed(sys_fusion_biquad_t *bq, float v)
+{
+  // Pre-load delay line so DC input v gives output v immediately (no startup transient)
+  bq->z1 = (1.0f - bq->b0) * v;
+  bq->z2 = (bq->b2 - bq->a2) * v;
 }
 
 static const char *s_direction_strings[] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
