@@ -48,11 +48,10 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define GYRO_KF_E_EST               (0.5f)  // initial estimate error
 #define GYRO_KF_Q                   (0.5f)  // process noise: lower = smoother, higher = more responsive
 
-// Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
-#define CF_WC                       (1.0f)
-#define INS_BLEND_ACTIVE            (0.3f)  // GPS ACTIVE + reliable
-#define INS_BLEND_FADING            (0.1f)  // GPS FADING — cautious
-#define INS_BLEND_INVALID           (0.0f)  // GPS lost — pure CF
+#define BIAS_TRACK_GAIN_PER_FIX     (0.15f)  // 15%/fix → ~50% correction in ~5 fixes
+#define BIAS_MAX_MS                 (5.0f)   // Clamp to ±5 m/s (~18 km/h)
+#define BIAS_UPDATE_ACC_GATE_MS2    (0.5f)   // Only update bias when |acc_forward| < this
+#define BIAS_RUNAWAY_DELTA_MS       (10.0f)  // Hard pull to GPS if disagreement > this
 
 #if (DEMO_VEHICLE)
 #define ZUPT_ACC_THRESHOLD          (0.03f)
@@ -61,7 +60,6 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define INS_DECAY_STOPPING          (0.94f)
 #define INS_DECAY_GPS_LOST          (0.97f)
 #define GPS_SPEED_MIN_MS            (0.6f)
-#define GPS_ANCHOR_RATE             (0.7f)
 #define GPS_RELIABILITY_THRESHOLD_M (20.0f)
 
 #elif (DEMO_WALKING)
@@ -71,7 +69,6 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define INS_DECAY_STOPPING          (0.92f)    // Fast decay ~0.5s to zero
 #define INS_DECAY_GPS_LOST          (0.96f)    // Medium decay when GPS fading out
 #define GPS_SPEED_MIN_MS            (0.4f)     // 1.4 km/h
-#define GPS_ANCHOR_RATE             (0.7f)     // Stronger anchor = more responsive
 #define GPS_RELIABILITY_THRESHOLD_M (10.0f)    // Max |d_INS - d_GPS| before GPS rejected
 
 #else
@@ -80,7 +77,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 #define GPS_HDOP_MAX                       (3.0f)
 #define GPS_SATELLITES_MIN                 (4)
-#define GPS_EMA_ALPHA                      (0.6f)
+#define GPS_EMA_ALPHA                      (0.85f)  // Less GPS smoothing → less lag
 #define GPS_MAX_STEP_M                     (50.0f)
 #define GPS_VALID_TIMEOUT_MS               (2000)
 #define GPS_FADE_TIMEOUT_MS                (1000)
@@ -144,6 +141,7 @@ typedef struct
   size_t              last_update_us;
   float               velocity_ins;
   float               velocity_out;
+  float               v_ins_bias;  // long-term INS drift estimate (subtracted from velocity_ins)
   float               acc_raw;
   float               acc_forward;
   float               offset_magnitude;
@@ -655,14 +653,13 @@ static void sys_fusion_update_gps_data(void)
   if (!is_gps_data_ok || raw_speed < GPS_SPEED_MIN_MS)
   {
     fusion_ctx.velocity_gps = 0.0f;
-    fusion_ctx.velocity_ins *= (1.0f - GPS_ANCHOR_RATE);
+    // INS runs free — bias estimator in compute_output_velocity handles long-term drift.
+    // Slamming v_ins here was killing startup response (GPS reports 0 m/s for 1-2 s after motion begins).
   }
   else
   {
-    fusion_ctx.velocity_gps = GPS_EMA_ALPHA * raw_speed + (1.0f - GPS_EMA_ALPHA) * fusion_ctx.velocity_gps;
-    fusion_ctx.velocity_ins =
-      (1.0f - GPS_ANCHOR_RATE) * fusion_ctx.velocity_ins + GPS_ANCHOR_RATE * fusion_ctx.velocity_gps;
-    fusion_ctx.is_new_gps_fix_this_cycle = true;  // FIX: mark fresh GPS fix for CF
+    fusion_ctx.velocity_gps              = GPS_EMA_ALPHA * raw_speed + (1.0f - GPS_EMA_ALPHA) * fusion_ctx.velocity_gps;
+    fusion_ctx.is_new_gps_fix_this_cycle = true;
   }
 
   fusion_ctx.last_gps_ms = OS_GET_TICK();
@@ -769,6 +766,7 @@ static void sys_fusion_detect_zupt(float accel_ms2, float dt)
     {
       fusion_ctx.velocity_ins = 0.0f;
       fusion_ctx.velocity_gps = 0.0f;
+      fusion_ctx.v_ins_bias   = 0.0f;  // Bias was learned from moving frame; reset with v_ins
     }
   }
   else
@@ -780,55 +778,37 @@ static void sys_fusion_detect_zupt(float accel_ms2, float dt)
 
 static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt)
 {
-  bool use_gps =
-    fusion_ctx.is_new_gps_fix_this_cycle && (fusion_ctx.gps_state == GPS_STATE_ACTIVE) && fusion_ctx.gps_reliable;
-  float v_gps_eff = use_gps ? fusion_ctx.velocity_gps : 0.0f;
+  (void) dt;
 
-  float dt_gps = dt;
-  if (use_gps && fusion_ctx.last_gps_ms > 0)
+  bool fresh_gps = fusion_ctx.is_new_gps_fix_this_cycle && (fusion_ctx.gps_state == GPS_STATE_ACTIVE)
+                   && fusion_ctx.gps_reliable && (fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS);
+
+  bool steady_state = fabsf(fusion_ctx.acc_forward) < BIAS_UPDATE_ACC_GATE_MS2;
+
+  if (fresh_gps && steady_state)
   {
-    size_t now_ms  = OS_GET_TICK();
-    float  elapsed = (now_ms - fusion_ctx.last_gps_ms) / 1000.0f;
-    // Clamp to [dt, 1.0s] — reject absurd values
-    if (elapsed > dt && elapsed < 1.0f)
-      dt_gps = elapsed;
+    float err = fusion_ctx.velocity_ins - fusion_ctx.velocity_gps;
+    fusion_ctx.v_ins_bias += BIAS_TRACK_GAIN_PER_FIX * (err - fusion_ctx.v_ins_bias);
+
+    if (fusion_ctx.v_ins_bias > BIAS_MAX_MS)
+      fusion_ctx.v_ins_bias = BIAS_MAX_MS;
+    else if (fusion_ctx.v_ins_bias < -BIAS_MAX_MS)
+      fusion_ctx.v_ins_bias = -BIAS_MAX_MS;
   }
 
-  // Memory + INS weights use dt_fusion (every cycle)
-  float denom_ins = 1.0f + CF_WC * dt;
-  float gamma     = 1.0f / denom_ins;
-  float alpha     = dt / denom_ins;
+  float v_corrected = fusion_ctx.velocity_ins - fusion_ctx.v_ins_bias;
+  if (v_corrected < 0.0f)
+    v_corrected = 0.0f;
 
-  // GPS weight uses dt_gps — proportional to the GPS update interval
-  // so total GPS energy per unit time stays constant regardless of rate.
-  float beta = use_gps ? (CF_WC * dt_gps / (1.0f + CF_WC * dt_gps)) : 0.0f;
+  if (fresh_gps && steady_state && fabsf(v_corrected - fusion_ctx.velocity_gps) > BIAS_RUNAWAY_DELTA_MS)
+  {
+    v_corrected           = 0.5f * v_corrected + 0.5f * fusion_ctx.velocity_gps;
+    fusion_ctx.v_ins_bias = fusion_ctx.velocity_ins - v_corrected;
+  }
 
-  // When GPS fires, reduce memory weight to preserve unity gain:
-  // gamma_adj + alpha + beta = 1
-  float gamma_adj = use_gps ? (1.0f - alpha - beta) : gamma;
-  if (gamma_adj < 0.0f)
-    gamma_adj = 0.0f;
-
-  fusion_ctx.velocity_out = gamma_adj * fusion_ctx.velocity_out + alpha * fusion_ctx.velocity_ins + beta * v_gps_eff;
-
-  if (fusion_ctx.velocity_out < 0.0f)
-    fusion_ctx.velocity_out = 0.0f;
-
-  float ins_blend;
-  if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.gps_reliable)
-    ins_blend = INS_BLEND_ACTIVE;
-  else if (fusion_ctx.gps_state == GPS_STATE_FADING)
-    ins_blend = INS_BLEND_FADING;
-  else
-    ins_blend = INS_BLEND_INVALID;
-
-  fusion_ctx.velocity_out = (1.0f - ins_blend) * fusion_ctx.velocity_out + ins_blend * fusion_ctx.velocity_ins;
-
-  if (fusion_ctx.velocity_out < 0.0f)
-    fusion_ctx.velocity_out = 0.0f;
-
-  data->velocity_ms  = fusion_ctx.velocity_out;
-  data->velocity_kmh = fusion_ctx.velocity_out * MS_TO_KMH;
+  fusion_ctx.velocity_out = v_corrected;
+  data->velocity_ms       = fusion_ctx.velocity_out;
+  data->velocity_kmh      = fusion_ctx.velocity_out * MS_TO_KMH;
 }
 
 static const char *s_direction_strings[] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
