@@ -120,5 +120,10 @@ int32_t bsp_batt_read_current_ma(void)
   return current_ma;
 }
 
+bool bsp_batt_is_initialized(void)
+{
+  return is_initialized;
+}
+
 /* Private definitions ----------------------------------------------- */
 /* End of file -------------------------------------------------------- */

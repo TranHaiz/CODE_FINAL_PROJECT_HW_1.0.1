@@ -357,7 +357,7 @@ static status_function_t sys_input_process_active(void)
 
 // 4. Battery level
 #if SYS_INPUT_BATT_ENABLE
-  if ((current_time_ms - input_ctx.batt_last_update_ms) >= SYS_INPUT_BATT_UPDATE_RATE_MS)
+  if (bsp_batt_is_initialized() && ((current_time_ms - input_ctx.batt_last_update_ms) >= SYS_INPUT_BATT_UPDATE_RATE_MS))
   {
     input_ctx.batt_last_update_ms = current_time_ms;
     sys_input_read_battery_level(&input_ctx.data.battery_level);

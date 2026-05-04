@@ -51,6 +51,12 @@ float bsp_batt_read_voltage_mv(void);
  */
 int32_t bsp_batt_read_current_ma(void);
 
+/**
+ * @brief Check if battery monitoring is initialized.
+ * @return true if initialized, false otherwise.
+ */
+bool bsp_batt_is_initialized(void);
+
 #endif /*End file _BSP_BATT_H_*/
 
 /* End of file -------------------------------------------------------- */
