@@ -29,6 +29,9 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 // Accelerometer parameters
 #define ACC_EMA_ALPHA               (0.3f)   // Per-axis EMA before body→nav rotation
+#define ACC_EMA_ALPHA_FAST          (0.65f)  // Fast EMA alpha for sudden motion response
+#define ACC_EMA_ALPHA_MEDIUM        (0.48f)  // Medium EMA alpha for moderate motion
+#define ACC_EMA_ALPHA_SLOW          (0.15f)  // Slow EMA alpha for noise reduction
 #define ACC_THRESHOLD_MS2           (0.05f)  // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
 
@@ -131,6 +134,7 @@ typedef struct
   float  velocity_out;  // Complementary filter output velocity
   float  acc_raw;       // Net dynamic acc magnitude (g) — used for ZUPT
   float  acc_forward;   // Forward acceleration after body→nav projection (m/s²)
+  float  prev_acc_forward;
   float  offset_magnitude;
   float  distance_m;
 
@@ -534,7 +538,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   }
 #endif
 
-  // 1. Acc EMA filter - 3 axes
+  // 1. Acc EMA filter - 3 axes (giữ nguyên cho attitude)
   if (!fusion_ctx.acc_ema_init)
   {
     fusion_ctx.acc_ema_x    = imu.acc_x;
@@ -557,7 +561,6 @@ static void sys_fusion_update_ins_velocity(float dt)
   float roll_acc  = atan2f(acc_y, acc_z);
   float pitch_acc = atan2f(-acc_x, hypotf(acc_y, acc_z));
 
-  // FIX INS-1: subtract startup-calibrated bias before integrating
   float gyro_x_rads = (imu.gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x;
   float gyro_y_rads = (imu.gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y;
 
@@ -591,32 +594,48 @@ static void sys_fusion_update_ins_velocity(float dt)
 
   float acc_north = cos_pitch * cos_yaw * abx + (sin_roll * sin_pitch * cos_yaw - cos_roll * sin_yaw) * aby
                     + (cos_roll * sin_pitch * cos_yaw + sin_roll * sin_yaw) * abz;
+
   float acc_east = cos_pitch * sin_yaw * abx + (sin_roll * sin_pitch * sin_yaw + cos_roll * cos_yaw) * aby
                    + (cos_roll * sin_pitch * sin_yaw - sin_roll * cos_yaw) * abz;
-  // acc_d (vertical): acc_d = -sin_pitch*abx + sin_roll*cos_pitch*aby + cos_roll*cos_pitch*abz - GRAVITY_MS2 (not
-  // needed here)
 
-  // 4. Forward projection onto heading direction
-  float acc_forward      = acc_north * cos_yaw + acc_east * sin_yaw;
-  float mag_g            = hypotf(hypotf(acc_x, acc_y), acc_z);
-  fusion_ctx.acc_raw     = mag_g - fusion_ctx.offset_magnitude;
-  fusion_ctx.acc_forward = acc_forward;
-  bool gravity_leak      = (fabsf(acc_forward) > ACC_FORWARD_MAX_MS2) && (fabsf(mag_g - 1.0f) < 0.25f);
+  // 4. Forward projection + Adaptive Filter
+  float acc_forward_raw = acc_north * cos_yaw + acc_east * sin_yaw;
+
+  float mag_g        = hypotf(hypotf(acc_x, acc_y), acc_z);
+  fusion_ctx.acc_raw = mag_g - fusion_ctx.offset_magnitude;
+
+  float alpha = ACC_EMA_ALPHA;
+  float delta = fabsf(acc_forward_raw - fusion_ctx.acc_forward);
+  if (delta > 1.2f)
+  {
+    alpha = ACC_EMA_ALPHA_FAST;
+  }
+  else if (delta > 0.45f)
+  {
+    alpha = ACC_EMA_ALPHA_MEDIUM;
+  }
+  else if (fabsf(acc_forward_raw) < 0.15f)
+  {
+    alpha = ACC_EMA_ALPHA_SLOW;
+  }
+  fusion_ctx.acc_forward      = alpha * acc_forward_raw + (1.0f - alpha) * fusion_ctx.acc_forward;
+  fusion_ctx.prev_acc_forward = fusion_ctx.acc_forward;
 
   // 5. INS velocity integration
-  if (!gravity_leak && fabsf(acc_forward) > ACC_THRESHOLD_MS2)
+  bool gravity_leak = (fabsf(acc_forward_raw) > ACC_FORWARD_MAX_MS2) && (fabsf(mag_g - 1.0f) < 0.25f);
+  if (!gravity_leak && fabsf(fusion_ctx.acc_forward) > ACC_THRESHOLD_MS2)
   {
-    fusion_ctx.velocity_ins += acc_forward * dt;
+    fusion_ctx.velocity_ins += fusion_ctx.acc_forward * dt;
   }
   else
   {
     float decay;
     if (fusion_ctx.is_stationary)
-      decay = INS_DECAY_STOPPING;  // Hard brake: stationary confirmed
+      decay = INS_DECAY_STOPPING;
     else if (fusion_ctx.gps_state == GPS_STATE_FADING)
-      decay = INS_DECAY_GPS_LOST;  // Soft brake: GPS signal lost
+      decay = INS_DECAY_GPS_LOST;
     else
-      decay = INS_DECAY_NORMAL;  // Gentle drift compensation while moving
+      decay = INS_DECAY_NORMAL;
 
     fusion_ctx.velocity_ins *= powf(decay, dt / 0.02f);
   }
@@ -624,7 +643,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   if (fusion_ctx.velocity_ins < 0.0f)
     fusion_ctx.velocity_ins = 0.0f;
 
-  // 6. Accumulate INS distance for GPS reliability check (Chiang 2013)
+  // 6. Accumulate INS distance
   if (fusion_ctx.velocity_ins > GPS_SPEED_MIN_MS)
     fusion_ctx.distance_ins += fusion_ctx.velocity_ins * dt;
 }
