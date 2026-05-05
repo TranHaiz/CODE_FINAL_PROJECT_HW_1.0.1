@@ -28,10 +28,10 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define DEMO_WALKING                (false)
 
 // Accelerometer parameters
-#define ACC_EMA_ALPHA               (0.4f)
-#define ACC_EMA_ALPHA_FAST          (0.70f)
-#define ACC_EMA_ALPHA_MEDIUM        (0.50f)
-#define ACC_EMA_ALPHA_SLOW          (0.18f)
+#define ACC_EMA_ALPHA               (0.25f)
+#define ACC_EMA_ALPHA_FAST          (0.45f)
+#define ACC_EMA_ALPHA_MEDIUM        (0.30f)
+#define ACC_EMA_ALPHA_SLOW          (0.10f)
 #define ACC_THRESHOLD_MS2           (0.02f)  // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
 
@@ -52,13 +52,13 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 // Higher = faster GPS tracking; lower = smoother INS-dominant output
-#define CF_WC                       (0.8f)
+#define CF_WC                       (0.4f)
 
 #if (DEMO_VEHICLE)
-#define ZUPT_ACC_THRESHOLD          (0.10f)
-#define ZUPT_TIME_THRESHOLD_MS      (1200)
+#define ZUPT_ACC_THRESHOLD          (0.15f)
+#define ZUPT_TIME_THRESHOLD_MS      (800)
 #define INS_DECAY_NORMAL            (0.990f)
-#define INS_DECAY_STOPPING          (0.87f)
+#define INS_DECAY_STOPPING          (0.75f)
 #define INS_DECAY_GPS_LOST          (0.95f)
 #define GPS_SPEED_MIN_MS            (0.8f)
 #define GPS_ANCHOR_RATE             (0.8f)
@@ -80,7 +80,6 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 #define GPS_HDOP_MAX                       (3.0f)
 #define GPS_SATELLITES_MIN                 (4)
-#define GPS_EMA_ALPHA                      (0.65f)  // Slightly more responsive than 0.6
 #define GPS_MAX_STEP_M                     (50.0f)
 #define GPS_VALID_TIMEOUT_MS               (2000)
 #define GPS_FADE_TIMEOUT_MS                (1000)
@@ -688,7 +687,7 @@ static void sys_fusion_update_gps_data(void)
   }
   else
   {
-    fusion_ctx.velocity_gps = GPS_EMA_ALPHA * raw_speed + (1.0f - GPS_EMA_ALPHA) * fusion_ctx.velocity_gps;
+    fusion_ctx.velocity_gps = raw_speed;
     float anchor            = GPS_ANCHOR_RATE;
     if (fabsf(fusion_ctx.acc_forward) > ACTIVE_MOTION_TH_MS2)
       anchor *= GPS_ANCHOR_TRANSIENT_SCALE;
