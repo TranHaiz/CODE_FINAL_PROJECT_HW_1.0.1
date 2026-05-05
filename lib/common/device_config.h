@@ -78,7 +78,7 @@
 #define DEVICE_LOG_SD_PATH_MAX_LEN        (128)
 
 // ------------------------------ IL9341 screen configuration ------------------------------
-#define SCREEN_SKIP_LOCK_SCREEN           (true)
+#define SCREEN_SKIP_LOCK_SCREEN           (false)
 #define SCREEN_ROTATION_0                 (false)
 #define SCREEN_ROTATION_90                (false)
 #define SCREEN_ROTATION_180               (false)
