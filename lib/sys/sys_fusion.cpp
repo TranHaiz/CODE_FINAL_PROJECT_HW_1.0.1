@@ -836,18 +836,12 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
       dt_gps = elapsed;
   }
 
-  // Memory + INS weights use dt_fusion (every cycle)
   float denom_ins = 1.0f + CF_WC * dt;
   float gamma     = 1.0f / denom_ins;
-  float alpha     = dt / denom_ins;
-
-  // GPS weight uses dt_gps — proportional to the GPS update interval
-  // so total GPS energy per unit time stays constant regardless of rate.
-  float beta = use_gps ? (CF_WC * dt_gps / (1.0f + CF_WC * dt_gps)) : 0.0f;
-
-  // When GPS fires, reduce memory weight to preserve unity gain:
-  // gamma_adj + alpha + beta = 1
+  float alpha     = (CF_WC * dt) / denom_ins;
+  float beta      = use_gps ? (CF_WC * dt_gps / (1.0f + CF_WC * dt_gps)) : 0.0f;
   float gamma_adj = use_gps ? (1.0f - alpha - beta) : gamma;
+
   if (gamma_adj < 0.0f)
     gamma_adj = 0.0f;
 
