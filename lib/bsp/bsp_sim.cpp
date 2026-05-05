@@ -112,7 +112,7 @@ status_function_t bsp_sim_init(void)
 
   if (!bsp_sim_send_and_wait_response("AT+CPIN?\r\n", "+CPIN: READY", 2000))
   {
-    LOG_ERR("SIM card not ready: %s", sim_rx_buffer);
+    LOG_WRN("SIM card not ready: %s", sim_rx_buffer);
     is_sim_ready = false;
     return STATUS_ERROR;
   }
@@ -143,17 +143,17 @@ bool bsp_sim_is_ready(void)
 {
   if (!bsp_sim_send_and_wait_response("AT+CPIN?\r\n", "+CPIN: READY", 2000))
   {
-    LOG_ERR("SIM card not ready: %s", sim_rx_buffer);
+    LOG_WRN("SIM card not ready: %s", sim_rx_buffer);
     return false;
   }
   else if (!bsp_sim_send_and_wait_response("AT+CREG?\r\n", "+CREG: 0,1", 3000))
   {
-    LOG_ERR("No network register: %s", sim_rx_buffer);
+    LOG_WRN("No network register: %s", sim_rx_buffer);
     is_sim_ready = false;
   }
   else if (!bsp_sim_send_and_wait_response("AT+CGATT?\r\n", "+CGATT: 1", 3000))
   {
-    LOG_ERR("Not attached to network: %s", sim_rx_buffer);
+    LOG_WRN("Not attached to network: %s", sim_rx_buffer);
     is_sim_ready = false;
   }
   else
@@ -241,14 +241,14 @@ status_function_t bsp_sim_mqtt_init(void)
   snprintf(ssl_cmd, sizeof(ssl_cmd), "AT+QSSLCFG=\"cacert\",%d,\"%s\"\r\n", MQTT_SSL_CTX, MQTT_SSL_CA_FILE);
   if (!bsp_sim_send_and_wait_response(ssl_cmd, "OK", 3000))
   {
-    LOG_ERR("Failed to set SSL CA cert: %s", sim_rx_buffer);
+    LOG_WRN("Failed to set SSL CA cert: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
   snprintf(ssl_cmd, sizeof(ssl_cmd), "AT+QSSLCFG=\"seclevel\",%d,%d\r\n", MQTT_SSL_CTX, MQTT_SSL_SECLEVEL);
   if (!bsp_sim_send_and_wait_response(ssl_cmd, "OK", 2000))
   {
-    LOG_ERR("Failed to set SSL seclevel: %s", sim_rx_buffer);
+    LOG_WRN("Failed to set SSL seclevel: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
@@ -258,7 +258,7 @@ status_function_t bsp_sim_mqtt_init(void)
   snprintf(ssl_cmd, sizeof(ssl_cmd), "AT+QMTCFG=\"ssl\",%d,1,%d\r\n", MQTT_CTX, MQTT_SSL_CTX);
   if (!bsp_sim_send_and_wait_response(ssl_cmd, "OK", 2000))
   {
-    LOG_ERR("Failed to enable MQTT SSL: %s", sim_rx_buffer);
+    LOG_WRN("Failed to enable MQTT SSL: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 #endif  // MQTT_TLS_ENABLED
@@ -266,14 +266,14 @@ status_function_t bsp_sim_mqtt_init(void)
   // 1. Config MQTT receive mode: URC with topic + payload (mode 1,0,0,1)
   if (!bsp_sim_send_and_wait_response("AT+QMTCFG=\"recv/mode\",0,0,1\r\n", "OK", 2000))
   {
-    LOG_ERR("Failed to set MQTT recv mode: %s", sim_rx_buffer);
+    LOG_WRN("Failed to set MQTT recv mode: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
   // 2. MQTT version 3.1.1
   if (!bsp_sim_send_and_wait_response("AT+QMTCFG=\"version\",0,4\r\n", "OK", 2000))
   {
-    LOG_ERR("Failed to set MQTT version: %s", sim_rx_buffer);
+    LOG_WRN("Failed to set MQTT version: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
@@ -284,7 +284,7 @@ status_function_t bsp_sim_mqtt_init(void)
   snprintf(cmd, sizeof(cmd), "AT+QMTOPEN=%d,\"%s\",%d\r\n", MQTT_CTX, MQTT_BROKER_HOST, MQTT_BROKER_PORT);
   if (!bsp_sim_send_and_wait_response(cmd, "+QMTOPEN: 0,0", 15000))
   {
-    LOG_ERR("Failed to open MQTT connection: %s", sim_rx_buffer);
+    LOG_WRN("Failed to open MQTT connection: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
@@ -293,7 +293,7 @@ status_function_t bsp_sim_mqtt_init(void)
   snprintf(cmd, sizeof(cmd), "AT+QMTCONN=%d,\"%s\",\"\",\"\"\r\n", MQTT_CTX, client_id);
   if (!bsp_sim_send_and_wait_response(cmd, "+QMTCONN: 0,0,0", 15000))
   {
-    LOG_ERR("Failed to connect MQTT broker: %s", sim_rx_buffer);
+    LOG_WRN("Failed to connect MQTT broker: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
@@ -311,12 +311,12 @@ status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
 
   if (topic_len == 0 || topic_len > MQTT_MAX_TOPIC_LEN)
   {
-    LOG_ERR("MQTT topic length out of range: %u", (unsigned) topic_len);
+    LOG_WRN("MQTT topic length out of range: %u", (unsigned) topic_len);
     return STATUS_ERROR;
   }
   if (payload_len == 0 || payload_len > MQTT_MAX_PAYLOAD_LEN)
   {
-    LOG_ERR("MQTT payload length out of range: %u", (unsigned) payload_len);
+    LOG_WRN("MQTT payload length out of range: %u", (unsigned) payload_len);
     return STATUS_ERROR;
   }
 
@@ -330,21 +330,21 @@ status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
 
   if (!bsp_sim_send_and_wait_response(cmd, ">", 5000))
   {
-    LOG_ERR("Failed to get > prompt for MQTT publish: %s", sim_rx_buffer);
+    LOG_WRN("Failed to get > prompt for MQTT publish: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
 #if (MQTT_PUBLISH_QOS == 0)
   if (!bsp_sim_send_and_wait_response(msg->payload, "+QMTPUBEX: 0,0,0", 10000))
   {
-    LOG_ERR("Failed to publish MQTT message: %s", sim_rx_buffer);
+    LOG_WRN("Failed to publish MQTT message: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 #elif (MQTT_PUBLISH_QOS == 1)
   OS_DELAY_MS(5);
   if (!bsp_sim_send_and_wait_response(msg->payload, "+QMTPUBEX: 0,1,0", 10000))
   {
-    LOG_ERR("Failed to publish MQTT message: %s", sim_rx_buffer);
+    LOG_WRN("Failed to publish MQTT message: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 #endif
@@ -363,7 +363,7 @@ status_function_t bsp_sim_mqtt_sub(const char *topic, bsp_sim_mqtt_callback_t cb
 
   if (topic_len == 0 || topic_len > MQTT_MAX_TOPIC_LEN)
   {
-    LOG_ERR("MQTT topic length out of range: %u", (unsigned) topic_len);
+    LOG_WRN("MQTT topic length out of range: %u", (unsigned) topic_len);
     return STATUS_ERROR;
   }
 
@@ -380,7 +380,7 @@ status_function_t bsp_sim_mqtt_sub(const char *topic, bsp_sim_mqtt_callback_t cb
     }
     else
     {
-      LOG_ERR("MQTT subscribe failed with code %d: %s", err_code, sim_rx_buffer);
+      LOG_WRN("MQTT subscribe failed with code %d: %s", err_code, sim_rx_buffer);
       return STATUS_ERROR;
     }
   }
@@ -402,7 +402,7 @@ status_function_t bsp_sim_mqtt_get(uint8_t *out_buf, uint16_t *out_size)
 
   if (sim_mqtt_buf_len > *out_size)
   {
-    LOG_ERR("Output buffer too small: need %u, got %u", (unsigned) sim_mqtt_buf_len, (unsigned) *out_size);
+    LOG_WRN("Output buffer too small: need %u, got %u", (unsigned) sim_mqtt_buf_len, (unsigned) *out_size);
     return STATUS_ERROR;
   }
 
@@ -422,7 +422,7 @@ status_function_t bsp_sim_mqtt_deinit(void)
   snprintf(cmd, sizeof(cmd), "AT+QMTDISC=%d\r\n", MQTT_CTX);
   if (!bsp_sim_send_and_wait_response(cmd, "+QMTDISC: 0,0", 3000))
   {
-    LOG_ERR("Failed to disconnect MQTT: %s", sim_rx_buffer);
+    LOG_WRN("Failed to disconnect MQTT: %s", sim_rx_buffer);
     ret = false;
   }
 
@@ -430,7 +430,7 @@ status_function_t bsp_sim_mqtt_deinit(void)
   snprintf(cmd, sizeof(cmd), "AT+QMTCLOSE=%d\r\n", MQTT_CTX);
   if (!bsp_sim_send_and_wait_response(cmd, "+QMTCLOSE: 0,0", 3000))
   {
-    LOG_ERR("Failed to close MQTT connection: %s", sim_rx_buffer);
+    LOG_WRN("Failed to close MQTT connection: %s", sim_rx_buffer);
     ret = false;
   }
 
@@ -447,14 +447,14 @@ status_function_t bsp_sim_mqtt_unsub(const char *topic)
 
   if (topic_len == 0 || topic_len > MQTT_MAX_TOPIC_LEN)
   {
-    LOG_ERR("MQTT topic length out of range: %u", (unsigned) topic_len);
+    LOG_WRN("MQTT topic length out of range: %u", (unsigned) topic_len);
     return STATUS_ERROR;
   }
 
   snprintf(cmd, sizeof(cmd), "AT+QMTUNS=%d,1,\"%s\"\r\n", MQTT_CTX, topic);
   if (!bsp_sim_send_and_wait_response(cmd, "+QMTUNS: 0,1,0", 5000))
   {
-    LOG_ERR("MQTT unsubscribe failed: %s", sim_rx_buffer);
+    LOG_WRN("MQTT unsubscribe failed: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
 
