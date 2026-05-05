@@ -34,7 +34,6 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define ACC_EMA_ALPHA_SLOW          (0.10f)
 #define ACC_THRESHOLD_MS2           (0.02f)  // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
-
 #define ACC_FWD_DELTA_FAST          (0.60f)
 #define ACC_FWD_DELTA_MEDIUM        (0.30f)
 #define ACC_FWD_QUIET_LIMIT         (0.15f)
@@ -53,6 +52,10 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 // Higher = faster GPS tracking; lower = smoother INS-dominant output
 #define CF_WC                       (0.4f)
+// Stop-response shaping: make Vout decay quicker near standstill.
+#define CF_WC_STOPPING              (2.0f)
+#define VEL_NEAR_ZERO_MS            (0.18f)
+#define VEL_SETTLE_BAND_MS          (0.12f)
 
 #if (DEMO_VEHICLE)
 #define ZUPT_ACC_THRESHOLD          (0.15f)
@@ -822,6 +825,11 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
   bool use_gps =
     fusion_ctx.is_new_gps_fix_this_cycle && (fusion_ctx.gps_state == GPS_STATE_ACTIVE) && fusion_ctx.gps_reliable;
   float v_gps_eff = use_gps ? fusion_ctx.velocity_gps : 0.0f;
+  float v_ref     = fmaxf(fusion_ctx.velocity_ins, v_gps_eff);
+
+  bool  near_stop    = (v_ref < VEL_NEAR_ZERO_MS);
+  bool  no_drive_acc = (fusion_ctx.acc_forward < ACC_THRESHOLD_MS2);
+  float cf_wc_effect = (near_stop && no_drive_acc) ? CF_WC_STOPPING : CF_WC;
 
   // dt_gps: time since last GPS fix (used to scale GPS weight correctly)
   // Falls back to dt when no GPS so the expression stays well-formed.
@@ -835,10 +843,10 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
       dt_gps = elapsed;
   }
 
-  float denom_ins = 1.0f + CF_WC * dt;
+  float denom_ins = 1.0f + cf_wc_effect * dt;
   float gamma     = 1.0f / denom_ins;
-  float alpha     = (CF_WC * dt) / denom_ins;
-  float beta      = use_gps ? (CF_WC * dt_gps / (1.0f + CF_WC * dt_gps)) : 0.0f;
+  float alpha     = (cf_wc_effect * dt) / denom_ins;
+  float beta      = use_gps ? (cf_wc_effect * dt_gps / (1.0f + cf_wc_effect * dt_gps)) : 0.0f;
   float gamma_adj = use_gps ? (1.0f - alpha - beta) : gamma;
 
   if (gamma_adj < 0.0f)
@@ -847,6 +855,8 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
   fusion_ctx.velocity_out = gamma_adj * fusion_ctx.velocity_out + alpha * fusion_ctx.velocity_ins + beta * v_gps_eff;
 
   if (fusion_ctx.velocity_out < 0.0f)
+    fusion_ctx.velocity_out = 0.0f;
+  else if (v_ref < VEL_SETTLE_BAND_MS && fusion_ctx.velocity_out < VEL_SETTLE_BAND_MS)
     fusion_ctx.velocity_out = 0.0f;
 
   data->velocity_ms  = fusion_ctx.velocity_out;
