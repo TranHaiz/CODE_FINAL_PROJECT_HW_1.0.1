@@ -32,35 +32,35 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define ACC_EMA_ALPHA_FAST          (0.70f)
 #define ACC_EMA_ALPHA_MEDIUM        (0.50f)
 #define ACC_EMA_ALPHA_SLOW          (0.18f)
-#define ACC_THRESHOLD_MS2           (0.05f)  // Dead-band to gate INS integration (m/s²)
+#define ACC_THRESHOLD_MS2           (0.02f)  // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
 
-#define ACC_FWD_DELTA_FAST          (0.80f)
+#define ACC_FWD_DELTA_FAST          (0.60f)
 #define ACC_FWD_DELTA_MEDIUM        (0.30f)
-#define ACC_FWD_QUIET_LIMIT         (0.12f)
+#define ACC_FWD_QUIET_LIMIT         (0.15f)
 
 // Active-motion threshold — used to suppress GPS anchoring during transients,
 // because GPS speed lags real motion by ~1s during fast accel/decel.
-#define ACTIVE_MOTION_TH_MS2        (0.5f)
+#define ACTIVE_MOTION_TH_MS2        (0.3f)
 #define GPS_ANCHOR_TRANSIENT_SCALE  (0.2f)  // Multiplier on anchor when active motion
 
 // Attitude complementary filter (gyro + accelerometer)
-#define ATTITUDE_GYRO_WEIGHT        (0.95f)
+#define ATTITUDE_GYRO_WEIGHT        (0.90f)
 #define GYRO_BIAS_CALIB_SAMPLES     (200)
 #define GYRO_BIAS_ALPHA             (0.01f)
-#define ACC_FORWARD_MAX_MS2         (6.0f)
+#define ACC_FORWARD_MAX_MS2         (3.0f)
 
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 // Higher = faster GPS tracking; lower = smoother INS-dominant output
-#define CF_WC                       (1.0f)
+#define CF_WC                       (0.8f)
 
 #if (DEMO_VEHICLE)
-#define ZUPT_ACC_THRESHOLD          (0.03f)
-#define ZUPT_TIME_THRESHOLD_MS      (1000)
-#define INS_DECAY_NORMAL            (0.9990f)
-#define INS_DECAY_STOPPING          (0.94f)
-#define INS_DECAY_GPS_LOST          (0.97f)
-#define GPS_SPEED_MIN_MS            (0.6f)
+#define ZUPT_ACC_THRESHOLD          (0.10f)
+#define ZUPT_TIME_THRESHOLD_MS      (1200)
+#define INS_DECAY_NORMAL            (0.990f)
+#define INS_DECAY_STOPPING          (0.87f)
+#define INS_DECAY_GPS_LOST          (0.95f)
+#define GPS_SPEED_MIN_MS            (0.8f)
 #define GPS_ANCHOR_RATE             (0.8f)
 #define GPS_RELIABILITY_THRESHOLD_M (20.0f)
 
@@ -80,7 +80,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 #define GPS_HDOP_MAX                       (3.0f)
 #define GPS_SATELLITES_MIN                 (4)
-#define GPS_EMA_ALPHA                      (0.7f)  // Slightly more responsive than 0.6
+#define GPS_EMA_ALPHA                      (0.65f)  // Slightly more responsive than 0.6
 #define GPS_MAX_STEP_M                     (50.0f)
 #define GPS_VALID_TIMEOUT_MS               (2000)
 #define GPS_FADE_TIMEOUT_MS                (1000)
