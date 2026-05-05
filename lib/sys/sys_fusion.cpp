@@ -28,12 +28,21 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define DEMO_WALKING                (false)
 
 // Accelerometer parameters
-#define ACC_EMA_ALPHA               (0.3f)   // Per-axis EMA before body→nav rotation
-#define ACC_EMA_ALPHA_FAST          (0.65f)  // Fast EMA alpha for sudden motion response
-#define ACC_EMA_ALPHA_MEDIUM        (0.48f)  // Medium EMA alpha for moderate motion
-#define ACC_EMA_ALPHA_SLOW          (0.15f)  // Slow EMA alpha for noise reduction
+#define ACC_EMA_ALPHA               (0.4f)
+#define ACC_EMA_ALPHA_FAST          (0.70f)
+#define ACC_EMA_ALPHA_MEDIUM        (0.50f)
+#define ACC_EMA_ALPHA_SLOW          (0.18f)
 #define ACC_THRESHOLD_MS2           (0.05f)  // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
+
+#define ACC_FWD_DELTA_FAST          (0.80f)
+#define ACC_FWD_DELTA_MEDIUM        (0.30f)
+#define ACC_FWD_QUIET_LIMIT         (0.12f)
+
+// Active-motion threshold — used to suppress GPS anchoring during transients,
+// because GPS speed lags real motion by ~1s during fast accel/decel.
+#define ACTIVE_MOTION_TH_MS2        (0.5f)
+#define GPS_ANCHOR_TRANSIENT_SCALE  (0.2f)  // Multiplier on anchor when active motion
 
 // Attitude complementary filter (gyro + accelerometer)
 #define ATTITUDE_GYRO_WEIGHT        (0.95f)
@@ -52,7 +61,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define INS_DECAY_STOPPING          (0.94f)
 #define INS_DECAY_GPS_LOST          (0.97f)
 #define GPS_SPEED_MIN_MS            (0.6f)
-#define GPS_ANCHOR_RATE             (0.7f)
+#define GPS_ANCHOR_RATE             (0.8f)
 #define GPS_RELIABILITY_THRESHOLD_M (20.0f)
 
 #elif (DEMO_WALKING)
@@ -71,7 +80,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 #define GPS_HDOP_MAX                       (3.0f)
 #define GPS_SATELLITES_MIN                 (4)
-#define GPS_EMA_ALPHA                      (0.6f)
+#define GPS_EMA_ALPHA                      (0.7f)  // Slightly more responsive than 0.6
 #define GPS_MAX_STEP_M                     (50.0f)
 #define GPS_VALID_TIMEOUT_MS               (2000)
 #define GPS_FADE_TIMEOUT_MS                (1000)
@@ -606,15 +615,15 @@ static void sys_fusion_update_ins_velocity(float dt)
 
   float alpha = ACC_EMA_ALPHA;
   float delta = fabsf(acc_forward_raw - fusion_ctx.prev_acc_forward);
-  if (delta > 1.2f)
+  if (delta > ACC_FWD_DELTA_FAST)
   {
     alpha = ACC_EMA_ALPHA_FAST;
   }
-  else if (delta > 0.45f)
+  else if (delta > ACC_FWD_DELTA_MEDIUM)
   {
     alpha = ACC_EMA_ALPHA_MEDIUM;
   }
-  else if (fabsf(acc_forward_raw) < 0.15f)
+  else if (fabsf(acc_forward_raw) < ACC_FWD_QUIET_LIMIT)
   {
     alpha = ACC_EMA_ALPHA_SLOW;
   }
@@ -674,13 +683,17 @@ static void sys_fusion_update_gps_data(void)
   if (!is_gps_data_ok || raw_speed < GPS_SPEED_MIN_MS)
   {
     fusion_ctx.velocity_gps = 0.0f;
-    fusion_ctx.velocity_ins *= (1.0f - GPS_ANCHOR_RATE);
+    if (fusion_ctx.is_stationary)
+      fusion_ctx.velocity_ins *= (1.0f - GPS_ANCHOR_RATE);
   }
   else
   {
     fusion_ctx.velocity_gps = GPS_EMA_ALPHA * raw_speed + (1.0f - GPS_EMA_ALPHA) * fusion_ctx.velocity_gps;
-    fusion_ctx.velocity_ins =
-      (1.0f - GPS_ANCHOR_RATE) * fusion_ctx.velocity_ins + GPS_ANCHOR_RATE * fusion_ctx.velocity_gps;
+    float anchor            = GPS_ANCHOR_RATE;
+    if (fabsf(fusion_ctx.acc_forward) > ACTIVE_MOTION_TH_MS2)
+      anchor *= GPS_ANCHOR_TRANSIENT_SCALE;
+
+    fusion_ctx.velocity_ins              = (1.0f - anchor) * fusion_ctx.velocity_ins + anchor * fusion_ctx.velocity_gps;
     fusion_ctx.is_new_gps_fix_this_cycle = true;  // FIX: mark fresh GPS fix for CF
   }
 
@@ -793,6 +806,8 @@ static void sys_fusion_detect_zupt(float accel_ms2, float dt)
     {
       fusion_ctx.velocity_ins = 0.0f;
       fusion_ctx.velocity_gps = 0.0f;
+      // Snap CF output too — without this, vout would coast down via CF for ~3*tau
+      fusion_ctx.velocity_out = 0.0f;
     }
   }
   else

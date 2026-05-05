@@ -50,6 +50,7 @@ typedef struct
 
   int32_t  batt_remaining_mah;
   uint32_t batt_last_update_ms;
+  float    prev_distance_m;
 
   sys_input_data_t data;
 } sys_input_context_t;
