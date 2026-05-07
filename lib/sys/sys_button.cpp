@@ -24,15 +24,16 @@ LOG_MODULE_REGISTER(sys_button, LOG_LEVEL_SYS_BUTTON)
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
-OS_SEM_DEFINE_GLOBAL(sys_button_wakeup_sem);
-
 /* Private variables -------------------------------------------------- */
 OS_SEM_DEFINE_STATIC(sys_button);
+OS_SEM_DEFINE_STATIC(sys_button_wakeup_sem);
+
 static cbuffer_t               s_sys_button_cb;
 static bsp_button_press_type_t s_sys_button_cb_buf[SYS_BUTTON_MAX_EVENTS + 1];
 
 /* Private function prototypes ---------------------------------------- */
 static void sys_button_callback(bsp_button_press_type_t press_type);
+static void sys_button_isr_callback(void);
 
 /* Function definitions ----------------------------------------------- */
 
@@ -45,10 +46,19 @@ void sys_button_init(void)
   cb_clear(&s_sys_button_cb);
 
   bsp_button_init(BUTTON_EVT, sys_button_callback);
+  bsp_button_set_isr_callback(BUTTON_EVT, sys_button_isr_callback);
 }
 
 void sys_button_process(void)
 {
+  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE)
+  {
+    OS_SEM_TAKE(sys_button_wakeup_sem, OS_MAX_DELAY);
+    sys_manager_write_event(SYS_MANAGER_EVT_WAKEUP);
+    LOG_DBG("Button wakeup event processed");
+    return;
+  }
+
   bsp_button_press_type_t event;
 
   bsp_button_process();
@@ -62,7 +72,6 @@ void sys_button_process(void)
       case BUTTON_PRESS_SHORT:
       {
         LOG_DBG("Button short press detected");
-        sys_manager_write_event(SYS_MANAGER_EVT_WAKEUP);
         break;
       }
 
@@ -98,13 +107,16 @@ void sys_button_process(void)
 }
 
 /* Private definitions ------------------------------------------------ */
-
-static void sys_button_callback(bsp_button_press_type_t press_type)
+static void sys_button_isr_callback(void)
 {
   if (g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE)
   {
-    OS_SEM_GIVE(sys_button_wakeup_sem);
+    OS_SEM_GIVE_FROM_ISR(sys_button_wakeup_sem);
   }
+}
+
+static void sys_button_callback(bsp_button_press_type_t press_type)
+{
   /* Push event to the cbuffer so process task can handle it */
   if (cb_space_count(&s_sys_button_cb) >= sizeof(press_type))
   {

@@ -37,6 +37,7 @@ typedef enum
 } bsp_button_press_type_t;
 
 typedef void (*bsp_button_callback_t)(bsp_button_press_type_t press_type);
+typedef void (*bsp_button_isr_callback_t)(void);
 
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
@@ -48,6 +49,14 @@ typedef void (*bsp_button_callback_t)(bsp_button_press_type_t press_type);
  * @return none
  */
 void bsp_button_init(bsp_button_type_t button, bsp_button_callback_t callback);
+
+/**
+ * @brief  Set an ISR callback to be triggered immediately in the button ISR
+ * @param[in]  button: button type
+ * @param[in]  isr_cb: callback function
+ * @return none
+ */
+void bsp_button_set_isr_callback(bsp_button_type_t button, bsp_button_isr_callback_t isr_cb);
 
 /**
  * @brief  Button process task to be called in main loop or dedicated thread

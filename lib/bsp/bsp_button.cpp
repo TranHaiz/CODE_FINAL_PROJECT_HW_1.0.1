@@ -21,15 +21,16 @@
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
 {
-  uint8_t               pin;
-  bsp_button_callback_t cb;
-  uint32_t              press_time;
-  uint32_t              release_time;
-  bool                  is_pressed;
-  bool                  is_long_handled;
-  uint8_t               click_count;
-  uint32_t              last_click_time;
-  uint8_t               last_reported_count;
+  uint8_t                   pin;
+  bsp_button_callback_t     cb;
+  bsp_button_isr_callback_t isr_cb;
+  volatile uint32_t         press_time;
+  volatile uint32_t         release_time;
+  volatile bool             is_pressed;
+  volatile bool             is_long_handled;
+  volatile uint8_t          click_count;
+  volatile uint32_t         last_click_time;
+  uint8_t                   last_reported_count;
 } bsp_button_ctx_t;
 
 /* Private macros ----------------------------------------------------- */
@@ -58,6 +59,7 @@ void bsp_button_init(bsp_button_type_t button, bsp_button_callback_t callback)
   s_buttons[button].click_count         = 0;
   s_buttons[button].last_click_time     = 0;
   s_buttons[button].last_reported_count = 0;
+  s_buttons[button].isr_cb              = NULL;
 
   bsp_io_init(s_buttons[button].pin, BSP_IO_MODE_INPUT_PULLUP);
   if (button == BUTTON_EVT)
@@ -72,6 +74,19 @@ void bsp_button_process(void)
   {
     uint32_t          now = OS_GET_TICK();
     bsp_button_ctx_t *btn = &s_buttons[i];
+
+    bool current_state = (bsp_io_read(btn->pin) == 0);
+    // Watchdog for fast taps that missed the ISR release debounce
+    if (!current_state && btn->is_pressed && ((now - btn->press_time) > BUTTON_DEBOUNCE_MS))
+    {
+      btn->is_pressed   = false;
+      btn->release_time = now;
+      if (!btn->is_long_handled)
+      {
+        btn->click_count++;
+        btn->last_click_time = now;
+      }
+    }
 
     if (btn->is_pressed && !btn->is_long_handled)
     {
@@ -118,13 +133,27 @@ uint8_t bsp_button_get_count(bsp_button_type_t button)
   return s_buttons[button].last_reported_count;
 }
 
+void bsp_button_set_isr_callback(bsp_button_type_t button, bsp_button_isr_callback_t isr_cb)
+{
+  if (button < BUTTON_MAX)
+  {
+    s_buttons[button].isr_cb = isr_cb;
+  }
+}
+
 /* Private definitions ------------------------------------------------ */
 static void IRAM_ATTR button_evt_isr_handler(void)
 {
+  // Serial.println("Button ISR triggered");
   bsp_button_ctx_t *btn = &s_buttons[BUTTON_EVT];
   uint32_t          now = OS_GET_TICK();
 
   bool current_state = (bsp_io_read(btn->pin) == 0);
+
+  if (btn->isr_cb)
+  {
+    btn->isr_cb();
+  }
 
   if (current_state && !btn->is_pressed)
   {

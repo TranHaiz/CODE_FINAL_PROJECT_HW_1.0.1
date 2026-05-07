@@ -23,8 +23,6 @@
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
-OS_SEM_DECLARE(sys_button_wakeup_sem);
-
 /* Public function prototypes ----------------------------------------- */
 /**
  * @brief  System button initialization
