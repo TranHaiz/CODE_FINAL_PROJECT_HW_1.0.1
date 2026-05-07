@@ -29,6 +29,7 @@ typedef struct
   bool                  is_long_handled;
   uint8_t               click_count;
   uint32_t              last_click_time;
+  uint8_t               last_reported_count;
 } bsp_button_ctx_t;
 
 /* Private macros ----------------------------------------------------- */
@@ -48,14 +49,15 @@ void bsp_button_init(bsp_button_type_t button, bsp_button_callback_t callback)
     return;
   }
 
-  s_buttons[button].pin             = IO_BUTTON_PIN;
-  s_buttons[button].cb              = callback;
-  s_buttons[button].press_time      = 0;
-  s_buttons[button].release_time    = 0;
-  s_buttons[button].is_pressed      = false;
-  s_buttons[button].is_long_handled = false;
-  s_buttons[button].click_count     = 0;
-  s_buttons[button].last_click_time = 0;
+  s_buttons[button].pin                 = IO_BUTTON_PIN;
+  s_buttons[button].cb                  = callback;
+  s_buttons[button].press_time          = 0;
+  s_buttons[button].release_time        = 0;
+  s_buttons[button].is_pressed          = false;
+  s_buttons[button].is_long_handled     = false;
+  s_buttons[button].click_count         = 0;
+  s_buttons[button].last_click_time     = 0;
+  s_buttons[button].last_reported_count = 0;
 
   bsp_io_init(s_buttons[button].pin, BSP_IO_MODE_INPUT_PULLUP);
   if (button == BUTTON_EVT)
@@ -91,19 +93,29 @@ void bsp_button_process(void)
       {
         if (btn->cb)
         {
+          btn->last_reported_count = btn->click_count;
           if (btn->click_count == 1)
           {
             btn->cb(BUTTON_PRESS_SHORT);
           }
           else if (btn->click_count >= 2)
           {
-            btn->cb(BUTTON_PRESS_DOUBLE);
+            btn->cb(BUTTON_PRESS_COUNT);
           }
         }
         btn->click_count = 0;
       }
     }
   }
+}
+
+uint8_t bsp_button_get_count(bsp_button_type_t button)
+{
+  if (button >= BUTTON_MAX)
+  {
+    return 0;
+  }
+  return s_buttons[button].last_reported_count;
 }
 
 /* Private definitions ------------------------------------------------ */

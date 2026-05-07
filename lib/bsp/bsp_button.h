@@ -33,7 +33,7 @@ typedef enum
 {
   BUTTON_PRESS_SHORT = 0,
   BUTTON_PRESS_LONG,
-  BUTTON_PRESS_DOUBLE,
+  BUTTON_PRESS_COUNT,
 } bsp_button_press_type_t;
 
 typedef void (*bsp_button_callback_t)(bsp_button_press_type_t press_type);
@@ -54,6 +54,13 @@ void bsp_button_init(bsp_button_type_t button, bsp_button_callback_t callback);
  * @return none
  */
 void bsp_button_process(void);
+
+/**
+ * @brief  Get the last reported click count
+ * @param[in]  button: button type
+ * @return Number of clicks
+ */
+uint8_t bsp_button_get_count(bsp_button_type_t button);
 
 #endif /*End file _BSP_BUTTON_H_*/
 

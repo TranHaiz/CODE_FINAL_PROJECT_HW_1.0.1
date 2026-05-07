@@ -215,6 +215,10 @@ void sys_button_thread_func(void *param)
 
   while (true)
   {
+    if (g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE)
+    {
+      OS_SEM_TAKE(sys_button_wakeup_sem, OS_MAX_DELAY);
+    }
     sys_button_process();
     OS_DELAY_MS(10);
   }

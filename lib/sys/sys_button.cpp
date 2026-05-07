@@ -15,6 +15,7 @@
 
 #include "cbuffer.h"
 #include "log_service.h"
+#include "sys_manager.h"
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_button, LOG_LEVEL_SYS_BUTTON)
@@ -23,6 +24,8 @@ LOG_MODULE_REGISTER(sys_button, LOG_LEVEL_SYS_BUTTON)
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
+OS_SEM_DEFINE_GLOBAL(sys_button_wakeup_sem);
+
 /* Private variables -------------------------------------------------- */
 OS_SEM_DEFINE_STATIC(sys_button);
 static cbuffer_t               s_sys_button_cb;
@@ -36,6 +39,7 @@ static void sys_button_callback(bsp_button_press_type_t press_type);
 void sys_button_init(void)
 {
   OS_SEM_CREATE(sys_button);
+  OS_SEM_CREATE(sys_button_wakeup_sem);
 
   cb_init(&s_sys_button_cb, s_sys_button_cb_buf, sizeof(s_sys_button_cb_buf));
   cb_clear(&s_sys_button_cb);
@@ -58,6 +62,7 @@ void sys_button_process(void)
       case BUTTON_PRESS_SHORT:
       {
         LOG_DBG("Button short press detected");
+        sys_manager_write_event(SYS_MANAGER_EVT_WAKEUP);
         break;
       }
 
@@ -66,9 +71,24 @@ void sys_button_process(void)
         LOG_DBG("Button long press detected");
         break;
       }
-      case BUTTON_PRESS_DOUBLE:
+      case BUTTON_PRESS_COUNT:
       {
-        LOG_DBG("Button double press detected");
+        uint8_t count = bsp_button_get_count(BUTTON_EVT);
+        LOG_DBG("Button press detected: %d times", count);
+        switch (count)
+        {
+        case 3:
+        {
+          sys_manager_write_event(SYS_MANAGER_EVT_USER_LOCK);
+          break;
+        }
+        case 5:
+        {
+          sys_manager_write_event(SYS_MANAGER_EVT_UNLOCKED);
+          break;
+        }
+        default: break;
+        }
         break;
       }
       default: break;
@@ -81,6 +101,10 @@ void sys_button_process(void)
 
 static void sys_button_callback(bsp_button_press_type_t press_type)
 {
+  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE)
+  {
+    OS_SEM_GIVE(sys_button_wakeup_sem);
+  }
   /* Push event to the cbuffer so process task can handle it */
   if (cb_space_count(&s_sys_button_cb) >= sizeof(press_type))
   {
