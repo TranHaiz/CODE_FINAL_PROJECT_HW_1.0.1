@@ -539,24 +539,25 @@ static bool sys_network_build_payload(sys_input_data_t *data, char *buf, size_t 
   bsp_rtc_get(&now);
 
 #if (DEVICE_NETWORK_TOTAL_KM_ENABLED)
-  int written = snprintf(buf, buf_len,
-                         "{"
-                         "\"battery\":%.1f,"
-                         "\"time\":\"%d/%02d/%02d-%02d:%02d:%02d\","
-                         "\"velocity_ms\":%.2f,"
-                         "\"velocity_kmh\":%.2f,"
-                         "\"distance_m\":%.1f,"
-                         "\"direction\":\"%.1f %s\","
-                         "\"position\":[%.6f,%.6f],"
-                         "\"dust\":%.1f,"
-                         "\"temp\":%.1f,"
-                         "\"hum\":%.1f,"
-                         "\"totalKm\":%.2f",
-                         data->battery_level, now.year, now.month, now.date, now.hour, now.minute, now.second,
-                         data->velocity_ms, data->velocity_kmh, data->distance_m, data->heading_deg,
-                         (data->direction_str != NULL) ? data->direction_str : "?", data->gps_position.latitude,
-                         data->gps_position.longitude, data->dust_value, data->temp_hum.temperature,
-                         data->temp_hum.humidity, g_device_info.nvs_info.total_km);
+  int written =
+    snprintf(buf, buf_len,
+             "{"
+             "\"time\":\"%d/%02d/%02d-%02d:%02d:%02d\","
+             "\"battery\":%.1f,"
+             "\"velocity_ms\":%.2f,"
+             "\"velocity_kmh\":%.2f,"
+             "\"distance_m\":%.1f,"
+             "\"totalKm\":%.1f,"
+             "\"direction_deg\":%.1f,"
+             "\"direction_str\":\"%s\","
+             "\"position\":[%.6f,%.6f],"
+             "\"dust\":%.1f,"
+             "\"temp\":%.1f,"
+             "\"hum\":%.1f",
+             now.year, now.month, now.date, now.hour, now.minute, now.second, data->battery_level, data->velocity_ms,
+             data->velocity_kmh, data->distance_m, g_device_info.nvs_info.total_km, data->heading_deg,
+             (data->direction_str != NULL) ? data->direction_str : "?", data->gps_position.latitude,
+             data->gps_position.longitude, data->dust_value, data->temp_hum.temperature, data->temp_hum.humidity);
 #else
   int written =
     snprintf(buf, buf_len,
