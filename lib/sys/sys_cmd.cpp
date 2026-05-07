@@ -259,6 +259,8 @@ static void sys_cmd_set_device_id_handler(void)
 
   LOG_DBG("SET_DEVICE: id=%s serial=%s name=%s cmd=%s data=%s", id_str, g_device_info.nvs_info.serial_number,
           g_device_info.device_name, g_device_info.mqtt_cmd_topic, g_device_info.mqtt_data_topic);
+
+  sys_manager_write_event(SYS_MANAGER_EVT_REBOOT);
 }
 
 static void sys_cmd_reboot_handler(void)
