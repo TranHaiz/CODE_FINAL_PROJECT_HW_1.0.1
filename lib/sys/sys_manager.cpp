@@ -160,6 +160,9 @@ void sys_manager_process(void)
 /* Private definitions ----------------------------------------------- */
 static void sys_manager_wakeup_handler(void)
 {
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_IDLE)
+    return;
+
   LOG_DBG("Handling wakeup event");
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_wakeup();
