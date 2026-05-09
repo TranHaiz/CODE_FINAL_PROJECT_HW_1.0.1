@@ -235,18 +235,21 @@ static void sys_manager_user_lock_handler(void)
 {
   LOG_DBG("Handling user lock event");
   sys_network_mqtt_publish_noti(NETWORK_NOTI_USERLOCK_PAYLOAD, strlen(NETWORK_NOTI_USERLOCK_PAYLOAD));
+#if (DEVICE_LOCK_DEBUG_MODE_ENABLED)
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_lock();
 
 #if (DEVICE_IDLE_MODE_ENABLED)
   bsp_timer_start(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
+#endif  // DEVICE_LOCK_DEBUG_MODE_ENABLED
 }
 
 static void sys_manager_user_pause_handler(void)
 {
   LOG_DBG("Handling user pause event");
   sys_network_mqtt_publish_noti(NETWORK_NOTI_USERPAUSE_PAYLOAD, strlen(NETWORK_NOTI_USERPAUSE_PAYLOAD));
+#if (DEVICE_LOCK_DEBUG_MODE_ENABLED)
   // TODO: implement pause functionality, for now just lock and send noti
   device_info_update_state(DEVICE_STATE_LOCKED);
   // device_info_update_state(DEVICE_STATE_PAUSED);
@@ -255,6 +258,7 @@ static void sys_manager_user_pause_handler(void)
 #if (DEVICE_IDLE_MODE_ENABLED)
   bsp_timer_start(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
+#endif  // DEVICE_LOCK_DEBUG_MODE_ENABLED
 }
 
 static void sys_manager_shutdown_timer_callback(TimerHandle_t xTimer)

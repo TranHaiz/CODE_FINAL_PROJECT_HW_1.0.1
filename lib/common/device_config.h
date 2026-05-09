@@ -39,6 +39,7 @@
 #define DEVICE_NETWORK_TOTAL_KM_ENABLED   (true)  // Enable total km in network messages
 #define DEVICE_INPUT_ENABLED              (true)
 #define DEVICE_UI_ENABLED                 (true)
+#define DEVICE_LOCK_DEBUG_MODE_ENABLED    (false)  // Use stop and pause button to simulate lock and pause in debug mode
 
 // ------------------------------ LOG service configuration ------------------------------
 #define LOG_ENABLE                        (1)
