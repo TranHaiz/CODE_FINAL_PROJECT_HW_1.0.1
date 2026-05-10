@@ -120,7 +120,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_RESET_OFFLINE_DATA   ,   sys_manager_reset_offline_data_handler  );
   INFO(SYS_MANAGER_EVT_STOP_DANGER_NOTI     ,   sys_manager_stop_danger_noti            );
   INFO(SYS_MANAGER_EVT_FLUSH_LOG            ,   sys_manager_flush_log                   );
-  INFO(SYS_MANAGER_RETAL_NOTI_LIMIT         ,   sys_manager_rental_noti_limit_handler   );
+  INFO(SYS_MANAGER_RENTAL_NOTI_LIMIT         ,   sys_manager_rental_noti_limit_handler   );
   INFO(SYS_MANAGER_EVT_WARN_DEBT            ,   sys_manager_warn_debt_handler           );
   INFO(SYS_MANAGER_EVT_CLEAR_DEBT           ,   sys_manager_clear_debt_handler          );
   // clang-format on
@@ -409,7 +409,7 @@ static void sys_manager_rental_noti_limit_handler(void)
 static void sys_manager_warn_debt_handler(void)
 {
   bsp_led_set(BSP_LED_COLOR_YELLOW, BSP_LED_MODE_FLASH_SLOW, 100);
-  bsp_buzzer_beep_cycle(MAX_UINT32_VALUE, 500, 1500);
+  bsp_buzzer_beep_cycle(1, 500, 1500);
 }
 
 static void sys_manager_clear_debt_handler(void)

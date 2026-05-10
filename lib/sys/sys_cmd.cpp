@@ -335,7 +335,7 @@ static void sys_cmd_log_deinit_handler(void)
 
 static void sys_cmd_rental_noti_limit_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_DEVICE_DANGER);
+  sys_manager_write_event(SYS_MANAGER_RENTAL_NOTI_LIMIT);
 }
 
 static void sys_cmd_warn_debt_handler(void)
