@@ -337,11 +337,6 @@ static void sys_network_run_mqtt_init(void)
     return;
   }
 
-  if (bsp_sim_mqtt_deinit() != STATUS_OK)
-  {
-    LOG_DBG("MQTT deinit non-OK (stale session or first boot — continuing)");
-  }
-
   if (bsp_sim_mqtt_init() != STATUS_OK)
   {
     LOG_WRN("MQTT init failed");

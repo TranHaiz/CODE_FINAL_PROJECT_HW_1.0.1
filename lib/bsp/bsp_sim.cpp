@@ -280,12 +280,29 @@ status_function_t bsp_sim_mqtt_init(void)
   // 3. Keepalive 60s
   bsp_sim_send_and_wait_response("AT+QMTCFG=\"keepalive\",0,60\r\n", "OK", 2000);
 
-  // 4. Open MQTT
+  // 4. Open MQTT — if socket already busy from a stale session, close it and retry once
   snprintf(cmd, sizeof(cmd), "AT+QMTOPEN=%d,\"%s\",%d\r\n", MQTT_CTX, MQTT_BROKER_HOST, MQTT_BROKER_PORT);
   if (!bsp_sim_send_and_wait_response(cmd, "+QMTOPEN: 0,0", 15000))
   {
-    LOG_WRN("Failed to open MQTT connection: %s", sim_rx_buffer);
-    return STATUS_ERROR;
+    if (strstr((char *) sim_rx_buffer, "+QMTOPEN: 0,2") != NULL)
+    {
+      LOG_DBG("MQTT socket busy, closing stale session");
+      char close_cmd[32];
+      snprintf(close_cmd, sizeof(close_cmd), "AT+QMTCLOSE=%d\r\n", MQTT_CTX);
+      bsp_sim_send_and_wait_response(close_cmd, "+QMTCLOSE: 0,0", 3000);
+
+      snprintf(cmd, sizeof(cmd), "AT+QMTOPEN=%d,\"%s\",%d\r\n", MQTT_CTX, MQTT_BROKER_HOST, MQTT_BROKER_PORT);
+      if (!bsp_sim_send_and_wait_response(cmd, "+QMTOPEN: 0,0", 15000))
+      {
+        LOG_WRN("MQTT open retry failed: %s", sim_rx_buffer);
+        return STATUS_ERROR;
+      }
+    }
+    else
+    {
+      LOG_WRN("Failed to open MQTT connection: %s", sim_rx_buffer);
+      return STATUS_ERROR;
+    }
   }
 
   // 5. CONNECT broker
