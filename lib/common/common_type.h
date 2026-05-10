@@ -26,6 +26,8 @@
 #include <string.h>
 
 /* Public defines ----------------------------------------------------- */
+#define MAX_UINT32_VALUE (0xFFFFFFFF)  // Maximum value for a 32-bit unsigned integer
+
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
 {

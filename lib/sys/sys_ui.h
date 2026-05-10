@@ -88,6 +88,13 @@ void sys_ui_change_time_active(void);
  */
 void sys_ui_warning_out_of_zone(bool is_active);
 
+/**
+ * @brief Show warning on main screen when rental fee is high
+ * @param[in] is_active: true to show warning, false to hide
+ * @return none
+ */
+void sys_ui_warning_money(bool is_active);
+
 #endif /*End file _SYS_UI_H_*/
 
 /* End of file -------------------------------------------------------- */

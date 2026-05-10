@@ -46,6 +46,9 @@ static void sys_cmd_stop_rental_success_handler(void);
 static void sys_cmd_set_danger_noti_handler(void);
 static void sys_cmd_clear_distance_handler(void);
 static void sys_cmd_log_deinit_handler(void);
+static void sys_cmd_rental_noti_limit_handler(void);
+static void sys_cmd_warn_debt_handler(void);
+static void sys_cmd_clear_debt_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -65,7 +68,10 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("STOP_RENTAL_SUCCESS", sys_cmd_stop_rental_success_handler),
   INFO("SET_DANGER_NOTI", sys_cmd_set_danger_noti_handler),
   INFO("CLEAR_TOTAL_DISTANCE", sys_cmd_clear_distance_handler),
-  INFO("LOG_DEINIT", sys_cmd_log_deinit_handler)
+  INFO("LOG_DEINIT", sys_cmd_log_deinit_handler),
+  INFO("RENTAL_NOTI_LIMIT", sys_cmd_rental_noti_limit_handler),
+  INFO("WARN_DEBT", sys_cmd_warn_debt_handler),
+  INFO("CLEAR_DEBT", sys_cmd_clear_debt_handler),
 };
 #undef INFO
 // clang-format on
@@ -325,6 +331,21 @@ static void sys_cmd_clear_distance_handler(void)
 static void sys_cmd_log_deinit_handler(void)
 {
   sys_manager_write_event(SYS_MANAGER_EVT_FLUSH_LOG);
+}
+
+static void sys_cmd_rental_noti_limit_handler(void)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_DEVICE_DANGER);
+}
+
+static void sys_cmd_warn_debt_handler(void)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_WARN_DEBT);
+}
+
+static void sys_cmd_clear_debt_handler(void)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_CLEAR_DEBT);
 }
 
 /* End of file -------------------------------------------------------- */

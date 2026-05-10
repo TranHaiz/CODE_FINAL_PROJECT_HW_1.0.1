@@ -34,6 +34,9 @@ typedef enum
   CMD_SET_DANGER_NOTI,
   CMD_CLEAR_DISTANCE,
   CMD_LOG_DEINIT,
+  CMD_RENTAL_NOTI_LIMIT,
+  CMD_WARN_DEBT,
+  CMD_CLEAR_DEBT,
   CMD_MAX
 } sys_command_id_t;
 
