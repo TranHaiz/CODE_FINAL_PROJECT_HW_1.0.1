@@ -33,8 +33,14 @@ typedef struct
   void (*handler)(void);
 } sys_command_t;
 
+typedef struct
+{
+  sys_manager_event_t last_event;
+} sys_cmd_handler_t;
+
 /* Private function prototypes ---------------------------------------- */
 static status_function_t sys_cmd_parse_and_execute(const char *input);
+static void              sys_cmd_request_evt(sys_manager_event_t event);
 
 static void sys_cmd_lock_device_handler(void);
 static void sys_cmd_unlock_device_handler(void);
@@ -49,6 +55,7 @@ static void sys_cmd_log_deinit_handler(void);
 static void sys_cmd_rental_noti_limit_handler(void);
 static void sys_cmd_warn_debt_handler(void);
 static void sys_cmd_clear_debt_handler(void);
+static void sys_cmd_warn_low_balance_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -71,10 +78,13 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("LOG_DEINIT", sys_cmd_log_deinit_handler),
   INFO("RENTAL_NOTI_LIMIT", sys_cmd_rental_noti_limit_handler),
   INFO("WARN_DEBT", sys_cmd_warn_debt_handler),
-  INFO("CLEAR_DEBT", sys_cmd_clear_debt_handler),
+  INFO("DEBT_CLEAR", sys_cmd_clear_debt_handler),
+  INFO("WARN_LOW_BALANCE", sys_cmd_warn_low_balance_handler),
 };
 #undef INFO
 // clang-format on
+
+sys_cmd_handler_t cmd_handler;
 
 /* Function definitions ----------------------------------------------- */
 void sys_cmd_process(void)
@@ -116,14 +126,20 @@ static status_function_t sys_cmd_parse_and_execute(const char *input)
   return STATUS_ERROR;
 }
 
+static void sys_cmd_request_evt(sys_manager_event_t event)
+{
+  cmd_handler.last_event = event;
+  sys_manager_write_event(event);
+}
+
 static void sys_cmd_lock_device_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_LOCK_FROM_NETWORK);
+  sys_cmd_request_evt(SYS_MANAGER_EVT_LOCK_FROM_NETWORK);
 }
 
 static void sys_cmd_unlock_device_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_UNLOCK_FROM_NETWORK);
+  sys_cmd_request_evt(SYS_MANAGER_EVT_UNLOCK_FROM_NETWORK);
 }
 
 static void sys_cmd_set_time_handler(void)
@@ -261,27 +277,27 @@ static void sys_cmd_set_device_id_handler(void)
   snprintf(g_device_info.mqtt_data_topic, sizeof(g_device_info.mqtt_data_topic), "%s/data", g_device_info.device_name);
 
   bsp_device_flash_write(&g_device_info.nvs_info);
-  sys_manager_write_event(SYS_MANAGER_EVT_CHANGE_CMD_TOPIC);
+  sys_cmd_request_evt(SYS_MANAGER_EVT_CHANGE_CMD_TOPIC);
 
   LOG_DBG("SET_DEVICE: id=%s serial=%s name=%s cmd=%s data=%s", id_str, g_device_info.nvs_info.serial_number,
           g_device_info.device_name, g_device_info.mqtt_cmd_topic, g_device_info.mqtt_data_topic);
 
-  sys_manager_write_event(SYS_MANAGER_EVT_REBOOT);
+  sys_cmd_request_evt(SYS_MANAGER_EVT_REBOOT);
 }
 
 static void sys_cmd_reboot_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_REBOOT);
+  sys_cmd_request_evt(SYS_MANAGER_EVT_REBOOT);
 }
 
 static void sys_cmd_stop_rental_fail_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_STOP_RENTAL_FAIL);
+  sys_cmd_request_evt(SYS_MANAGER_EVT_STOP_RENTAL_FAIL);
 }
 
 static void sys_cmd_stop_rental_success_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS);
+  sys_cmd_request_evt(SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS);
 }
 
 static void sys_cmd_set_danger_noti_handler(void)
@@ -330,22 +346,37 @@ static void sys_cmd_clear_distance_handler(void)
 
 static void sys_cmd_log_deinit_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_FLUSH_LOG);
+  sys_cmd_request_evt(SYS_MANAGER_EVT_FLUSH_LOG);
 }
 
 static void sys_cmd_rental_noti_limit_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_RENTAL_NOTI_LIMIT);
+  if (cmd_handler.last_event == SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS)
+  {
+    return;
+  }
+  sys_cmd_request_evt(SYS_MANAGER_RENTAL_NOTI_LIMIT);
 }
 
 static void sys_cmd_warn_debt_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_WARN_DEBT);
+  if (cmd_handler.last_event == SYS_MANAGER_EVT_WARN_DEBT
+      || cmd_handler.last_event == SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS)
+  {
+    LOG_DBG("WARN_DEBT command received again, ignoring to prevent spamming");
+    return;
+  }
+  sys_cmd_request_evt(SYS_MANAGER_EVT_WARN_DEBT);
 }
 
 static void sys_cmd_clear_debt_handler(void)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_CLEAR_DEBT);
+  sys_cmd_request_evt(SYS_MANAGER_EVT_CLEAR_DEBT);
+}
+
+static void sys_cmd_warn_low_balance_handler(void)
+{
+  sys_cmd_request_evt(SYS_MANAGER_EVT_WARN_LOW_BALANCE);
 }
 
 /* End of file -------------------------------------------------------- */

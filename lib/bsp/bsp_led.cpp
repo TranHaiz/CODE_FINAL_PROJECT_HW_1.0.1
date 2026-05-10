@@ -69,7 +69,7 @@ void bsp_led_init(uint32_t tick_ms)
   INFO(BSP_LED_COLOR_GREEN    ,    0      ,   255   ,   0     );
   INFO(BSP_LED_COLOR_BLUE     ,    0      ,   0     ,   255   );
   INFO(BSP_LED_COLOR_YELLOW   ,    255    ,   255   ,   0     );
-  INFO(BSP_LED_COLOR_ORANGE   ,    255    ,   127   ,   0     );
+  INFO(BSP_LED_COLOR_ORANGE   ,    255    ,   80    ,   0     );
   INFO(BSP_LED_COLOR_CYAN     ,    0      ,   255   ,   255   );
   INFO(BSP_LED_COLOR_WHITE    ,    255    ,   255   ,   255   );
   INFO(BSP_LED_COLOR_RED      ,    255    ,   0     ,   0     );

@@ -34,337 +34,351 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 
-#define SYS_UI_LED_DEFAULT_BRIGHTNESS      (80)
+#define SYS_UI_LED_DEFAULT_BRIGHTNESS              (80)
 
 // Platform UI settings
-#define SYS_UI_COLOR_BG                    SYS_UI_WIDGET_COLOR_DARK_NAVY
-#define SYS_UI_COLOR_BG_CARD               SYS_UI_WIDGET_COLOR_BLUE_GRAY
-#define SYS_UI_COLOR_PRIMARY               SYS_UI_WIDGET_COLOR_CYAN
-#define SYS_UI_COLOR_ACCENT                SYS_UI_WIDGET_COLOR_GOLD
-#define SYS_UI_COLOR_SUCCESS               SYS_UI_WIDGET_COLOR_GREEN
-#define SYS_UI_COLOR_WARNING               SYS_UI_WIDGET_COLOR_ORANGE
-#define SYS_UI_COLOR_DANGER                SYS_UI_WIDGET_COLOR_RED
-#define SYS_UI_COLOR_TEXT                  SYS_UI_WIDGET_COLOR_WHITE
-#define SYS_UI_COLOR_TEXT_DIM              SYS_UI_WIDGET_COLOR_GRAY
-#define SYS_UI_DATA_HISTORY_SAMPLES        (100)
-#define SYS_UI_BRIGHTNESS_PERCENT_OFF      (0)
+#define SYS_UI_COLOR_BG                            SYS_UI_WIDGET_COLOR_DARK_NAVY
+#define SYS_UI_COLOR_BG_CARD                       SYS_UI_WIDGET_COLOR_BLUE_GRAY
+#define SYS_UI_COLOR_PRIMARY                       SYS_UI_WIDGET_COLOR_CYAN
+#define SYS_UI_COLOR_ACCENT                        SYS_UI_WIDGET_COLOR_GOLD
+#define SYS_UI_COLOR_SUCCESS                       SYS_UI_WIDGET_COLOR_GREEN
+#define SYS_UI_COLOR_WARNING                       SYS_UI_WIDGET_COLOR_ORANGE
+#define SYS_UI_COLOR_DANGER                        SYS_UI_WIDGET_COLOR_RED
+#define SYS_UI_COLOR_TEXT                          SYS_UI_WIDGET_COLOR_WHITE
+#define SYS_UI_COLOR_TEXT_DIM                      SYS_UI_WIDGET_COLOR_GRAY
+#define SYS_UI_DATA_HISTORY_SAMPLES                (100)
+#define SYS_UI_BRIGHTNESS_PERCENT_OFF              (0)
 
 // Timing
-#define SYS_UI_COUNTDOWN_MS                (1000)
-#define SYS_UI_ENVIRONMENT_MS              (3000)
+#define SYS_UI_COUNTDOWN_MS                        (1000)
+#define SYS_UI_ENVIRONMENT_MS                      (3000)
 
 // Data limits
-#define SYS_UI_MAX_RENTAL_HISTORY          (4)
-#define SYS_UI_MAX_DISTANCE_LOG            (16)
-#define SYS_UI_MAX_TEMP_SAMPLES            (120)
+#define SYS_UI_MAX_RENTAL_HISTORY                  (4)
+#define SYS_UI_MAX_DISTANCE_LOG                    (16)
+#define SYS_UI_MAX_TEMP_SAMPLES                    (120)
 
 // Top control buttons
-#define SYS_UI_CTRL_BTN_Y                  (5)
-#define SYS_UI_CTRL_BTN_H                  (25)
-#define SYS_UI_SETTINGS_BTN_X              (10)
-#define SYS_UI_SETTINGS_BTN_W              (90)
-#define SYS_UI_OUT_BTN_X                   (220)
-#define SYS_UI_OUT_BTN_W                   (90)
+#define SYS_UI_CTRL_BTN_Y                          (5)
+#define SYS_UI_CTRL_BTN_H                          (25)
+#define SYS_UI_SETTINGS_BTN_X                      (10)
+#define SYS_UI_SETTINGS_BTN_W                      (90)
+#define SYS_UI_OUT_BTN_X                           (220)
+#define SYS_UI_OUT_BTN_W                           (90)
 
 // Speedometer arc
-#define SYS_UI_SPEEDO_CX                   (110)
-#define SYS_UI_SPEEDO_CY                   (120)
-#define SYS_UI_SPEEDO_OUTER_R              (74)
-#define SYS_UI_SPEEDO_INNER_R              (54)
+#define SYS_UI_SPEEDO_CX                           (110)
+#define SYS_UI_SPEEDO_CY                           (120)
+#define SYS_UI_SPEEDO_OUTER_R                      (74)
+#define SYS_UI_SPEEDO_INNER_R                      (54)
 
 // Compass panel
-#define SYS_UI_MAP_PANEL_X                 (2)
-#define SYS_UI_MAP_PANEL_Y                 (183)
-#define SYS_UI_MAP_PANEL_W                 (50)
-#define SYS_UI_MAP_PANEL_H                 (52)
-#define SYS_UI_COMPASS_CX                  (22)
-#define SYS_UI_COMPASS_CY                  (210)
-#define SYS_UI_COMPASS_R                   (15)
-#define SYS_UI_HEADING_TEXT_X              (SYS_UI_COMPASS_CX - 12)
-#define SYS_UI_HEADING_TEXT_Y              (SYS_UI_COMPASS_CY - 12)
-#define SYS_UI_COMPASS_DEG_X               (SYS_UI_COMPASS_CX - 12)
-#define SYS_UI_COMPASS_DEG_Y               (SYS_UI_COMPASS_CY + 5)
-#define SYS_UI_COMPASS_PANEL_BG_COLOR      (0x0A1520)
+#define SYS_UI_MAP_PANEL_X                         (2)
+#define SYS_UI_MAP_PANEL_Y                         (183)
+#define SYS_UI_MAP_PANEL_W                         (50)
+#define SYS_UI_MAP_PANEL_H                         (52)
+#define SYS_UI_COMPASS_CX                          (22)
+#define SYS_UI_COMPASS_CY                          (210)
+#define SYS_UI_COMPASS_R                           (15)
+#define SYS_UI_HEADING_TEXT_X                      (SYS_UI_COMPASS_CX - 12)
+#define SYS_UI_HEADING_TEXT_Y                      (SYS_UI_COMPASS_CY - 12)
+#define SYS_UI_COMPASS_DEG_X                       (SYS_UI_COMPASS_CX - 12)
+#define SYS_UI_COMPASS_DEG_Y                       (SYS_UI_COMPASS_CY + 5)
+#define SYS_UI_COMPASS_PANEL_BG_COLOR              (0x0A1520)
 
 // Warning label
-#define SYS_UI_WARNING_LABEL_X             (SYS_UI_MAP_PANEL_X + SYS_UI_MAP_PANEL_W + 10)
-#define SYS_UI_WARNING_LABEL_Y             (SYS_UI_MAP_PANEL_Y)
-#define SYS_UI_WARNING_LABEL_TEXT          "OUT OF ZONE"
-#define SYS_UI_WARNING_LABEL_TEXT_COLOR    SYS_UI_WIDGET_COLOR_RED
-#define SYS_UI_WARNING_LABEL_FONT          (&lv_font_montserrat_14)
+#define SYS_UI_WARNING_LABEL_X                     (SYS_UI_MAP_PANEL_X + SYS_UI_MAP_PANEL_W + 10)
+#define SYS_UI_WARNING_LABEL_Y                     (SYS_UI_MAP_PANEL_Y)
+#define SYS_UI_WARNING_LABEL_TEXT                  "OUT OF ZONE"
+#define SYS_UI_WARNING_LABEL_TEXT_COLOR            SYS_UI_WIDGET_COLOR_RED
+#define SYS_UI_WARNING_LABEL_FONT                  (&lv_font_montserrat_14)
 
-// Warning label
-#define SYS_UI_WARN_MONEY_LABEL_X          (SYS_UI_MAP_PANEL_X + SYS_UI_MAP_PANEL_W + 10)
-#define SYS_UI_WARN_MONEY_LABEL_Y          (SYS_UI_MAP_PANEL_Y)
-#define SYS_UI_WARN_MONEY_LABEL_TEXT       "OUT OF MONEY"
-#define SYS_UI_WARN_MONEY_LABEL_TEXT_COLOR SYS_UI_WIDGET_COLOR_RED
-#define SYS_UI_WARN_MONEY_LABEL_FONT       (&lv_font_montserrat_14)
+// Warning label for error out of max money
+#define SYS_UI_NOTI_RENTAL_LIMIT_LABEL_X           (SYS_UI_MAP_PANEL_X + SYS_UI_MAP_PANEL_W + 10)
+#define SYS_UI_NOTI_RENTAL_LIMIT_LABEL_Y           (SYS_UI_MAP_PANEL_Y)
+#define SYS_UI_NOTI_RENTAL_LIMIT_LABEL_TEXT        "STOP, RETURN ZONE"
+#define SYS_UI_NOTI_RENTAL_LIMIT_LABEL_TEXT_COLOR  SYS_UI_WIDGET_COLOR_RED
+#define SYS_UI_NOTI_RENTAL_LIMIT_LABEL_FONT        (&lv_font_montserrat_14)
+
+// Warning add fund label
+#define SYS_UI_NOTI_WARN_ADD_FUND_LABEL_X          (SYS_UI_MAP_PANEL_X + SYS_UI_MAP_PANEL_W + 10)
+#define SYS_UI_NOTI_WARN_ADD_FUND_LABEL_Y          (SYS_UI_MAP_PANEL_Y)
+#define SYS_UI_NOTI_WARN_ADD_FUND_LABEL_TEXT       "PLEASE ADD FUNDS"
+#define SYS_UI_NOTI_WARN_ADD_FUND_LABEL_TEXT_COLOR SYS_UI_WIDGET_COLOR_RED
+#define SYS_UI_NOTI_WARN_ADD_FUND_LABEL_FONT       (&lv_font_montserrat_14)
+
+// Noti add fund label
+#define SYS_UI_SHOULD_ADD_FUND_LABEL_X             (SYS_UI_MAP_PANEL_X + SYS_UI_MAP_PANEL_W + 10)
+#define SYS_UI_SHOULD_ADD_FUND_LABEL_Y             (SYS_UI_MAP_PANEL_Y)
+#define SYS_UI_SHOULD_ADD_FUND_LABEL_TEXT          "SHOULD ADD FUNDS"
+#define SYS_UI_SHOULD_ADD_FUND_LABEL_TEXT_COLOR    SYS_UI_WIDGET_COLOR_RED
+#define SYS_UI_SHOULD_ADD_FUND_LABEL_FONT          (&lv_font_montserrat_14)
 
 // Right panel info cards
-#define SYS_UI_CARD_X                      (218)
-#define SYS_UI_CARD_W                      (100)
-#define SYS_UI_TIME_CARD_Y                 (34)
-#define SYS_UI_TIME_CARD_H                 (52)
-#define SYS_UI_DIST_CARD_Y                 (91)
-#define SYS_UI_DIST_CARD_H                 (40)
-#define SYS_UI_ENV_CARD_Y                  (136)
-#define SYS_UI_ENV_CARD_H                  (100)
+#define SYS_UI_CARD_X                              (218)
+#define SYS_UI_CARD_W                              (100)
+#define SYS_UI_TIME_CARD_Y                         (34)
+#define SYS_UI_TIME_CARD_H                         (52)
+#define SYS_UI_DIST_CARD_Y                         (91)
+#define SYS_UI_DIST_CARD_H                         (40)
+#define SYS_UI_ENV_CARD_Y                          (136)
+#define SYS_UI_ENV_CARD_H                          (100)
 
 // Shared sub-screen back button
-#define SYS_UI_BACK_BTN_X                  (10)
-#define SYS_UI_BACK_BTN_Y                  (10)
-#define SYS_UI_BACK_BTN_W                  (60)
-#define SYS_UI_BACK_BTN_H                  (25)
-#define SYS_UI_BACK_BTN_LABEL              "BACK"
-#define SYS_UI_BACK_BTN_COLOR              SYS_UI_COLOR_ACCENT
-#define SYS_UI_BACK_BTN_TEXT_COLOR         SYS_UI_COLOR_TEXT
+#define SYS_UI_BACK_BTN_X                          (10)
+#define SYS_UI_BACK_BTN_Y                          (10)
+#define SYS_UI_BACK_BTN_W                          (60)
+#define SYS_UI_BACK_BTN_H                          (25)
+#define SYS_UI_BACK_BTN_LABEL                      "BACK"
+#define SYS_UI_BACK_BTN_COLOR                      SYS_UI_COLOR_ACCENT
+#define SYS_UI_BACK_BTN_TEXT_COLOR                 SYS_UI_COLOR_TEXT
 
 // Screen out
-#define SYS_UI_PAUSE_BTN_X                 (10)
-#define SYS_UI_PAUSE_BTN_Y                 (105)
-#define SYS_UI_PAUSE_BTN_W                 (120)
-#define SYS_UI_PAUSE_BTN_H                 (50)
-#define SYS_UI_PAUSE_BTN_LABEL             "PAUSE"
-#define SYS_UI_PAUSE_BTN_COLOR             SYS_UI_WIDGET_COLOR_ORANGE
-#define SYS_UI_PAUSE_BTN_TEXT_COLOR        SYS_UI_COLOR_TEXT
-#define SYS_UI_STOP_BTN_X                  (SYS_UI_PAUSE_BTN_X + SYS_UI_PAUSE_BTN_W + 50)
-#define SYS_UI_STOP_BTN_Y                  (105)
-#define SYS_UI_STOP_BTN_W                  (120)
-#define SYS_UI_STOP_BTN_H                  (50)
-#define SYS_UI_STOP_BTN_LABEL              "STOP"
-#define SYS_UI_STOP_BTN_COLOR              SYS_UI_COLOR_SUCCESS
-#define SYS_UI_STOP_BTN_TEXT_COLOR         SYS_UI_COLOR_TEXT
-#define SYS_UI_OUT_LABEL_X                 (50)
-#define SYS_UI_OUT_LABEL_Y                 (81)
-#define SYS_UI_OUT_LABEL_TEXT              "Do you want to quit the bike?"
+#define SYS_UI_PAUSE_BTN_X                         (10)
+#define SYS_UI_PAUSE_BTN_Y                         (105)
+#define SYS_UI_PAUSE_BTN_W                         (120)
+#define SYS_UI_PAUSE_BTN_H                         (50)
+#define SYS_UI_PAUSE_BTN_LABEL                     "PAUSE"
+#define SYS_UI_PAUSE_BTN_COLOR                     SYS_UI_WIDGET_COLOR_ORANGE
+#define SYS_UI_PAUSE_BTN_TEXT_COLOR                SYS_UI_COLOR_TEXT
+#define SYS_UI_STOP_BTN_X                          (SYS_UI_PAUSE_BTN_X + SYS_UI_PAUSE_BTN_W + 50)
+#define SYS_UI_STOP_BTN_Y                          (105)
+#define SYS_UI_STOP_BTN_W                          (120)
+#define SYS_UI_STOP_BTN_H                          (50)
+#define SYS_UI_STOP_BTN_LABEL                      "STOP"
+#define SYS_UI_STOP_BTN_COLOR                      SYS_UI_COLOR_SUCCESS
+#define SYS_UI_STOP_BTN_TEXT_COLOR                 SYS_UI_COLOR_TEXT
+#define SYS_UI_OUT_LABEL_X                         (50)
+#define SYS_UI_OUT_LABEL_Y                         (81)
+#define SYS_UI_OUT_LABEL_TEXT                      "Do you want to quit the bike?"
 
 // Settings screen
-#define SYS_UI_SWATCH_ROW_Y                (130)
-#define SYS_UI_SWATCH_SIZE                 (36)
-#define SYS_UI_SWATCH_SPAN                 (50)
-#define SYS_UI_SWATCH_X                    (40)
-#define SYS_UI_SWATCH_LABEL_Y_OFFSET       (3)
+#define SYS_UI_SWATCH_ROW_Y                        (130)
+#define SYS_UI_SWATCH_SIZE                         (36)
+#define SYS_UI_SWATCH_SPAN                         (50)
+#define SYS_UI_SWATCH_X                            (40)
+#define SYS_UI_SWATCH_LABEL_Y_OFFSET               (3)
 
 // Time screen title
-#define SYS_UI_EXTEND_LABEL                "ACTIVE HISTORY"
-#define SYS_UI_EXTEND_LABEL_FONT           (&lv_font_montserrat_18)
-#define SYS_UI_EXTEND_LABEL_X              (SYS_UI_BACK_BTN_X + SYS_UI_BACK_BTN_W + 10)
-#define SYS_UI_EXTEND_LABEL_Y              (SYS_UI_BACK_BTN_Y)
+#define SYS_UI_EXTEND_LABEL                        "ACTIVE HISTORY"
+#define SYS_UI_EXTEND_LABEL_FONT                   (&lv_font_montserrat_18)
+#define SYS_UI_EXTEND_LABEL_X                      (SYS_UI_BACK_BTN_X + SYS_UI_BACK_BTN_W + 10)
+#define SYS_UI_EXTEND_LABEL_Y                      (SYS_UI_BACK_BTN_Y)
 
 // Main screen text + layout
-#define SYS_UI_SETTINGS_BTN_LABEL          "SETTINGS"
-#define SYS_UI_OUT_BTN_LABEL               "OUT"
-#define SYS_UI_SPEEDO_START_ANGLE          (135)
-#define SYS_UI_SPEEDO_END_ANGLE            (405)
-#define SYS_UI_SPEEDO_BG_COLOR             (0x1A2A3A)
-#define SYS_UI_SPEED_LABEL_X_OFFSET        (-20)
-#define SYS_UI_SPEED_LABEL_Y_OFFSET        (-14)
-#define SYS_UI_SPEED_LABEL_INIT            "0"
-#define SYS_UI_SPEED_LABEL_W               (40)
-#define SYS_UI_SPEED_UNIT_X_OFFSET         (-12)
-#define SYS_UI_SPEED_UNIT_Y_OFFSET         (18)
-#define SYS_UI_SPEED_UNIT_LABEL            "km/h"
-#define SYS_UI_COMPASS_NEEDLE_INSET        (4)
-#define SYS_UI_COMPASS_NEEDLE_WIDTH        (2)
-#define SYS_UI_COMPASS_DEG_LABEL_INIT      "0\xc2\xb0"
-#define SYS_UI_COMPASS_DIR_LABEL_INIT      "N"
-#define SYS_UI_COMPASS_DIR_OFFSET_DEG      (22.5f)
-#define SYS_UI_COMPASS_DIR_SECTOR_DEG      (45.0f)
-#define SYS_UI_TIME_CARD_LABEL_X           (8)
-#define SYS_UI_TIME_CARD_LABEL_Y           (2)
-#define SYS_UI_TIME_CARD_LABEL             "ACTIVE TIME"
-#define SYS_UI_TIME_LABEL_X                (5)
-#define SYS_UI_TIME_LABEL_Y                (16)
-#define SYS_UI_TIME_LABEL_INIT             "0:00:00"
-#define SYS_UI_TIME_UNIT_X                 (24)
-#define SYS_UI_TIME_UNIT_Y                 (38)
-#define SYS_UI_TIME_UNIT_LABEL             ""
-#define SYS_UI_DISTANCE_LABEL_X            (5)
-#define SYS_UI_DISTANCE_LABEL_Y            (16)
-#define SYS_UI_DISTANCE_LABEL_INIT         "0.00"
-#define SYS_UI_DISTANCE_UNIT_X             (62)
-#define SYS_UI_DISTANCE_UNIT_Y             (20)
-#define SYS_UI_DISTANCE_UNIT_LABEL         "km"
-#define SYS_UI_DISTANCE_TITLE_X            (5)
-#define SYS_UI_DISTANCE_TITLE_Y            (2)
-#define SYS_UI_DISTANCE_TITLE_LABEL        "DISTANCE"
-#define SYS_UI_ENV_TITLE_X                 (6)
-#define SYS_UI_ENV_TITLE_Y                 (0)
-#define SYS_UI_ENV_TITLE_LABEL             "ENV STATUS"
-#define SYS_UI_TEMP_LABEL_X                (5)
-#define SYS_UI_TEMP_LABEL_Y                (14)
-#define SYS_UI_TEMP_LABEL_INIT             "0.0\xc2\xb0\x43"
-#define SYS_UI_HUM_LABEL_X                 (5)
-#define SYS_UI_HUM_LABEL_Y                 (32)
-#define SYS_UI_HUM_LABEL_INIT              "0%"
-#define SYS_UI_AQI_LABEL_X                 (5)
-#define SYS_UI_AQI_LABEL_Y                 (50)
-#define SYS_UI_AQI_LABEL_INIT              "AQI: --"
-#define SYS_UI_SPEED_LABEL_FORMAT          "%d"
-#define SYS_UI_TIME_LABEL_FORMAT           "%d:%02d:%02d"
-#define SYS_UI_DISTANCE_LABEL_FORMAT       "%.2f"
-#define SYS_UI_TEMP_LABEL_FORMAT           "%.1f\xc2\xb0C"
-#define SYS_UI_HUM_LABEL_FORMAT            "%.0f%%"
-#define SYS_UI_COMPASS_DEG_FORMAT          "%.0f\xc2\xb0"
-#define SYS_UI_SPEED_MIN_KPH               (0)
-#define SYS_UI_SPEED_MAX_KPH               (40)
-#define SYS_UI_SPEED_SAFE_MAX_KPH          (20)
-#define SYS_UI_SPEED_WARN_MAX_KPH          (30)
-#define SYS_UI_SPEED_ARC_MAX_VALUE         (100)
+#define SYS_UI_SETTINGS_BTN_LABEL                  "SETTINGS"
+#define SYS_UI_OUT_BTN_LABEL                       "OUT"
+#define SYS_UI_SPEEDO_START_ANGLE                  (135)
+#define SYS_UI_SPEEDO_END_ANGLE                    (405)
+#define SYS_UI_SPEEDO_BG_COLOR                     (0x1A2A3A)
+#define SYS_UI_SPEED_LABEL_X_OFFSET                (-20)
+#define SYS_UI_SPEED_LABEL_Y_OFFSET                (-14)
+#define SYS_UI_SPEED_LABEL_INIT                    "0"
+#define SYS_UI_SPEED_LABEL_W                       (40)
+#define SYS_UI_SPEED_UNIT_X_OFFSET                 (-12)
+#define SYS_UI_SPEED_UNIT_Y_OFFSET                 (18)
+#define SYS_UI_SPEED_UNIT_LABEL                    "km/h"
+#define SYS_UI_COMPASS_NEEDLE_INSET                (4)
+#define SYS_UI_COMPASS_NEEDLE_WIDTH                (2)
+#define SYS_UI_COMPASS_DEG_LABEL_INIT              "0\xc2\xb0"
+#define SYS_UI_COMPASS_DIR_LABEL_INIT              "N"
+#define SYS_UI_COMPASS_DIR_OFFSET_DEG              (22.5f)
+#define SYS_UI_COMPASS_DIR_SECTOR_DEG              (45.0f)
+#define SYS_UI_TIME_CARD_LABEL_X                   (8)
+#define SYS_UI_TIME_CARD_LABEL_Y                   (2)
+#define SYS_UI_TIME_CARD_LABEL                     "ACTIVE TIME"
+#define SYS_UI_TIME_LABEL_X                        (5)
+#define SYS_UI_TIME_LABEL_Y                        (16)
+#define SYS_UI_TIME_LABEL_INIT                     "0:00:00"
+#define SYS_UI_TIME_UNIT_X                         (24)
+#define SYS_UI_TIME_UNIT_Y                         (38)
+#define SYS_UI_TIME_UNIT_LABEL                     ""
+#define SYS_UI_DISTANCE_LABEL_X                    (5)
+#define SYS_UI_DISTANCE_LABEL_Y                    (16)
+#define SYS_UI_DISTANCE_LABEL_INIT                 "0.00"
+#define SYS_UI_DISTANCE_UNIT_X                     (62)
+#define SYS_UI_DISTANCE_UNIT_Y                     (20)
+#define SYS_UI_DISTANCE_UNIT_LABEL                 "km"
+#define SYS_UI_DISTANCE_TITLE_X                    (5)
+#define SYS_UI_DISTANCE_TITLE_Y                    (2)
+#define SYS_UI_DISTANCE_TITLE_LABEL                "DISTANCE"
+#define SYS_UI_ENV_TITLE_X                         (6)
+#define SYS_UI_ENV_TITLE_Y                         (0)
+#define SYS_UI_ENV_TITLE_LABEL                     "ENV STATUS"
+#define SYS_UI_TEMP_LABEL_X                        (5)
+#define SYS_UI_TEMP_LABEL_Y                        (14)
+#define SYS_UI_TEMP_LABEL_INIT                     "0.0\xc2\xb0\x43"
+#define SYS_UI_HUM_LABEL_X                         (5)
+#define SYS_UI_HUM_LABEL_Y                         (32)
+#define SYS_UI_HUM_LABEL_INIT                      "0%"
+#define SYS_UI_AQI_LABEL_X                         (5)
+#define SYS_UI_AQI_LABEL_Y                         (50)
+#define SYS_UI_AQI_LABEL_INIT                      "AQI: --"
+#define SYS_UI_SPEED_LABEL_FORMAT                  "%d"
+#define SYS_UI_TIME_LABEL_FORMAT                   "%d:%02d:%02d"
+#define SYS_UI_DISTANCE_LABEL_FORMAT               "%.2f"
+#define SYS_UI_TEMP_LABEL_FORMAT                   "%.1f\xc2\xb0C"
+#define SYS_UI_HUM_LABEL_FORMAT                    "%.0f%%"
+#define SYS_UI_COMPASS_DEG_FORMAT                  "%.0f\xc2\xb0"
+#define SYS_UI_SPEED_MIN_KPH                       (0)
+#define SYS_UI_SPEED_MAX_KPH                       (40)
+#define SYS_UI_SPEED_SAFE_MAX_KPH                  (20)
+#define SYS_UI_SPEED_WARN_MAX_KPH                  (30)
+#define SYS_UI_SPEED_ARC_MAX_VALUE                 (100)
 
 // Settings screen text + layout
-#define SYS_UI_SETTINGS_BACK_LABEL         "< BACK"
-#define SYS_UI_SETTINGS_TITLE_X            (90)
-#define SYS_UI_SETTINGS_TITLE_Y            (13)
-#define SYS_UI_SETTINGS_TITLE_LABEL        "SETTINGS"
-#define SYS_UI_SETTINGS_BRIGHTNESS_X       (40)
-#define SYS_UI_SETTINGS_BRIGHTNESS_Y       (52)
-#define SYS_UI_SETTINGS_BRIGHTNESS_TEXT    "Brightness"
-#define SYS_UI_SETTINGS_BG_X               (40)
-#define SYS_UI_SETTINGS_BG_Y               (108)
-#define SYS_UI_SETTINGS_BG_TEXT            "Background"
-#define SYS_UI_SETTINGS_SLIDER_BG_COLOR    (0x1A2A3A)
-#define SYS_UI_SETTINGS_SLIDER_X           (40)
-#define SYS_UI_SETTINGS_SLIDER_Y           (72)
-#define SYS_UI_SETTINGS_SLIDER_W           (220)
-#define SYS_UI_SETTINGS_SLIDER_H           (22)
-#define SYS_UI_SETTINGS_SLIDER_MIN         (5)
-#define SYS_UI_SETTINGS_SLIDER_MAX         (100)
-#define SYS_UI_BRIGHTNESS_LABEL_X          (268)
-#define SYS_UI_BRIGHTNESS_LABEL_Y          (72)
-#define SYS_UI_BRIGHTNESS_LABEL_FORMAT     "%d%%"
+#define SYS_UI_SETTINGS_BACK_LABEL                 "< BACK"
+#define SYS_UI_SETTINGS_TITLE_X                    (90)
+#define SYS_UI_SETTINGS_TITLE_Y                    (13)
+#define SYS_UI_SETTINGS_TITLE_LABEL                "SETTINGS"
+#define SYS_UI_SETTINGS_BRIGHTNESS_X               (40)
+#define SYS_UI_SETTINGS_BRIGHTNESS_Y               (52)
+#define SYS_UI_SETTINGS_BRIGHTNESS_TEXT            "Brightness"
+#define SYS_UI_SETTINGS_BG_X                       (40)
+#define SYS_UI_SETTINGS_BG_Y                       (108)
+#define SYS_UI_SETTINGS_BG_TEXT                    "Background"
+#define SYS_UI_SETTINGS_SLIDER_BG_COLOR            (0x1A2A3A)
+#define SYS_UI_SETTINGS_SLIDER_X                   (40)
+#define SYS_UI_SETTINGS_SLIDER_Y                   (72)
+#define SYS_UI_SETTINGS_SLIDER_W                   (220)
+#define SYS_UI_SETTINGS_SLIDER_H                   (22)
+#define SYS_UI_SETTINGS_SLIDER_MIN                 (5)
+#define SYS_UI_SETTINGS_SLIDER_MAX                 (100)
+#define SYS_UI_BRIGHTNESS_LABEL_X                  (268)
+#define SYS_UI_BRIGHTNESS_LABEL_Y                  (72)
+#define SYS_UI_BRIGHTNESS_LABEL_FORMAT             "%d%%"
 
 // Time screen text + layout
-#define SYS_UI_HISTORY_LABEL_X             (40)
-#define SYS_UI_HISTORY_LABEL_Y             (55)
-#define SYS_UI_HISTORY_LABEL_SPAN          (20)
-#define SYS_UI_REMAINING_LABEL_X           (40)
-#define SYS_UI_REMAINING_LABEL_Y           (140)
-#define SYS_UI_REMAINING_LABEL_INIT        "Remaining: 00:00"
-#define SYS_UI_REMAINING_LABEL_FORMAT      "Remaining: %02d:%02d"
-#define SYS_UI_TIME_DANGER_MIN             (5)
-#define SYS_UI_TIME_WARNING_MIN            (10)
-#define SYS_UI_COUNTDOWN_RESET_SEC         (59)
+#define SYS_UI_HISTORY_LABEL_X                     (40)
+#define SYS_UI_HISTORY_LABEL_Y                     (55)
+#define SYS_UI_HISTORY_LABEL_SPAN                  (20)
+#define SYS_UI_REMAINING_LABEL_X                   (40)
+#define SYS_UI_REMAINING_LABEL_Y                   (140)
+#define SYS_UI_REMAINING_LABEL_INIT                "Remaining: 00:00"
+#define SYS_UI_REMAINING_LABEL_FORMAT              "Remaining: %02d:%02d"
+#define SYS_UI_TIME_DANGER_MIN                     (5)
+#define SYS_UI_TIME_WARNING_MIN                    (10)
+#define SYS_UI_COUNTDOWN_RESET_SEC                 (59)
 
 // Fusion screen text + layout
-#define SYS_UI_FUSION_MAX_SPEED_INIT       "Max: 0.0 km/h"
-#define SYS_UI_FUSION_AVG_SPEED_INIT       "Avg: 0.0 km/h"
-#define SYS_UI_FUSION_Y_LABEL_INIT         "---"
-#define SYS_UI_FUSION_X_START_INIT         "0s"
-#define SYS_UI_FUSION_X_END_INIT           "---"
-#define SYS_UI_FUSION_ZOOM_MINUS_LABEL     "Zoom-"
-#define SYS_UI_FUSION_ZOOM_PLUS_LABEL      "Zoom+"
-#define SYS_UI_FUSION_PAN_LEFT_LABEL       "<"
-#define SYS_UI_FUSION_PAN_RIGHT_LABEL      ">"
-#define SYS_UI_FUSION_INACTIVE_BTN_BG      (0x333333)
-#define SYS_UI_FUSION_MIN_HOURS            (0.001f)
-#define SYS_UI_CHART_Y_PAD_RAW             (5)
-#define SYS_UI_CHART_Y_MIN_SPAN_RAW        (10)
-#define SYS_UI_FUSION_X_END_OFFSET         (30)
-#define SYS_UI_FUSION_ZOOM_MIN             (1)
-#define SYS_UI_FUSION_ZOOM_MAX             (4)
+#define SYS_UI_FUSION_MAX_SPEED_INIT               "Max: 0.0 km/h"
+#define SYS_UI_FUSION_AVG_SPEED_INIT               "Avg: 0.0 km/h"
+#define SYS_UI_FUSION_Y_LABEL_INIT                 "---"
+#define SYS_UI_FUSION_X_START_INIT                 "0s"
+#define SYS_UI_FUSION_X_END_INIT                   "---"
+#define SYS_UI_FUSION_ZOOM_MINUS_LABEL             "Zoom-"
+#define SYS_UI_FUSION_ZOOM_PLUS_LABEL              "Zoom+"
+#define SYS_UI_FUSION_PAN_LEFT_LABEL               "<"
+#define SYS_UI_FUSION_PAN_RIGHT_LABEL              ">"
+#define SYS_UI_FUSION_INACTIVE_BTN_BG              (0x333333)
+#define SYS_UI_FUSION_MIN_HOURS                    (0.001f)
+#define SYS_UI_CHART_Y_PAD_RAW                     (5)
+#define SYS_UI_CHART_Y_MIN_SPAN_RAW                (10)
+#define SYS_UI_FUSION_X_END_OFFSET                 (30)
+#define SYS_UI_FUSION_ZOOM_MIN                     (1)
+#define SYS_UI_FUSION_ZOOM_MAX                     (4)
 
 // ENV screen text + layout
-#define SYS_UI_ENV_Y_LABEL_INIT            "---"
-#define SYS_UI_ENV_X_START_INIT            "0s"
-#define SYS_UI_ENV_X_END_INIT              "---"
-#define SYS_UI_ENV_ZOOM_MINUS_LABEL        "Zoom-"
-#define SYS_UI_ENV_ZOOM_PLUS_LABEL         "Zoom+"
-#define SYS_UI_ENV_PAN_LEFT_LABEL          "<"
-#define SYS_UI_ENV_PAN_RIGHT_LABEL         ">"
-#define SYS_UI_ENV_X_END_OFFSET            (30)
-#define SYS_UI_ENV_UNIT_TEMP               "C"
-#define SYS_UI_ENV_UNIT_HUM                "%"
-#define SYS_UI_ENV_ZOOM_MIN                (1)
-#define SYS_UI_ENV_ZOOM_MAX                (4)
-#define SYS_UI_PAN_STEP                    (5)
+#define SYS_UI_ENV_Y_LABEL_INIT                    "---"
+#define SYS_UI_ENV_X_START_INIT                    "0s"
+#define SYS_UI_ENV_X_END_INIT                      "---"
+#define SYS_UI_ENV_ZOOM_MINUS_LABEL                "Zoom-"
+#define SYS_UI_ENV_ZOOM_PLUS_LABEL                 "Zoom+"
+#define SYS_UI_ENV_PAN_LEFT_LABEL                  "<"
+#define SYS_UI_ENV_PAN_RIGHT_LABEL                 ">"
+#define SYS_UI_ENV_X_END_OFFSET                    (30)
+#define SYS_UI_ENV_UNIT_TEMP                       "C"
+#define SYS_UI_ENV_UNIT_HUM                        "%"
+#define SYS_UI_ENV_ZOOM_MIN                        (1)
+#define SYS_UI_ENV_ZOOM_MAX                        (4)
+#define SYS_UI_PAN_STEP                            (5)
 
 // AQI status text
-#define SYS_UI_AQI_STATUS_GOOD             "Good"
-#define SYS_UI_AQI_STATUS_FAIR             "Fair"
-#define SYS_UI_AQI_STATUS_POOR             "Poor"
-#define SYS_UI_AQI_STATUS_GOOD_MIN         (80)
-#define SYS_UI_AQI_STATUS_FAIR_MIN         (50)
-#define SYS_UI_AQI_LABEL_FORMAT            "AQI:%d %s"
+#define SYS_UI_AQI_STATUS_GOOD                     "Good"
+#define SYS_UI_AQI_STATUS_FAIR                     "Fair"
+#define SYS_UI_AQI_STATUS_POOR                     "Poor"
+#define SYS_UI_AQI_STATUS_GOOD_MIN                 (80)
+#define SYS_UI_AQI_STATUS_FAIR_MIN                 (50)
+#define SYS_UI_AQI_LABEL_FORMAT                    "AQI:%d %s"
 
 // Lock screen
-#define SYS_UI_LOCK_BG_COLOR               (0x000000)
+#define SYS_UI_LOCK_BG_COLOR                       (0x000000)
 
 // Runtime sampling
-#define SYS_UI_SPEED_SAMPLE_INTERVAL       (60)
+#define SYS_UI_SPEED_SAMPLE_INTERVAL               (60)
 
 // ENV screen chart
-#define SYS_UI_ENV_GRAPH_X                 (38)
-#define SYS_UI_ENV_GRAPH_Y                 (50)
-#define SYS_UI_ENV_GRAPH_W                 (270)
-#define SYS_UI_ENV_GRAPH_H                 (140)
-#define SYS_UI_ENV_GRAPH_POINTS            (60)
-#define SYS_UI_ENV_GRAPH_COLOR             BSP_DISPLAY_RGB_TO_HEX(17, 17, 17)  // VERY DARK GRAY
+#define SYS_UI_ENV_GRAPH_X                         (38)
+#define SYS_UI_ENV_GRAPH_Y                         (50)
+#define SYS_UI_ENV_GRAPH_W                         (270)
+#define SYS_UI_ENV_GRAPH_H                         (140)
+#define SYS_UI_ENV_GRAPH_POINTS                    (60)
+#define SYS_UI_ENV_GRAPH_COLOR                     BSP_DISPLAY_RGB_TO_HEX(17, 17, 17)  // VERY DARK GRAY
 // ENV screen bottom control buttons
-#define SYS_UI_ENV_BTN_Y                   (210)
-#define SYS_UI_ENV_BTN_W                   (60)
-#define SYS_UI_ENV_BTN_H                   (24)
-#define SYS_UI_ENV_BTN_GAP                 (8)
+#define SYS_UI_ENV_BTN_Y                           (210)
+#define SYS_UI_ENV_BTN_W                           (60)
+#define SYS_UI_ENV_BTN_H                           (24)
+#define SYS_UI_ENV_BTN_GAP                         (8)
 // ENV screen tab selector buttons (TEMP / HUM / DUST)
-#define SYS_UI_ENV_TAB_Y                   SYS_UI_BACK_BTN_Y
-#define SYS_UI_ENV_TAB_H                   SYS_UI_BACK_BTN_H
-#define SYS_UI_ENV_TAB_W                   (70)
-#define SYS_UI_ENV_TAB_GAP                 (5)
-#define SYS_UI_ENV_TAB_TEMP_LABEL          "TEMP"
-#define SYS_UI_ENV_TAB_HUM_LABEL           "HUM"
-#define SYS_UI_ENV_TAB_DUST_LABEL          "AQI"
-#define SYS_UI_ENV_TAB_TEMP_X              (SYS_UI_BACK_BTN_X + SYS_UI_BACK_BTN_W + (SYS_UI_ENV_TAB_GAP * 2))
-#define SYS_UI_ENV_TAB_HUM_X               (SYS_UI_ENV_TAB_TEMP_X + SYS_UI_ENV_TAB_W + SYS_UI_ENV_TAB_GAP)
-#define SYS_UI_ENV_TAB_DUST_X              (SYS_UI_ENV_TAB_HUM_X + SYS_UI_ENV_TAB_W + SYS_UI_ENV_TAB_GAP)
+#define SYS_UI_ENV_TAB_Y                           SYS_UI_BACK_BTN_Y
+#define SYS_UI_ENV_TAB_H                           SYS_UI_BACK_BTN_H
+#define SYS_UI_ENV_TAB_W                           (70)
+#define SYS_UI_ENV_TAB_GAP                         (5)
+#define SYS_UI_ENV_TAB_TEMP_LABEL                  "TEMP"
+#define SYS_UI_ENV_TAB_HUM_LABEL                   "HUM"
+#define SYS_UI_ENV_TAB_DUST_LABEL                  "AQI"
+#define SYS_UI_ENV_TAB_TEMP_X                      (SYS_UI_BACK_BTN_X + SYS_UI_BACK_BTN_W + (SYS_UI_ENV_TAB_GAP * 2))
+#define SYS_UI_ENV_TAB_HUM_X                       (SYS_UI_ENV_TAB_TEMP_X + SYS_UI_ENV_TAB_W + SYS_UI_ENV_TAB_GAP)
+#define SYS_UI_ENV_TAB_DUST_X                      (SYS_UI_ENV_TAB_HUM_X + SYS_UI_ENV_TAB_W + SYS_UI_ENV_TAB_GAP)
 // ENV screen axis labels
-#define SYS_UI_ENV_Y_LABEL_X               (1)
-#define SYS_UI_ENV_Y_LABEL_W               (36)
-#define SYS_UI_ENV_X_LABEL_Y               (193)
-#define SYS_UI_ENV_TAB_ACTIVE_COLOR        SYS_UI_COLOR_SUCCESS
-#define SYS_UI_ENV_TAB_INACTIVE_COLOR      BSP_DISPLAY_RGB_TO_HEX(51, 51, 51)  // SUPER DARK GRAY
+#define SYS_UI_ENV_Y_LABEL_X                       (1)
+#define SYS_UI_ENV_Y_LABEL_W                       (36)
+#define SYS_UI_ENV_X_LABEL_Y                       (193)
+#define SYS_UI_ENV_TAB_ACTIVE_COLOR                SYS_UI_COLOR_SUCCESS
+#define SYS_UI_ENV_TAB_INACTIVE_COLOR              BSP_DISPLAY_RGB_TO_HEX(51, 51, 51)  // SUPER DARK GRAY
 
 // Fusion screen
-#define SYS_UI_FUSION_LABEL_X              (SYS_UI_BACK_BTN_X + SYS_UI_BACK_BTN_W + 10)
-#define SYS_UI_FUSION_LABEL_Y              (SYS_UI_BACK_BTN_Y)
-#define SYS_UI_FUSION_LABEL_TEXT           "FUSION STATS"
-#define SYS_UI_FUSION_LABEL_FONT           (&lv_font_montserrat_18)
-#define SYS_UI_FUSION_MAX_SPEED_TEXT       "Max Speed: %.1f km/h"
-#define SYS_UI_FUSION_MAX_SPEED_X          (30)
-#define SYS_UI_FUSION_MAX_SPEED_Y          (50)
-#define SYS_UI_FUSION_AVG_SPEED_TEXT       "Avg Speed: %.1f km/h"
-#define SYS_UI_FUSION_AVG_SPEED_X          (30)
-#define SYS_UI_FUSION_AVG_SPEED_Y          (70)
-#define SYS_UI_FUSION_CHART_X              (40)
-#define SYS_UI_FUSION_CHART_Y              (90)
-#define SYS_UI_FUSION_CHART_W              (265)
-#define SYS_UI_FUSION_CHART_H              (105)
-#define SYS_UI_FUSION_CHART_POINTS         (60)
-#define SYS_UI_FUSION_CHART_COLOR          BSP_DISPLAY_RGB_TO_HEX(17, 17, 17)  // VERY DARK GRAY
-#define SYS_UI_FUSION_CHART_POINT_COLOR    SYS_UI_WIDGET_COLOR_GOLD
-#define SYS_UI_FUSION_Y_LABEL_X            (1)
-#define SYS_UI_FUSION_X_LABEL_Y            (197)
-#define SYS_UI_FUSION_BTN_Y                (210)
-#define SYS_UI_FUSION_BTN_W                (60)
-#define SYS_UI_FUSION_BTN_H                (24)
-#define SYS_UI_FUSION_BTN_GAP              (8)
+#define SYS_UI_FUSION_LABEL_X                      (SYS_UI_BACK_BTN_X + SYS_UI_BACK_BTN_W + 10)
+#define SYS_UI_FUSION_LABEL_Y                      (SYS_UI_BACK_BTN_Y)
+#define SYS_UI_FUSION_LABEL_TEXT                   "FUSION STATS"
+#define SYS_UI_FUSION_LABEL_FONT                   (&lv_font_montserrat_18)
+#define SYS_UI_FUSION_MAX_SPEED_TEXT               "Max Speed: %.1f km/h"
+#define SYS_UI_FUSION_MAX_SPEED_X                  (30)
+#define SYS_UI_FUSION_MAX_SPEED_Y                  (50)
+#define SYS_UI_FUSION_AVG_SPEED_TEXT               "Avg Speed: %.1f km/h"
+#define SYS_UI_FUSION_AVG_SPEED_X                  (30)
+#define SYS_UI_FUSION_AVG_SPEED_Y                  (70)
+#define SYS_UI_FUSION_CHART_X                      (40)
+#define SYS_UI_FUSION_CHART_Y                      (90)
+#define SYS_UI_FUSION_CHART_W                      (265)
+#define SYS_UI_FUSION_CHART_H                      (105)
+#define SYS_UI_FUSION_CHART_POINTS                 (60)
+#define SYS_UI_FUSION_CHART_COLOR                  BSP_DISPLAY_RGB_TO_HEX(17, 17, 17)  // VERY DARK GRAY
+#define SYS_UI_FUSION_CHART_POINT_COLOR            SYS_UI_WIDGET_COLOR_GOLD
+#define SYS_UI_FUSION_Y_LABEL_X                    (1)
+#define SYS_UI_FUSION_X_LABEL_Y                    (197)
+#define SYS_UI_FUSION_BTN_Y                        (210)
+#define SYS_UI_FUSION_BTN_W                        (60)
+#define SYS_UI_FUSION_BTN_H                        (24)
+#define SYS_UI_FUSION_BTN_GAP                      (8)
 
 // Lock screen
-#define SYS_UI_QR_PATH                     "/img/qr.bin"
-#define SYS_UI_QR_LABEL                    "SCAN TO UNLOCK"
-#define SYS_UI_QR_LABEL_X                  (50)
-#define SYS_UI_QR_LABEL_Y                  (20)
-#define SYS_UI_QR_LABEL_FAIL               "[QR]"
-#define SYS_UI_QR_LABEL_FAIL_X             (100)
-#define SYS_UI_QR_LABEL_FAIL_Y             (80)
-#define SYS_UI_QR_LABEL_FAIL_FONT          (&lv_font_montserrat_28)
-#define SYS_UI_QR_LABEL_FONT               (&lv_font_montserrat_18)
-#define SYS_UI_QR_WIDTH                    (160)
-#define SYS_UI_QR_HEIGHT                   (160)
-#define SYS_UI_QR_X                        (80)
-#define SYS_UI_QR_Y                        (50)
-#define SYS_UI_DEVICE_ID_LABEL_X           (80)
-#define SYS_UI_DEVICE_ID_LABEL_Y           (215)
-#define SYS_UI_DEVICE_ID_LABEL_FONT        (&lv_font_montserrat_10)
+#define SYS_UI_QR_PATH                             "/img/qr.bin"
+#define SYS_UI_QR_LABEL                            "SCAN TO UNLOCK"
+#define SYS_UI_QR_LABEL_X                          (50)
+#define SYS_UI_QR_LABEL_Y                          (20)
+#define SYS_UI_QR_LABEL_FAIL                       "[QR]"
+#define SYS_UI_QR_LABEL_FAIL_X                     (100)
+#define SYS_UI_QR_LABEL_FAIL_Y                     (80)
+#define SYS_UI_QR_LABEL_FAIL_FONT                  (&lv_font_montserrat_28)
+#define SYS_UI_QR_LABEL_FONT                       (&lv_font_montserrat_18)
+#define SYS_UI_QR_WIDTH                            (160)
+#define SYS_UI_QR_HEIGHT                           (160)
+#define SYS_UI_QR_X                                (80)
+#define SYS_UI_QR_Y                                (50)
+#define SYS_UI_DEVICE_ID_LABEL_X                   (80)
+#define SYS_UI_DEVICE_ID_LABEL_Y                   (215)
+#define SYS_UI_DEVICE_ID_LABEL_FONT                (&lv_font_montserrat_10)
 
 /* Background color palette for settings screen
  * INFO(index, R, G, B, label)            */
@@ -400,8 +414,10 @@ typedef struct
   lv_obj_t *aqi_label;
   lv_obj_t *settings_btn;
   lv_obj_t *out_btn;
-  lv_obj_t *warning_label;
-  lv_obj_t *warn_money_label;
+  lv_obj_t *warning_out_of_zone_label;
+  lv_obj_t *warn_rental_limit_label;
+  lv_obj_t *warn_add_fund_label;
+  lv_obj_t *should_add_fund_panel;
   // Settings screen
   lv_obj_t *settings_screen;
   lv_obj_t *settings_title;
@@ -516,8 +532,13 @@ typedef struct
   int    fusion_zoom;
   int    fusion_graph_offset;
 
-  bool is_warning_active;
+  bool is_warning_out_of_zone_active;
   bool is_warning_money_active;
+  bool is_add_fund_notification_active;
+  bool is_should_add_fund_notification_active;
+
+  volatile sys_ui_noti_label_type_t pending_noti_label;
+  sys_ui_noti_label_type_t          current_noti_label;
 } sys_ui_context_t;
 
 /* Public variables --------------------------------------------------- */
@@ -555,6 +576,7 @@ static void              sys_ui_init_history_data(void);
 static void              sys_ui_init_all_widgets(void);
 static void              sys_ui_reset_all_widgets(sys_ui_widgets_t *screen);
 static void              sys_ui_register_callbacks(void);
+static void              sys_ui_apply_notification_label(void);
 static status_function_t sys_ui_image_draw(lv_obj_t     *parent,
                                            const char   *path,
                                            uint16_t      width,
@@ -570,8 +592,6 @@ static void sys_ui_main_screen_update_time(int hours, int minutes, int seconds);
 static void sys_ui_main_screen_update_distance(float distance_km);
 static void sys_ui_main_screen_update_env(float temperature_C, float humidity, int air_quality);
 static void sys_ui_main_screen_update_compass(void);
-static void sys_ui_main_screen_update_warning(void);
-static void sys_ui_main_screen_update_warning_money(void);
 static void sys_ui_main_screen_update_speed_n_distance(void);
 static void sys_ui_main_screen_update_countup(void);
 static void sys_ui_main_screen_cb_settings_btn(lv_event_t *event);
@@ -756,18 +776,73 @@ void sys_ui_change_time_active(void)
   }
 }
 
-void sys_ui_warning_out_of_zone(bool is_active)
+void sys_ui_update_notification_label(sys_ui_noti_label_type_t label_type)
 {
-  ui_ctx.is_warning_active = is_active;
-  sys_ui_main_screen_update_warning();
+  if (label_type < SYS_UI_NOTI_LABEL_MAX)
+  {
+    ui_ctx.pending_noti_label = label_type;
+  }
 }
 
-void sys_ui_warning_money(bool is_active)
+static void sys_ui_apply_notification_label(void)
 {
-  ui_ctx.is_warning_money_active = is_active;
-  sys_ui_main_screen_update_warning_money();
-}
+  sys_ui_noti_label_type_t label_type = ui_ctx.pending_noti_label;
+  if (label_type == ui_ctx.current_noti_label)
+  {
+    return;
+  }
+  if (ui_ctx.widgets.warn_add_fund_label == nullptr || ui_ctx.widgets.should_add_fund_panel == nullptr
+      || ui_ctx.widgets.warn_rental_limit_label == nullptr || ui_ctx.widgets.warning_out_of_zone_label == nullptr)
+  {
+    return;
+  }
+  ui_ctx.current_noti_label = label_type;
 
+  switch (label_type)
+  {
+  case SYS_UI_NOTI_LABEL_NONE:
+  {
+    lv_obj_add_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
+    break;
+  }
+  case SYS_UI_NOTI_LABEL_WARN_ADD_FUND:
+  {
+    lv_obj_clear_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
+    break;
+  }
+  case SYS_UI_NOTI_LABEL_SHOULD_ADD_FUND:
+  {
+    lv_obj_add_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
+    break;
+  }
+  case SYS_UI_NOTI_LABEL_OUT_OF_ZONE:
+  {
+    lv_obj_add_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
+    break;
+  }
+  case SYS_UI_NOTI_LABEL_RENTAL_LIMIT:
+  {
+    lv_obj_add_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
+    break;
+  }
+  default: break;
+  }
+}
 /* Private definitions ----------------------------------------------- */
 static void sys_ui_show_screen(lv_obj_t *screen)
 {
@@ -1144,15 +1219,26 @@ static void sys_ui_main_screen_create(void)
                                SYS_UI_COMPASS_DIR_LABEL_INIT, SYS_UI_COLOR_ACCENT, &lv_font_montserrat_18);
 
   // Warning label
-  ui_ctx.widgets.warning_label =
+  ui_ctx.widgets.warning_out_of_zone_label =
     sys_ui_widget_create_label(ui_ctx.widgets.main_screen, SYS_UI_WARNING_LABEL_X, SYS_UI_WARNING_LABEL_Y,
                                SYS_UI_WARNING_LABEL_TEXT, SYS_UI_WARNING_LABEL_TEXT_COLOR, SYS_UI_WARNING_LABEL_FONT);
-  sys_ui_main_screen_update_warning();
 
-  ui_ctx.widgets.warn_money_label = sys_ui_widget_create_label(
-    ui_ctx.widgets.main_screen, SYS_UI_WARN_MONEY_LABEL_X, SYS_UI_WARN_MONEY_LABEL_Y, SYS_UI_WARN_MONEY_LABEL_TEXT,
-    SYS_UI_WARN_MONEY_LABEL_TEXT_COLOR, SYS_UI_WARN_MONEY_LABEL_FONT);
-  sys_ui_main_screen_update_warning_money();
+  ui_ctx.widgets.warn_rental_limit_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.main_screen, SYS_UI_NOTI_RENTAL_LIMIT_LABEL_X,
+                               SYS_UI_NOTI_RENTAL_LIMIT_LABEL_Y, SYS_UI_NOTI_RENTAL_LIMIT_LABEL_TEXT,
+                               SYS_UI_NOTI_RENTAL_LIMIT_LABEL_TEXT_COLOR, SYS_UI_NOTI_RENTAL_LIMIT_LABEL_FONT);
+
+  ui_ctx.widgets.warn_add_fund_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.main_screen, SYS_UI_NOTI_WARN_ADD_FUND_LABEL_X,
+                               SYS_UI_NOTI_WARN_ADD_FUND_LABEL_Y, SYS_UI_NOTI_WARN_ADD_FUND_LABEL_TEXT,
+                               SYS_UI_NOTI_WARN_ADD_FUND_LABEL_TEXT_COLOR, SYS_UI_NOTI_WARN_ADD_FUND_LABEL_FONT);
+
+  ui_ctx.widgets.should_add_fund_panel = sys_ui_widget_create_label(
+    ui_ctx.widgets.main_screen, SYS_UI_SHOULD_ADD_FUND_LABEL_X, SYS_UI_SHOULD_ADD_FUND_LABEL_Y,
+    SYS_UI_SHOULD_ADD_FUND_LABEL_TEXT, SYS_UI_SHOULD_ADD_FUND_LABEL_TEXT_COLOR, SYS_UI_SHOULD_ADD_FUND_LABEL_FONT);
+
+  ui_ctx.current_noti_label = SYS_UI_NOTI_LABEL_MAX;
+  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
 
   // Time card
   ui_ctx.widgets.time_card = sys_ui_widget_create_card(ui_ctx.widgets.main_screen, SYS_UI_CARD_X, SYS_UI_TIME_CARD_Y,
@@ -1308,35 +1394,18 @@ static void sys_ui_main_screen_update_compass(void)
 
 static void sys_ui_main_screen_update_warning(void)
 {
-  if (ui_ctx.widgets.warning_label == nullptr)
+  if (ui_ctx.widgets.warning_out_of_zone_label == nullptr)
   {
     return;
   }
 
-  if (ui_ctx.is_warning_active)
+  if (ui_ctx.is_warning_out_of_zone_active)
   {
-    lv_obj_clear_flag(ui_ctx.widgets.warning_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
   }
   else
   {
-    lv_obj_add_flag(ui_ctx.widgets.warning_label, LV_OBJ_FLAG_HIDDEN);
-  }
-}
-
-static void sys_ui_main_screen_update_warning_money(void)
-{
-  if (ui_ctx.widgets.warn_money_label == nullptr)
-  {
-    return;
-  }
-
-  if (ui_ctx.is_warning_money_active)
-  {
-    lv_obj_clear_flag(ui_ctx.widgets.warn_money_label, LV_OBJ_FLAG_HIDDEN);
-  }
-  else
-  {
-    lv_obj_add_flag(ui_ctx.widgets.warn_money_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
   }
 }
 
@@ -2242,6 +2311,8 @@ static void sys_ui_process_active(void)
       g_sys_ui_data_status.is_dust_data_ready_for_ui     = false;
       g_sys_ui_data_status.is_temp_hum_data_ready_for_ui = false;
     }
+
+    sys_ui_apply_notification_label();
     break;
   }
   case SYS_UI_VIEW_TIME:

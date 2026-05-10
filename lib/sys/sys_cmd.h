@@ -37,6 +37,7 @@ typedef enum
   CMD_RENTAL_NOTI_LIMIT,
   CMD_WARN_DEBT,
   CMD_CLEAR_DEBT,
+  CMD_WARN_LOW_BALANCE,
   CMD_MAX
 } sys_command_id_t;
 

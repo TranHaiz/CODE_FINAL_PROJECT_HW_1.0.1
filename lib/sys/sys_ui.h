@@ -37,6 +37,16 @@ typedef enum
   SYS_UI_VIEW_UNKNOWN
 } sys_ui_view_t;
 
+typedef enum
+{
+  SYS_UI_NOTI_LABEL_NONE = 0,
+  SYS_UI_NOTI_LABEL_OUT_OF_ZONE,
+  SYS_UI_NOTI_LABEL_WARN_ADD_FUND,
+  SYS_UI_NOTI_LABEL_SHOULD_ADD_FUND,
+  SYS_UI_NOTI_LABEL_RENTAL_LIMIT,
+  SYS_UI_NOTI_LABEL_MAX
+} sys_ui_noti_label_type_t;
+
 typedef struct
 {
   bool is_fusion_data_ready_for_ui;
@@ -82,18 +92,11 @@ void sys_ui_wakeup(void);
 void sys_ui_change_time_active(void);
 
 /**
- * @brief Show warning on main screen when device is out of safe zone
- * @param[in] is_active: true to show warning, false to hide
+ * @brief Show rental limit notification on main screen
+ * @param[in] label_type: Type of notification label to display
  * @return none
  */
-void sys_ui_warning_out_of_zone(bool is_active);
-
-/**
- * @brief Show warning on main screen when rental fee is high
- * @param[in] is_active: true to show warning, false to hide
- * @return none
- */
-void sys_ui_warning_money(bool is_active);
+void sys_ui_update_notification_label(sys_ui_noti_label_type_t label_type);
 
 #endif /*End file _SYS_UI_H_*/
 

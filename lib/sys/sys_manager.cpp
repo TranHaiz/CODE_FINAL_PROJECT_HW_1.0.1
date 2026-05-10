@@ -34,7 +34,8 @@ LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_SYS_MANAGER)
 #define SHUTDOWN_TIMER_PERIOD_MS (30000)
 #endif  // DEVICE_IDLE_MODE_ENABLED
 
-#define DEVICE_DANGER_NOTI_INTERVAL_MS (15000)
+#define DEVICE_DANGER_NOTI_INTERVAL_MS     (15000)
+#define DEVICE_LOW_BALANCE_NOTI_TIMEOUT_MS (5000)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef void (*sys_manager_process_handler_t)(void);
@@ -47,7 +48,9 @@ typedef struct
   sys_manager_process_handler_t handler[SYS_MANAGER_EVT_MAX];
   bsp_timer_t                   shutdown_timer;
   bsp_timer_t                   danger_noti_timer;
+  bsp_timer_t                   low_balance_noti_timer;
   bool                          is_noti_limited_active;
+  bool                          is_warning_debt_active;
 } sys_manager_handler_t;
 
 /* Private macros ----------------------------------------------------- */
@@ -83,6 +86,8 @@ static void sys_manager_flush_log(void);
 static void sys_manager_rental_noti_limit_handler(void);
 static void sys_manager_warn_debt_handler(void);
 static void sys_manager_clear_debt_handler(void);
+static void sys_manager_warn_low_balance_handler(void);
+static void sys_manager_low_balance_noti_timer_callback(TimerHandle_t xTimer);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -96,6 +101,9 @@ void sys_manager_init(void)
 
   bsp_timer_init(&manager_handler.danger_noti_timer, DEVICE_DANGER_NOTI_INTERVAL_MS, false,
                  sys_manager_danger_noti_timer_callback);
+
+  bsp_timer_init(&manager_handler.low_balance_noti_timer, DEVICE_LOW_BALANCE_NOTI_TIMEOUT_MS, false,
+                 sys_manager_low_balance_noti_timer_callback);
 
   OS_SEM_CREATE(sys_manager_event_sem);
   OS_MUTEX_CREATE(sys_manager_event_mutex);
@@ -120,7 +128,8 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_RESET_OFFLINE_DATA   ,   sys_manager_reset_offline_data_handler  );
   INFO(SYS_MANAGER_EVT_STOP_DANGER_NOTI     ,   sys_manager_stop_danger_noti            );
   INFO(SYS_MANAGER_EVT_FLUSH_LOG            ,   sys_manager_flush_log                   );
-  INFO(SYS_MANAGER_RENTAL_NOTI_LIMIT         ,   sys_manager_rental_noti_limit_handler   );
+  INFO(SYS_MANAGER_RENTAL_NOTI_LIMIT        ,   sys_manager_rental_noti_limit_handler   );
+  INFO(SYS_MANAGER_EVT_WARN_LOW_BALANCE     ,   sys_manager_warn_low_balance_handler    );
   INFO(SYS_MANAGER_EVT_WARN_DEBT            ,   sys_manager_warn_debt_handler           );
   INFO(SYS_MANAGER_EVT_CLEAR_DEBT           ,   sys_manager_clear_debt_handler          );
   // clang-format on
@@ -351,19 +360,20 @@ void sys_manager_lock_from_network_handler(void)
 static void sys_manager_stop_rental_fail_handler(void)
 {
   device_info_update_state(DEVICE_STATE_ACTIVE);
-  sys_ui_warning_out_of_zone(true);
+  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_OUT_OF_ZONE);
 }
 
 static void sys_manager_stop_rental_success_handler(void)
 {
-  sys_ui_warning_out_of_zone(false);
+  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 #if (DEVICE_IDLE_MODE_ENABLED)
   bsp_timer_start(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
-  if (manager_handler.is_noti_limited_active)
+  if (manager_handler.is_noti_limited_active || manager_handler.is_warning_debt_active)
   {
+    manager_handler.is_warning_debt_active = false;
     manager_handler.is_noti_limited_active = false;
     bsp_led_off();
     bsp_buzzer_enable(false);
@@ -401,21 +411,46 @@ static void sys_manager_flush_log(void)
 
 static void sys_manager_rental_noti_limit_handler(void)
 {
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
+    return;
   manager_handler.is_noti_limited_active = true;
   bsp_led_set(BSP_LED_COLOR_ORANGE, BSP_LED_MODE_FLASH_FAST, 100);
   bsp_buzzer_beep_cycle(MAX_UINT32_VALUE, 1000, 2000);
+  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_RENTAL_LIMIT);
 }
 
 static void sys_manager_warn_debt_handler(void)
 {
-  bsp_led_set(BSP_LED_COLOR_YELLOW, BSP_LED_MODE_FLASH_SLOW, 100);
+  if (manager_handler.is_warning_debt_active || g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
+    return;
+  manager_handler.is_warning_debt_active = true;
+  bsp_led_set(BSP_LED_COLOR_YELLOW, BSP_LED_MODE_PULSE, 100);
   bsp_buzzer_beep_cycle(1, 500, 1500);
+  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_WARN_ADD_FUND);
 }
 
 static void sys_manager_clear_debt_handler(void)
 {
+  if (!manager_handler.is_warning_debt_active)
+    return;
+  manager_handler.is_warning_debt_active = false;
   bsp_led_off();
   bsp_buzzer_enable(false);
+}
+
+static void sys_manager_warn_low_balance_handler(void)
+{
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
+    return;
+  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_SHOULD_ADD_FUND);
+  bsp_buzzer_beep_long(500);
+  // xTimerReset starts the timer if stopped and resets the countdown if running.
+  bsp_timer_reset(&manager_handler.low_balance_noti_timer);
+}
+
+static void sys_manager_low_balance_noti_timer_callback(TimerHandle_t xTimer)
+{
+  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
 }
 
 /* End of file -------------------------------------------------------- */
