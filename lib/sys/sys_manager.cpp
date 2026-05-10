@@ -37,6 +37,9 @@ LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_SYS_MANAGER)
 #define DEVICE_DANGER_NOTI_INTERVAL_MS     (15000)
 #define DEVICE_LOW_BALANCE_NOTI_TIMEOUT_MS (5000)
 
+#define LED_WARN_DEBT_BRIGHTNESS           (50)
+#define LED_RENTAL_LIMIT                   (50)
+
 /* Private enumerate/structure ---------------------------------------- */
 typedef void (*sys_manager_process_handler_t)(void);
 
@@ -227,6 +230,7 @@ static void sys_manager_unlocked_handler(void)
   }
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
   sys_manager_stop_danger_noti();
+  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
 }
 
 static void sys_manager_change_topic_sub_handler(void)
@@ -340,6 +344,7 @@ void sys_manager_unlock_from_network_handler(void)
   }
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
   sys_manager_stop_danger_noti();
+  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
   sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
 
@@ -414,7 +419,7 @@ static void sys_manager_rental_noti_limit_handler(void)
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
     return;
   manager_handler.is_noti_limited_active = true;
-  bsp_led_set(BSP_LED_COLOR_ORANGE, BSP_LED_MODE_FLASH_FAST, 100);
+  bsp_led_set(BSP_LED_COLOR_ORANGE, BSP_LED_MODE_FLASH_FAST, LED_RENTAL_LIMIT);
   bsp_buzzer_beep_cycle(MAX_UINT32_VALUE, 1000, 2000);
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_RENTAL_LIMIT);
 }
@@ -424,7 +429,7 @@ static void sys_manager_warn_debt_handler(void)
   if (manager_handler.is_warning_debt_active || g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
     return;
   manager_handler.is_warning_debt_active = true;
-  bsp_led_set(BSP_LED_COLOR_YELLOW, BSP_LED_MODE_PULSE, 100);
+  bsp_led_set(BSP_LED_COLOR_PURPLE, BSP_LED_MODE_PULSE, LED_WARN_DEBT_BRIGHTNESS);
   bsp_buzzer_beep_cycle(1, 500, 1500);
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_WARN_ADD_FUND);
 }
