@@ -40,6 +40,13 @@ typedef enum
   LOG_LEVEL_MAX
 } log_level_t;
 
+typedef enum
+{
+  LOG_TIMESTAMP_EPOCH = 0,
+  LOG_TIMESTAMP_RTC,
+  LOG_TIMESTAMP_MAX
+} log_service_timestamp_type_t;
+
 /**
  * @brief External log handler callback type
  */
@@ -96,15 +103,23 @@ void log_service_init(void);
 /**
  * @brief Print log message
  * @note Use macros LOG instead of calling this function directly.
+ * @return none
  */
 void log_service_print(log_level_t level, const char *tag, const char *fmt, ...);
 
 /**
  * @brief Register external log handler (for SD card logging)
- *
  * @param[in] handler  Callback function
+ * @return none
  */
 void log_service_register_handler(log_handler_t handler);
+
+/**
+ * @brief Set timestamp type for log messages
+ * @param[in] type  Timestamp type (log_service_timestamp_type_t)
+ * @return none
+ */
+void log_service_set_timestamp(log_service_timestamp_type_t type);
 
 #endif /*End file _LOG_SERVICE_H_*/
 

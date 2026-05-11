@@ -49,6 +49,43 @@
   xTaskCreatePinnedToCore((func), #thread_name, thread_name##_stack, NULL, thread_name##_priority, \
                           &thread_name##_handle, 1)
 
+/**
+ * @brief Suspend a thread
+ */
+#define OS_THREAD_SUSPEND(thread_name)    \
+  do                                      \
+  {                                       \
+    if (thread_name##_handle != NULL)     \
+    {                                     \
+      vTaskSuspend(thread_name##_handle); \
+    }                                     \
+  } while (0)
+
+/**
+ * @brief Resume a thread
+ */
+#define OS_THREAD_RESUME(thread_name)    \
+  do                                     \
+  {                                      \
+    if (thread_name##_handle != NULL)    \
+    {                                    \
+      vTaskResume(thread_name##_handle); \
+    }                                    \
+  } while (0)
+
+/**
+ * @brief Kill / Delete a thread
+ */
+#define OS_THREAD_DELETE(thread_name)    \
+  do                                     \
+  {                                      \
+    if (thread_name##_handle != NULL)    \
+    {                                    \
+      vTaskDelete(thread_name##_handle); \
+      thread_name##_handle = NULL;       \
+    }                                    \
+  } while (0)
+
 #define OS_SEM_DEFINE_STATIC(name)                   \
   static SemaphoreHandle_t name##_sem_handle = NULL; \
   static StaticSemaphore_t name##_sem_buffer

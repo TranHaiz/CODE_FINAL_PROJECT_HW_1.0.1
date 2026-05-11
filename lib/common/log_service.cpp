@@ -25,10 +25,16 @@
 #define LOG_TIMESTAMP_MAX_LEN (32)
 
 /* Private enumerate/structure ---------------------------------------- */
+typedef struct
+{
+  log_service_timestamp_type_t timestamp_type;
+} log_service_handler_t;
+
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
 /* Private variables -------------------------------------------------- */
-static log_handler_t external_handler = nullptr;  // Function pointer for ex log handler (e.g. SD card, flash)
+static log_handler_t         external_handler = nullptr;  // Function pointer for ex log handler (e.g. SD card, flash)
+static log_service_handler_t log_service_handler;
 
 static const char *level_str[] = { "-", "ERR", "WRN", "INF", "DBG" };
 
@@ -91,20 +97,27 @@ void log_service_register_handler(log_handler_t handler)
   external_handler = handler;
 }
 
+void log_service_set_timestamp(log_service_timestamp_type_t type)
+{
+  log_service_handler.timestamp_type = type;
+}
 /* Private definitions ----------------------------------------------- */
 
 static void log_format_timestamp(char *buf, size_t len)
 {
-#if LOG_TIMESTAMP_ENABLE
   // Implement RTC timestamp
   timeline_t current_time;
-  bsp_rtc_get(&current_time);
-  snprintf(buf, len, "%d/%d/%d][%d:%d:%d]", current_time.date, current_time.month, current_time.year, current_time.hour,
-           current_time.minute, current_time.second);
-#else
-  // Use millis() as timestamp
-  snprintf(buf, len, "%lu ms", millis());
-#endif
+  if (log_service_handler.timestamp_type == LOG_TIMESTAMP_RTC)
+  {
+    bsp_rtc_get(&current_time);
+    snprintf(buf, len, "%d/%d/%d][%d:%d:%d]", current_time.date, current_time.month, current_time.year,
+             current_time.hour, current_time.minute, current_time.second);
+  }
+  else
+  {
+    // Use millis() as timestamp
+    snprintf(buf, len, "%lu ms", millis());
+  }
 }
 
 /* End of file -------------------------------------------------------- */

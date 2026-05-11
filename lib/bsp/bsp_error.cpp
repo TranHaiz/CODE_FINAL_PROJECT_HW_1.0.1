@@ -50,12 +50,14 @@ void bsp_error_handler(bsp_error_t error_code)
   }
 }
 
-void bsp_error_handle(void)
+void bsp_error_check(void)
 {
-  if (g_device_info.nvs_info.err_count == BSP_ERROR_MAX_COUNT)
+  if ((g_device_info.nvs_info.err_count == BSP_ERROR_MAX_COUNT)
+      && (g_device_info.nvs_info.curr_state != DEVICE_STATE_ERROR))
   {
     device_info_reset_error_count();
-    g_device_info.nvs_info.curr_state = DEVICE_STATE_ERROR;
+    device_info_update_state(DEVICE_STATE_ERROR);
+    bsp_device_reboot();
   }
 }
 
