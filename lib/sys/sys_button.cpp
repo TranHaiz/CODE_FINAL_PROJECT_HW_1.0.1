@@ -88,7 +88,7 @@ void sys_button_process(void)
         {
         case 3:
         {
-          sys_manager_write_event(SYS_MANAGER_EVT_USER_LOCK);
+          sys_manager_write_event(SYS_MANAGER_EVT_LOCKED);
           break;
         }
         case 5:
