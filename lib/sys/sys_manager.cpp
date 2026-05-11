@@ -23,6 +23,7 @@
 #include "cbuffer.h"
 #include "device_info.h"
 #include "sys_input.h"
+#include "sys_led.h"
 #include "sys_log.h"
 #include "sys_network.h"
 #include "sys_ui.h"
@@ -36,9 +37,6 @@ LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_SYS_MANAGER)
 
 #define DEVICE_DANGER_NOTI_INTERVAL_MS     (15000)
 #define DEVICE_LOW_BALANCE_NOTI_TIMEOUT_MS (5000)
-
-#define LED_WARN_DEBT_BRIGHTNESS           (50)
-#define LED_RENTAL_LIMIT                   (50)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef void (*sys_manager_process_handler_t)(void);
@@ -312,13 +310,13 @@ static void sys_manager_device_danger_handler(void)
   case DEVICE_STATE_PAUSED:
   {
     bsp_buzzer_enable(true);
-    bsp_led_set(BSP_LED_COLOR_RED, BSP_LED_MODE_FLASH_FAST, 100);
+    sys_led_write_event(SYS_LED_EVT_NOTI_DANGER);
     break;
   }
   case DEVICE_STATE_ACTIVE:
   {
     // TODO: Noti to server
-    bsp_led_set(BSP_LED_COLOR_ORANGE, BSP_LED_MODE_PULSE, 100);
+    sys_led_write_event(SYS_LED_EVT_NOTI_USER_HELP);
     break;
   }
   default: break;
@@ -380,7 +378,7 @@ static void sys_manager_stop_rental_success_handler(void)
   {
     manager_handler.is_warning_debt_active = false;
     manager_handler.is_noti_limited_active = false;
-    bsp_led_off();
+    sys_led_write_event(SYS_LED_EVT_OFF);
     bsp_buzzer_enable(false);
   }
 }
@@ -403,7 +401,7 @@ static void sys_manager_danger_noti_timer_callback(TimerHandle_t xTimer)
 
 static void sys_manager_stop_danger_noti(void)
 {
-  bsp_led_off();
+  sys_led_write_event(SYS_LED_EVT_OFF);
   sys_ui_wakeup();
   bsp_buzzer_enable(false);
 }
@@ -419,7 +417,7 @@ static void sys_manager_rental_noti_limit_handler(void)
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
     return;
   manager_handler.is_noti_limited_active = true;
-  bsp_led_set(BSP_LED_COLOR_ORANGE, BSP_LED_MODE_FLASH_FAST, LED_RENTAL_LIMIT);
+  sys_led_write_event(SYS_LED_EVT_NOTI_RENTAL_LIMIT);
   bsp_buzzer_beep_cycle(MAX_UINT32_VALUE, 1000, 2000);
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_RENTAL_LIMIT);
 }
@@ -429,7 +427,7 @@ static void sys_manager_warn_debt_handler(void)
   if (manager_handler.is_warning_debt_active || g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
     return;
   manager_handler.is_warning_debt_active = true;
-  bsp_led_set(BSP_LED_COLOR_PURPLE, BSP_LED_MODE_PULSE, LED_WARN_DEBT_BRIGHTNESS);
+  sys_led_write_event(SYS_LED_EVT_NOTI_WARNING_DEBT);
   bsp_buzzer_beep_cycle(1, 500, 1500);
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_WARN_ADD_FUND);
 }
@@ -439,7 +437,7 @@ static void sys_manager_clear_debt_handler(void)
   if (!manager_handler.is_warning_debt_active)
     return;
   manager_handler.is_warning_debt_active = false;
-  bsp_led_off();
+  sys_led_write_event(SYS_LED_EVT_OFF);
   bsp_buzzer_enable(false);
 }
 

@@ -26,6 +26,7 @@
 #include "sys_cmd.h"
 #include "sys_cmd_usb.h"
 #include "sys_input.h"
+#include "sys_led.h"
 #include "sys_log.h"
 #include "sys_manager.h"
 #include "sys_network.h"
@@ -39,7 +40,6 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_MAIN)
 #define SYS_UI_UPDATE_RATE_MS    (10)
 #define SYS_LOG_UPDATE_RATE_MS   (500)
 #define SYS_MISC_UPDATE_RATE_MS  (100)
-#define LED_RGB_TASK_MS          (100)
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -197,14 +197,13 @@ void sys_misc_thread_func(void *param)
 {
   bsp_buzzer_init();
   bsp_buzzer_beep_cycle(3, 200, 500);
-  bsp_led_init(LED_RGB_TASK_MS);
-  bsp_led_off();
+  sys_led_init();
 
   while (true)
   {
     bsp_usb_process();
     bsp_buzzer_process();
-    bsp_led_task();
+    sys_led_process();
     OS_DELAY_MS(SYS_MISC_UPDATE_RATE_MS);
   }
 }

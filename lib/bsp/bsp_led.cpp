@@ -24,8 +24,7 @@ LOG_MODULE_REGISTER(bsp_led, LOG_LEVEL_BSP_LED);
 
 #define LED_MAX_VALUE                 (255)
 #define LED_OFF_VALUE                 (0)
-#define BSP_LED_PULSE_FADE_TICKS_HIGH (BSP_LED_TIME_PULSE_HIGH_SOLID_MS / led_tick_ms)
-#define BSP_LED_PULSE_FADE_TICKS_LOW  (BSP_LED_TIME_PULSE_LOW_SOLID_MS / led_tick_ms)
+#define LED_PULSE_FADE_STEP           (5)  // 255 / 5 = 51 steps for full fade in/out
 #define BSP_LED_PULSE_HOLD_TICKS_HIGH (BSP_LED_TIME_PULSE_HIGH_MS / led_tick_ms)
 #define BSP_LED_PULSE_HOLD_TICKS_LOW  (BSP_LED_TIME_PULSE_LOW_MS / led_tick_ms)
 #define BSP_LED_COUNT                 (1)
@@ -81,6 +80,12 @@ void bsp_led_init(uint32_t tick_ms)
 
 void bsp_led_set(bsp_led_color_t color, bsp_led_mode_t mode_in, uint8_t brightness)
 {
+  if (mode_in == BSP_LED_MODE_NONE || color == BSP_LED_COLOR_NONE || brightness == 0)
+  {
+    bsp_led_off();
+    return;
+  }
+
   if (color >= LED_COLOR_MAX)
   {
     LOG_ERR("Invalid LED color: %d", color);
@@ -117,7 +122,7 @@ void bsp_led_task(void)
 
 void bsp_led_off(void)
 {
-  led_mode = BSP_LED_MODE_OFF;
+  led_mode = BSP_LED_MODE_NONE;
 }
 
 /* Private definitions ----------------------------------------------- */
@@ -142,7 +147,7 @@ static void bsp_led_update_task(void)
   uint32_t        delta_ms     = now_ms - last_tick_ms;
   last_tick_ms                 = now_ms;
 
-  if (led_mode == BSP_LED_MODE_OFF)
+  if (led_mode == BSP_LED_MODE_NONE)
   {
     if (!is_off)
     {
@@ -194,7 +199,7 @@ static void bsp_led_update_task(void)
 
     if (fade_amount > 0)
     {
-      pulse_val += (LED_MAX_VALUE / BSP_LED_PULSE_FADE_TICKS_HIGH);
+      pulse_val += LED_PULSE_FADE_STEP;
       if (pulse_val >= LED_MAX_VALUE)
       {
         pulse_val   = LED_MAX_VALUE;
@@ -204,7 +209,7 @@ static void bsp_led_update_task(void)
     }
     else if (fade_amount < 0)
     {
-      pulse_val -= (LED_MAX_VALUE / BSP_LED_PULSE_FADE_TICKS_LOW);
+      pulse_val -= LED_PULSE_FADE_STEP;
       if (pulse_val <= 0)
       {
         pulse_val   = 0;

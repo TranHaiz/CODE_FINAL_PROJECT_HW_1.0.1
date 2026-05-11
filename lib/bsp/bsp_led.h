@@ -27,7 +27,8 @@
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
 {
-  BSP_LED_COLOR_GREEN = 0,
+  BSP_LED_COLOR_NONE = 0,
+  BSP_LED_COLOR_GREEN,
   BSP_LED_COLOR_BLUE,
   BSP_LED_COLOR_YELLOW,
   BSP_LED_COLOR_ORANGE,
@@ -41,11 +42,11 @@ typedef enum
 
 typedef enum
 {
-  BSP_LED_MODE_SOLID = 0,
+  BSP_LED_MODE_NONE = 0,
+  BSP_LED_MODE_SOLID,
   BSP_LED_MODE_FLASH_SLOW,
   BSP_LED_MODE_FLASH_FAST,
   BSP_LED_MODE_PULSE,
-  BSP_LED_MODE_OFF,
   BSP_LED_MODE_MAX
 } bsp_led_mode_t;
 
