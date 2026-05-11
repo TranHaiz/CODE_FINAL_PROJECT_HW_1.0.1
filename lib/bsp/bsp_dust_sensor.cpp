@@ -132,25 +132,25 @@ status_function_t bsp_dust_sensor_read(bsp_dust_sensor_data_t *data)
   return STATUS_OK;
 }
 
-bsp_dust_aqi_level_t bsp_dust_sensor_get_aqi_level(uint16_t density)
+bsp_dust_aqi_level_t bsp_dust_sensor_get_aqi_level(float density)
 {
-  if (density <= 12)
+  if (density <= 12.0f)
   {
     return BSP_DUST_AQI_EXCELLENT;
   }
-  else if (density <= 35)
+  else if (density <= 35.0f)
   {
     return BSP_DUST_AQI_GOOD;
   }
-  else if (density <= 55)
+  else if (density <= 55.0f)
   {
     return BSP_DUST_AQI_MODERATE;
   }
-  else if (density <= 150)
+  else if (density <= 150.0f)
   {
     return BSP_DUST_AQI_POOR;
   }
-  else if (density <= 250)
+  else if (density <= 250.0f)
   {
     return BSP_DUST_AQI_UNHEALTHY;
   }

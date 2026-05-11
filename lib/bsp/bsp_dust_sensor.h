@@ -66,7 +66,7 @@ status_function_t bsp_dust_sensor_read(bsp_dust_sensor_data_t *data);
  *
  * @return bsp_dust_aqi_level_t
  */
-bsp_dust_aqi_level_t bsp_dust_sensor_get_aqi_level(uint16_t density);
+bsp_dust_aqi_level_t bsp_dust_sensor_get_aqi_level(float density);
 
 #endif /* _BSP_DUST_SENSOR_H_ */
 

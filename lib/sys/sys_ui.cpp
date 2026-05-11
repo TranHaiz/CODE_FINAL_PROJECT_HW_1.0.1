@@ -299,7 +299,7 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 #define SYS_UI_AQI_STATUS_POOR                     "Poor"
 #define SYS_UI_AQI_STATUS_GOOD_MIN                 (80)
 #define SYS_UI_AQI_STATUS_FAIR_MIN                 (50)
-#define SYS_UI_AQI_LABEL_FORMAT                    "AQI:%d %s"
+#define SYS_UI_AQI_LABEL_FORMAT                    "AQI:%.2f %s"
 
 // Lock screen
 #define SYS_UI_LOCK_BG_COLOR                       (0x000000)
@@ -590,7 +590,7 @@ static void sys_ui_main_screen_create(void);
 static void sys_ui_main_screen_update_speed(int speed_kph);
 static void sys_ui_main_screen_update_time(int hours, int minutes, int seconds);
 static void sys_ui_main_screen_update_distance(float distance_km);
-static void sys_ui_main_screen_update_env(float temperature_C, float humidity, int air_quality);
+static void sys_ui_main_screen_update_env(float temperature_C, float humidity, float air_quality);
 static void sys_ui_main_screen_update_compass(void);
 static void sys_ui_main_screen_update_speed_n_distance(void);
 static void sys_ui_main_screen_update_countup(void);
@@ -1330,7 +1330,7 @@ static void sys_ui_main_screen_update_distance(float distance_km)
   sys_ui_widget_set_label_text_format(ui_ctx.widgets.distance_label, SYS_UI_DISTANCE_LABEL_FORMAT, distance_km);
 }
 
-static void sys_ui_main_screen_update_env(float temperature_C, float humidity, int air_quality)
+static void sys_ui_main_screen_update_env(float temperature_C, float humidity, float air_quality)
 {
   if (ui_ctx.widgets.temp_label != nullptr)
   {
@@ -1344,15 +1344,41 @@ static void sys_ui_main_screen_update_env(float temperature_C, float humidity, i
 
   if (ui_ctx.widgets.aqi_label != nullptr)
   {
-    const char *status =
-      (air_quality >= SYS_UI_AQI_STATUS_GOOD_MIN)
-        ? SYS_UI_AQI_STATUS_GOOD
-        : ((air_quality >= SYS_UI_AQI_STATUS_FAIR_MIN) ? SYS_UI_AQI_STATUS_FAIR : SYS_UI_AQI_STATUS_POOR);
-    size_t aqi_color = SYS_UI_COLOR_DANGER;
-    if (air_quality >= SYS_UI_AQI_STATUS_GOOD_MIN)
+    bsp_dust_aqi_level_t aqi_level = bsp_dust_sensor_get_aqi_level(air_quality);
+    char                *status;
+    size_t               aqi_color;
+
+    switch (aqi_level)
+    {
+    case BSP_DUST_AQI_EXCELLENT:
+    case BSP_DUST_AQI_GOOD:
+    {
+      status    = SYS_UI_AQI_STATUS_GOOD;
       aqi_color = SYS_UI_COLOR_SUCCESS;
-    else if (air_quality >= SYS_UI_AQI_STATUS_FAIR_MIN)
+      break;
+    }
+    case BSP_DUST_AQI_MODERATE:
+    case BSP_DUST_AQI_POOR:
+    {
+      status    = SYS_UI_AQI_STATUS_FAIR;
       aqi_color = SYS_UI_COLOR_WARNING;
+      break;
+    }
+    case BSP_DUST_AQI_UNHEALTHY:
+    case BSP_DUST_AQI_HAZARDOUS:
+    {
+      status    = SYS_UI_AQI_STATUS_POOR;
+      aqi_color = SYS_UI_COLOR_DANGER;
+      break;
+    }
+    default:
+    {
+      status    = SYS_UI_AQI_STATUS_GOOD;
+      aqi_color = SYS_UI_COLOR_SUCCESS;
+      break;
+    }
+    }
+
     sys_ui_widget_set_label_text_format(ui_ctx.widgets.aqi_label, SYS_UI_AQI_LABEL_FORMAT, air_quality, status);
     sys_ui_widget_set_label_color(ui_ctx.widgets.aqi_label, aqi_color);
   }
