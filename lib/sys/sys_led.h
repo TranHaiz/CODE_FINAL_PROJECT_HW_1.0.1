@@ -24,6 +24,14 @@ typedef enum
   SYS_LED_EVT_OFF = 0,
   SYS_LED_EVT_NOTI_DANGER,
   SYS_LED_EVT_NOTI_USER_HELP,
+  SYS_LED_EVT_ERROR_FUEL_GAUGE,
+  SYS_LED_EVT_ERROR_GPS,
+  SYS_LED_EVT_ERROR_TEMP_HUM,
+  SYS_LED_EVT_ERROR_IMU,
+  SYS_LED_EVT_ERROR_COMPASS,
+  SYS_LED_EVT_ERROR_SIM,
+  SYS_LED_EVT_ERROR_NETWORK_LOST,
+  SYS_LED_EVT_ERROR_RTC,
   SYS_LED_EVT_NOTI_RENTAL_LIMIT,
   SYS_LED_EVT_NOTI_WARNING_DEBT,
   SYS_LED_EVT_NOTI_LOW_BALANCE,
@@ -45,6 +53,13 @@ void sys_led_init(void);
  * @return none
  */
 void sys_led_write_event(sys_led_evt_t event);
+
+/**
+ * @brief Clear a specific event from the service, use it for high priority events that need to be cleared immediately
+ * @param[in] event The event to clear
+ * @return none
+ */
+void sys_led_clear_event(sys_led_evt_t event);
 
 /**
  * @brief Process the system LED events and update the LED state accordingly

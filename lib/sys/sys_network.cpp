@@ -20,6 +20,7 @@
 #include "os_lib.h"
 #include "sys_cmd.h"
 #include "sys_input.h"
+#include "sys_led.h"
 #include "sys_manager.h"
 #include "sys_ui_simple.h"
 
@@ -56,6 +57,7 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_SYS_NETWORK)
 #define NETWORK_BYTES               (NETWORK_CBUFF_COUNT * NETWORK_CBUFF_SLOT_SIZE)
 #define NETWORK_CBUFF_FLUSH_THRESH  (80)
 #define CBUFFER_FAST_MSG_THRESHOLD  (2)
+#define NETWORK_LOST_MAX_COUNT      (10)
 
 #define SD_OFFLINE_DIR              "/buff"
 #define SD_JSON_LINE_MAX_LEN        (MQTT_MESSAGE_MAX_LEN + 2)  // 1 line JSON + <CRLF>
@@ -94,6 +96,7 @@ typedef struct
   bool is_data_sd_pending;
 
   uint8_t   high_noti_request;
+  uint8_t   network_lost_count;
   cbuffer_t cbuffer;
 } net_ctx_t;
 
@@ -295,6 +298,7 @@ static void sys_network_run_sim_init(void)
   {
     LOG_ERR("Failed to initialize SIM");
     sys_network_change_state(NETWORK_STATE_ERROR);
+    sys_led_write_event(SYS_LED_EVT_ERROR_SIM);
     return;
   }
 
@@ -321,6 +325,7 @@ static void sys_network_run_sim_wait_ready(void)
     LOG_DBG("SIM ready");
     network_ctx.sim_ready = true;
     sys_network_change_state(NETWORK_STATE_MQTT_INIT);
+    sys_led_clear_event(SYS_LED_EVT_ERROR_SIM);
   }
   else
   {
@@ -627,15 +632,43 @@ static void sys_network_process_active(void)
 {
   switch (network_ctx.state)
   {
-  case NETWORK_STATE_SIM_INIT: sys_network_run_sim_init(); break;
-  case NETWORK_STATE_SIM_WAIT_READY: sys_network_run_sim_wait_ready(); break;
-  case NETWORK_STATE_MQTT_INIT: sys_network_run_mqtt_init(); break;
+  case NETWORK_STATE_SIM_INIT:
+  {
+    sys_network_run_sim_init();
+    break;
+  }
+  case NETWORK_STATE_SIM_WAIT_READY:
+  {
+    sys_network_run_sim_wait_ready();
+    break;
+  }
+  case NETWORK_STATE_MQTT_INIT:
+  {
+    sys_network_run_mqtt_init();
+    break;
+  }
   case NETWORK_STATE_ONLINE:
   {
+    if (network_ctx.network_lost_count)
+    {
+      network_ctx.network_lost_count = 0;
+      sys_led_clear_event(SYS_LED_EVT_ERROR_NETWORK_LOST);
+      LOG_DBG("Network lost count reset");
+    }
     sys_network_run_online();
     break;
   }
-  case NETWORK_STATE_ERROR: sys_network_run_error_backoff(); break;
+  case NETWORK_STATE_ERROR:
+  {
+    network_ctx.network_lost_count++;
+    if (network_ctx.network_lost_count >= NETWORK_LOST_MAX_COUNT)
+    {
+      sys_led_write_event(SYS_LED_EVT_ERROR_NETWORK_LOST);
+    }
+
+    sys_network_run_error_backoff();
+    break;
+  }
   case NETWORK_STATE_SIM_RESET: sys_network_run_sim_hard_reset(); break;
   default:
   {

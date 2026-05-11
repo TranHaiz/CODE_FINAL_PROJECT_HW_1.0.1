@@ -18,6 +18,7 @@
 #include "bsp_gps.h"
 #include "log_service.h"
 #include "os_lib.h"
+#include "sys_led.h"
 
 #include <math.h>
 
@@ -254,6 +255,7 @@ void sys_fusion_init(void)
   }
   else
   {
+    sys_led_write_event(SYS_LED_EVT_ERROR_IMU);
     LOG_ERR("ACC init failed");
   }
 
@@ -265,6 +267,7 @@ void sys_fusion_init(void)
   }
   else
   {
+    sys_led_write_event(SYS_LED_EVT_ERROR_GPS);
     LOG_ERR("GPS init failed");
   }
 

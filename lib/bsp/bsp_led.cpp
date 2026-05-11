@@ -24,7 +24,7 @@ LOG_MODULE_REGISTER(bsp_led, LOG_LEVEL_BSP_LED);
 
 #define LED_MAX_VALUE                 (255)
 #define LED_OFF_VALUE                 (0)
-#define LED_PULSE_FADE_STEP           (5)  // 255 / 5 = 51 steps for full fade in/out
+#define LED_PULSE_FADE_STEP           (30)  // 255 / 30 = 8.5 steps for full fade in/out
 #define BSP_LED_PULSE_HOLD_TICKS_HIGH (BSP_LED_TIME_PULSE_HIGH_MS / led_tick_ms)
 #define BSP_LED_PULSE_HOLD_TICKS_LOW  (BSP_LED_TIME_PULSE_LOW_MS / led_tick_ms)
 #define BSP_LED_COUNT                 (1)

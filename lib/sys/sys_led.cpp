@@ -62,24 +62,42 @@ void sys_led_init(void)
 
   // clang-format off
 #define INFO(event, color, mode, brightness) SYS_LED_EVT_INFO[event] = { color, mode, brightness }
-  /*Event                            |Color                |Mode                      |Brightness   */
-  INFO(SYS_LED_EVT_OFF,               BSP_LED_COLOR_NONE,   BSP_LED_MODE_NONE,         0             );
-  INFO(SYS_LED_EVT_NOTI_DANGER,       BSP_LED_COLOR_RED,    BSP_LED_MODE_FLASH_FAST,   100           );
-  INFO(SYS_LED_EVT_NOTI_USER_HELP,    BSP_LED_COLOR_RED,    BSP_LED_MODE_FLASH_SLOW,   100           );
-  INFO(SYS_LED_EVT_NOTI_LOW_BALANCE,  BSP_LED_COLOR_YELLOW, BSP_LED_MODE_FLASH_SLOW,   50            );
-  INFO(SYS_LED_EVT_NOTI_WARNING_DEBT, BSP_LED_COLOR_PURPLE, BSP_LED_MODE_PULSE,        50            );
-  INFO(SYS_LED_EVT_NOTI_RENTAL_LIMIT, BSP_LED_COLOR_ORANGE, BSP_LED_MODE_FLASH_FAST,   50            );
+  /*Event                                 |Color                |Mode                      |Brightness   */
+  INFO(SYS_LED_EVT_OFF,                    BSP_LED_COLOR_NONE,   BSP_LED_MODE_NONE,         0             );
+  INFO(SYS_LED_EVT_NOTI_DANGER,            BSP_LED_COLOR_RED,    BSP_LED_MODE_FLASH_FAST,   100           );
+  INFO(SYS_LED_EVT_NOTI_USER_HELP,         BSP_LED_COLOR_RED,    BSP_LED_MODE_FLASH_SLOW,   100           );
+  INFO(SYS_LED_EVT_NOTI_LOW_BALANCE,       BSP_LED_COLOR_YELLOW, BSP_LED_MODE_FLASH_SLOW,   50            );
+  INFO(SYS_LED_EVT_NOTI_WARNING_DEBT,      BSP_LED_COLOR_YELLOW, BSP_LED_MODE_PULSE,        50            );
+  INFO(SYS_LED_EVT_NOTI_RENTAL_LIMIT,      BSP_LED_COLOR_ORANGE, BSP_LED_MODE_FLASH_FAST,   50            );
+  INFO(SYS_LED_EVT_ERROR_GPS,              BSP_LED_COLOR_ORANGE, BSP_LED_MODE_PULSE,        100           );
+  INFO(SYS_LED_EVT_ERROR_FUEL_GAUGE,       BSP_LED_COLOR_PINK,   BSP_LED_MODE_FLASH_FAST,   100           );
+  INFO(SYS_LED_EVT_ERROR_TEMP_HUM,         BSP_LED_COLOR_PINK,   BSP_LED_MODE_PULSE,        100           );
+  INFO(SYS_LED_EVT_ERROR_IMU,              BSP_LED_COLOR_CYAN,   BSP_LED_MODE_FLASH_FAST,   100           );
+  INFO(SYS_LED_EVT_ERROR_COMPASS,          BSP_LED_COLOR_CYAN,   BSP_LED_MODE_PULSE,        100           );
+  INFO(SYS_LED_EVT_ERROR_SIM,              BSP_LED_COLOR_GREEN,  BSP_LED_MODE_FLASH_FAST,   100           );
+  INFO(SYS_LED_EVT_ERROR_RTC,              BSP_LED_COLOR_GREEN,  BSP_LED_MODE_PULSE,        100           );
+  INFO(SYS_LED_EVT_ERROR_NETWORK_LOST,     BSP_LED_COLOR_BLUE,   BSP_LED_MODE_PULSE,        100           );
 #undef INFO
   // clang-format on
 }
 
 void sys_led_write_event(sys_led_evt_t event)
 {
-  if (event >= SYS_LED_EVT_MAX)
+  if ((event >= SYS_LED_EVT_MAX) || (sys_led_handler.is_active[event]))
     return;
 
   OS_MUTEX_LOCK(sys_led_event_mutex);
   SET_LED_EVENT(event);
+  OS_MUTEX_UNLOCK(sys_led_event_mutex);
+}
+
+void sys_led_clear_event(sys_led_evt_t event)
+{
+  if ((event >= SYS_LED_EVT_MAX) || (!sys_led_handler.is_active[event]))
+    return;
+
+  OS_MUTEX_LOCK(sys_led_event_mutex);
+  CLEAR_LED_EVENT(event);
   OS_MUTEX_UNLOCK(sys_led_event_mutex);
 }
 
@@ -95,7 +113,6 @@ void sys_led_process(void)
     }
     LOG_DBG("LED event changed from %d to %d", sys_led_handler.prev_event, sys_led_handler.curr_event);
     sys_led_handler.prev_event = sys_led_handler.curr_event;
-    CLEAR_LED_EVENT(sys_led_handler.prev_event);
   }
   bsp_led_task();
 }
@@ -117,11 +134,11 @@ void sys_led_get_current_event(sys_led_evt_t *event)
         CLEAR_LED_EVENT(SYS_LED_EVT_NOTI_LOW_BALANCE);
         CLEAR_LED_EVENT(SYS_LED_EVT_NOTI_WARNING_DEBT);
         CLEAR_LED_EVENT(SYS_LED_EVT_NOTI_RENTAL_LIMIT);
-        break;
       }
+      break;
     }
-    OS_MUTEX_UNLOCK(sys_led_event_mutex);
   }
+  OS_MUTEX_UNLOCK(sys_led_event_mutex);
 }
 
 /* End of file -------------------------------------------------------- */
