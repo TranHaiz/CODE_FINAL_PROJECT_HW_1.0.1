@@ -97,8 +97,8 @@ typedef struct
 #if (CONFIG_MQTT_SERVER == true)
 typedef struct
 {
-  char *topic;
-  char *payload;
+  const char *topic;
+  const char *payload;
 } mqtt_message_t;
 #endif
 
@@ -107,7 +107,7 @@ typedef struct
 #define assert_param(expr) assert(expr)
 
 /* Public variables --------------------------------------------------- */
-extern char *FIREBASE_COMP_ID[FIREBASE_DATA_TYPE_MAX];
+extern const char *FIREBASE_COMP_ID[FIREBASE_DATA_TYPE_MAX];
 
 /* Public function prototypes ----------------------------------------- */
 

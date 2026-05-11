@@ -15,6 +15,7 @@
 
 #include "bsp_rtc.h"
 #include "bsp_sdcard.h"
+#include "sys_ble.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -90,6 +91,11 @@ void log_service_print(log_level_t level, const char *tag, const char *fmt, ...)
     external_handler(line, len);
   }
 #endif
+  // Send over BLE if connected
+  if (sys_ble_is_connected())
+  {
+    sys_ble_send((const uint8_t *) line, len);
+  }
 }
 
 void log_service_register_handler(log_handler_t handler)

@@ -19,7 +19,7 @@
 /* Public variables --------------------------------------------------- */
 // clang-format off
 #define INFO(i, name) [i] = name
-char *FIREBASE_COMP_ID[FIREBASE_DATA_TYPE_MAX] = {
+const char *FIREBASE_COMP_ID[FIREBASE_DATA_TYPE_MAX] = {
     INFO(BATTERY_LEVEL,        "Battery level"),
     INFO(GPS_POSITION,         "Position"),
     INFO(SPEED,                "Speed")

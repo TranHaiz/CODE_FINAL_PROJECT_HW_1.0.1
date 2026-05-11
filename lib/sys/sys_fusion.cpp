@@ -20,6 +20,7 @@
 #include "os_lib.h"
 #include "sys_led.h"
 
+#include <TinyGPSPlus.h>
 #include <math.h>
 
 /* Private defines ---------------------------------------------------- */

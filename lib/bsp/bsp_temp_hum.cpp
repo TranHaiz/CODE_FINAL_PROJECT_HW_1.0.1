@@ -13,6 +13,7 @@
 /* Includes ----------------------------------------------------------- */
 #include "bsp_temp_hum.h"
 
+#include "Adafruit_SHT31.h"
 #include "log_service.h"
 
 /* Private defines ---------------------------------------------------- */

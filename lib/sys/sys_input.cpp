@@ -16,6 +16,7 @@
 /* Includes ----------------------------------------------------------- */
 #include "sys_input.h"
 
+#include "Adafruit_SHT31.h"
 #include "bsp_acc.h"
 #include "bsp_batt.h"
 #include "bsp_dust_sensor.h"
@@ -145,6 +146,7 @@ status_function_t sys_input_process(void)
   }
   default: break;
   }
+  return STATUS_OK;
 }
 
 status_function_t sys_input_get_data(sys_input_data_t *data)

@@ -23,6 +23,7 @@
 #include "device_info.h"
 #include "log_service.h"
 #include "os_lib.h"
+#include "sys_ble.h"
 #include "sys_button.h"
 #include "sys_cmd.h"
 #include "sys_cmd_usb.h"
@@ -44,6 +45,7 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_MAIN)
 #define SYS_MISC_UPDATE_RATE_MS   (100)
 #define SYS_BUTTON_UPDATE_RATE_MS (10)
 #define SYS_ERROR_UPDATE_RATE_MS  (100)
+#define SYS_BLE_UPDATE_RATE_MS    (100)
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -72,6 +74,7 @@ OS_THREAD_DECLARE(sys_cmd_usb_thread, tskIDLE_PRIORITY + 5, 4096);
 OS_THREAD_DECLARE(sys_manager_thread, tskIDLE_PRIORITY + 5, 4096);
 OS_THREAD_DECLARE(sys_button_thread, tskIDLE_PRIORITY + 4, 4096);
 OS_THREAD_DECLARE(sys_error_thread, tskIDLE_PRIORITY + 5, 8192);
+OS_THREAD_DECLARE(sys_ble_thread, tskIDLE_PRIORITY + 3, 8192);
 
 /* Private function prototypes ---------------------------------------- */
 void sys_input_thread_func(void *param);
@@ -83,6 +86,8 @@ void sys_manager_thread_func(void *param);
 void sys_misc_thread_func(void *param);
 void sys_button_thread_func(void *param);
 void sys_error_thread_func(void *param);
+void sys_ble_thread_func(void *param);
+
 void kill_all_threads(void);
 
 /* Function definitions ----------------------------------------------- */
@@ -105,7 +110,9 @@ void setup()
   device_info_init();
   sys_network_init();
   delay(1000);
+  sys_ble_init();
   OS_THREAD_CREATE(sys_cmd_thread, sys_cmd_thread_func);
+  OS_THREAD_CREATE(sys_ble_thread, sys_ble_thread_func);
   OS_THREAD_CREATE(sys_cmd_usb_thread, sys_cmd_usb_thread_func);
 
 #if (DEVICE_INPUT_ENABLED)
@@ -253,6 +260,17 @@ void sys_error_thread_func(void *param)
   }
 }
 
+void sys_ble_thread_func(void *param)
+{
+  // sys_ble_init() moved to setup() before thread creation to avoid
+  // BLE controller OOM during init.
+  while (true)
+  {
+    sys_ble_process();
+    OS_DELAY_MS(SYS_BLE_UPDATE_RATE_MS);
+  }
+}
+
 void kill_all_threads(void)
 {
 #if (DEVICE_INPUT_ENABLED)
@@ -271,6 +289,7 @@ void kill_all_threads(void)
   OS_THREAD_DELETE(sys_cmd_usb_thread);
   OS_THREAD_DELETE(sys_manager_thread);
   OS_THREAD_DELETE(sys_button_thread);
+  OS_THREAD_DELETE(sys_ble_thread);
 }
 
 /* End of file -------------------------------------------------------- */

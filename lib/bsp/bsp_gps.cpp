@@ -16,6 +16,8 @@
 #include "device_info.h"
 #include "os_lib.h"
 
+#include <TinyGPSPlus.h>
+
 /* Private defines ---------------------------------------------------- */
 #define GPS_UBX_SYNC1     (0xB5)
 #define GPS_UBX_SYNC2     (0x62)

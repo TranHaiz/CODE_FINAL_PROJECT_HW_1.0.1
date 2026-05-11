@@ -24,6 +24,8 @@
 #include "sys_manager.h"
 #include "sys_ui_simple.h"
 
+#include <esp_heap_caps.h>
+
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_SYS_NETWORK)
 
@@ -108,7 +110,9 @@ volatile bool is_data_network_ready = false;
 
 /* Private variables -------------------------------------------------- */
 static net_ctx_t network_ctx;
-static uint8_t   network_buffer[NETWORK_BYTES];
+// Allocated from PSRAM in sys_network_init to keep ~100KB out of internal DRAM
+// (BLE controller + UART/SIM/GPS tasks need that internal heap during boot).
+static uint8_t  *network_buffer = NULL;
 static char      s_pub_slot[NETWORK_CBUFF_SLOT_SIZE];
 static bool      s_pub_slot_valid = false;
 static cbuffer_t req_pub_cbuffer;
@@ -162,6 +166,15 @@ void sys_network_init(void)
   OS_MUTEX_CREATE(network_noti_mutex);
   OS_MUTEX_CREATE(network_data_mutex);
 
+  if (network_buffer == NULL)
+  {
+    network_buffer = (uint8_t *) heap_caps_malloc(NETWORK_BYTES, MALLOC_CAP_SPIRAM);
+    if (network_buffer == NULL)
+    {
+      LOG_ERR("PSRAM alloc failed for network_buffer (%u bytes) — aborting init", (unsigned) NETWORK_BYTES);
+      return;
+    }
+  }
   cb_init(&network_ctx.cbuffer, network_buffer, NETWORK_BYTES);
   cb_init(&req_pub_cbuffer, req_pub_buffer, MQTT_REQUEST_PUBLISH_MAX * MQTT_REQUEST_PUBLISH_SIZE);
 

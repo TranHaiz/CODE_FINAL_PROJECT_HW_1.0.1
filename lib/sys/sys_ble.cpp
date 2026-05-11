@@ -41,12 +41,13 @@ typedef struct
 #include "cbuffer.h"
 
 OS_SEM_DEFINE_STATIC(sys_ble_rx_sem);
-static uint8_t sys_ble_buffer[SYS_BLE_MAX_RX_LEN];
+OS_SEM_DEFINE_STATIC(sys_ble_con_mutex);
+OS_MUTEX_DEFINE_STATIC(sys_ble_tx_mutex);
 
 static cbuffer_t     sys_ble_tx_cb;
+static bool          sys_ble_connected = false;
+static uint8_t       sys_ble_buffer[SYS_BLE_MAX_RX_LEN];
 static sys_ble_msg_t sys_ble_tx_buffer_array[SYS_BLE_TX_MAX_TX_MES];
-OS_MUTEX_DEFINE_STATIC(sys_ble_tx_mutex);
-static bool sys_ble_connected = false;
 
 /* Private function prototypes ---------------------------------------- */
 static void sys_ble_callback_handler(bsp_ble_event_t event);
@@ -56,6 +57,7 @@ void sys_ble_init(void)
 {
   OS_SEM_CREATE(sys_ble_rx_sem);
   OS_MUTEX_CREATE(sys_ble_tx_mutex);
+  OS_SEM_CREATE(sys_ble_con_mutex);
   cb_init(&sys_ble_tx_cb, sys_ble_tx_buffer_array, sizeof(sys_ble_tx_buffer_array));
 
   if (bsp_ble_init(sys_ble_callback_handler) == STATUS_OK)
@@ -95,6 +97,12 @@ bool sys_ble_is_connected(void)
 
 void sys_ble_process(void)
 {
+  if (!sys_ble_connected)
+  {
+    // Block task permanently until BLE connects
+    OS_SEM_TAKE(sys_ble_con_mutex, OS_MAX_DELAY);
+  }
+
   // 1. Process TX queue
   if (sys_ble_connected)
   {
@@ -132,6 +140,7 @@ static void sys_ble_callback_handler(bsp_ble_event_t event)
   case BSP_BLE_EVT_CONNECT:
     LOG_INF("BLE Client Connected - Stop advertising");
     sys_ble_connected = true;
+    OS_SEM_GIVE(sys_ble_con_mutex);
     bsp_ble_advertise_stop();  // Optional: Usually stop advertising when 1 client connected
     break;
 

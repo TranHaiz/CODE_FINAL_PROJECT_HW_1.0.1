@@ -45,7 +45,6 @@
 #define LOG_ENABLE                        (1)
 #define LOG_USB_ENABLE                    (1)
 #define LOG_SDCARD_ENABLE                 (1)
-#define LOG_TIMESTAMP_ENABLE              (1)
 
 // Log levels
 #define LOG_LEVEL_MAIN                    LOG_LEVEL_ERROR
@@ -61,6 +60,7 @@
 #define LOG_LEVEL_BSP_TEMP_HUM            LOG_LEVEL_ERROR
 #define LOG_LEVEL_BSP_RTC                 LOG_LEVEL_ERROR
 #define LOG_LEVEL_BSP_USB                 LOG_LEVEL_ERROR
+#define LOG_LEVEL_BSP_BLE                 LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_CMD_USB             LOG_LEVEL_ERROR
 #define LOG_LEVEL_SYS_NETWORK             LOG_LEVEL_ERROR
 #define LOG_LEVEL_SYS_MANAGER             LOG_LEVEL_ERROR
@@ -68,7 +68,10 @@
 #define LOG_LEVEL_SYS_INPUT               LOG_LEVEL_ERROR
 #define LOG_LEVEL_SYS_FUSION              LOG_LEVEL_ERROR
 #define LOG_LEVEL_SYS_BUTTON              LOG_LEVEL_ERROR
-#define LOG_LEVEL_SYS_CMD                 LOG_LEVEL_ERROR
+#define LOG_LEVEL_SYS_CMD                 LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_LED                 LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_BLE                 LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_ERROR               LOG_LEVEL_DBG
 
 // Network configuration
 #define CONFIG_FIREBASE_SERVER            (false)
