@@ -504,9 +504,9 @@ typedef struct
   int        active_seconds;
   timeline_t unlock_time;
   // Environment
-  float    temperature_C;
-  float    humidity;
-  uint16_t air_quality;
+  float temperature_C;
+  float humidity;
+  float dust_value;
   // Device state
   int    battery_percent;
   int    brightness_percent;
@@ -590,7 +590,7 @@ static void sys_ui_main_screen_create(void);
 static void sys_ui_main_screen_update_speed(int speed_kph);
 static void sys_ui_main_screen_update_time(int hours, int minutes, int seconds);
 static void sys_ui_main_screen_update_distance(float distance_km);
-static void sys_ui_main_screen_update_env(float temperature_C, float humidity, float air_quality);
+static void sys_ui_main_screen_update_env(float temperature_C, float humidity, float dust_value);
 static void sys_ui_main_screen_update_compass(void);
 static void sys_ui_main_screen_update_speed_n_distance(void);
 static void sys_ui_main_screen_update_countup(void);
@@ -1010,7 +1010,7 @@ static void sys_ui_init_data(void)
 
   ui_ctx.temperature_C   = 28.0f + static_cast<float>(random(0, 50)) / 10.0f;
   ui_ctx.humidity        = 60.0f + static_cast<float>(random(0, 300)) / 10.0f;
-  ui_ctx.air_quality     = 70 + random(0, 30);
+  ui_ctx.dust_value      = 70 + random(0, 30);
   ui_ctx.battery_percent = 80 + random(0, 20);
 
   if (bsp_rtc_get(&ui_ctx.unlock_time) != STATUS_OK)
@@ -1071,7 +1071,7 @@ static void sys_ui_init_all_widgets(void)
   sys_ui_main_screen_update_compass();
   sys_ui_main_screen_update_time(ui_ctx.active_hours, ui_ctx.active_minutes, ui_ctx.active_seconds);
   sys_ui_main_screen_update_distance(ui_ctx.distance_km);
-  sys_ui_main_screen_update_env(ui_ctx.temperature_C, ui_ctx.humidity, ui_ctx.air_quality);
+  sys_ui_main_screen_update_env(ui_ctx.temperature_C, ui_ctx.humidity, ui_ctx.dust_value);
   sys_ui_main_screen_update_speed(static_cast<int>(ui_ctx.current_speed));
 }
 
@@ -1330,7 +1330,7 @@ static void sys_ui_main_screen_update_distance(float distance_km)
   sys_ui_widget_set_label_text_format(ui_ctx.widgets.distance_label, SYS_UI_DISTANCE_LABEL_FORMAT, distance_km);
 }
 
-static void sys_ui_main_screen_update_env(float temperature_C, float humidity, float air_quality)
+static void sys_ui_main_screen_update_env(float temperature_C, float humidity, float dust_value)
 {
   if (ui_ctx.widgets.temp_label != nullptr)
   {
@@ -1344,7 +1344,7 @@ static void sys_ui_main_screen_update_env(float temperature_C, float humidity, f
 
   if (ui_ctx.widgets.aqi_label != nullptr)
   {
-    bsp_dust_aqi_level_t aqi_level = bsp_dust_sensor_get_aqi_level(air_quality);
+    bsp_dust_aqi_level_t aqi_level = bsp_dust_sensor_get_aqi_level(dust_value);
     char                *status;
     size_t               aqi_color;
 
@@ -1373,20 +1373,18 @@ static void sys_ui_main_screen_update_env(float temperature_C, float humidity, f
     }
     default:
     {
-      status    = SYS_UI_AQI_STATUS_GOOD;
-      aqi_color = SYS_UI_COLOR_SUCCESS;
       break;
     }
     }
 
-    sys_ui_widget_set_label_text_format(ui_ctx.widgets.aqi_label, SYS_UI_AQI_LABEL_FORMAT, air_quality, status);
+    sys_ui_widget_set_label_text_format(ui_ctx.widgets.aqi_label, SYS_UI_AQI_LABEL_FORMAT, dust_value, status);
     sys_ui_widget_set_label_color(ui_ctx.widgets.aqi_label, aqi_color);
   }
 
   size_t ts = OS_GET_TICK();
   sys_ui_log_temp_sample(temperature_C, ts);
   sys_ui_log_hum_sample(humidity, ts);
-  sys_ui_log_dust_sample((float) air_quality, ts);
+  sys_ui_log_dust_sample((float) dust_value, ts);
 }
 
 static void sys_ui_main_screen_update_compass(void)
@@ -2331,9 +2329,9 @@ static void sys_ui_process_active(void)
       {
         ui_ctx.temperature_C = env.temp_hum.temperature;
         ui_ctx.humidity      = env.temp_hum.humidity;
-        ui_ctx.air_quality   = bsp_dust_sensor_get_aqi_level(env.dust_value);
+        ui_ctx.dust_value    = env.dust_value;
       }
-      sys_ui_main_screen_update_env(ui_ctx.temperature_C, ui_ctx.humidity, ui_ctx.air_quality);
+      sys_ui_main_screen_update_env(ui_ctx.temperature_C, ui_ctx.humidity, ui_ctx.dust_value);
       g_sys_ui_data_status.is_dust_data_ready_for_ui     = false;
       g_sys_ui_data_status.is_temp_hum_data_ready_for_ui = false;
     }
