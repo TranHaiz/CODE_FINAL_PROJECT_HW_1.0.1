@@ -25,6 +25,7 @@
 #include "sys_input.h"
 #include "sys_led.h"
 #include "sys_manager.h"
+#include "sys_ble.h"
 #include "sys_network_adapter_ble.h"
 #include "sys_network_adapter_lte.h"
 #include "sys_ui_simple.h"
@@ -175,26 +176,40 @@ void sys_network_task(void *param)
 
     if (active == &g_net_adapter_ble && lte_ready)
     {
-      /* Switch back to LTE (no debounce  */
       active           = &g_net_adapter_lte;
       lte_lost_count   = 0;
       s_pub_slot_valid = false;
+#if (DEVICE_BLE_FALLBACK_ENABLED)
+      sys_ble_set_advertise(false);
+#endif
       LOG_INF("Network: BLE → LTE");
     }
     else if (active == &g_net_adapter_lte)
     {
       if (lte_ready)
       {
+#if (DEVICE_BLE_FALLBACK_ENABLED)
+        if (lte_lost_count >= NETWORK_SWITCH_LOST_THRESHOLD)
+          sys_ble_set_advertise(false);
+#endif
         lte_lost_count = 0;
       }
       else
       {
-        lte_lost_count++;
-        if (lte_lost_count >= NETWORK_SWITCH_LOST_THRESHOLD && ble_ready)
+        if (lte_lost_count < NETWORK_SWITCH_LOST_THRESHOLD)
+          lte_lost_count++;
+
+        if (lte_lost_count >= NETWORK_SWITCH_LOST_THRESHOLD)
         {
-          active           = &g_net_adapter_ble;
-          s_pub_slot_valid = false;
-          LOG_INF("Network: LTE → BLE (lost=%d)", lte_lost_count);
+#if (DEVICE_BLE_FALLBACK_ENABLED)
+          sys_ble_set_advertise(true);
+#endif
+          if (ble_ready)
+          {
+            active           = &g_net_adapter_ble;
+            s_pub_slot_valid = false;
+            LOG_INF("Network: LTE → BLE (lost=%d)", lte_lost_count);
+          }
         }
       }
     }

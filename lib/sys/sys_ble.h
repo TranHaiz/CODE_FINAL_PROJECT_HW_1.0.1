@@ -47,6 +47,13 @@ void sys_ble_send(const uint8_t *data, size_t len);
  */
 bool sys_ble_is_connected(void);
 
+/**
+ * @brief Enable or disable BLE advertising.
+ * @param[in] enable true to enable advertising, false to disable
+ * @return none
+ */
+void sys_ble_set_advertise(bool enable);
+
 #endif /* SYS_BLE_H */
 
 /* End of file -------------------------------------------------------- */
