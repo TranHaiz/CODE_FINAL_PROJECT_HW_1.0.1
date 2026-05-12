@@ -223,6 +223,7 @@ static void sys_manager_unlocked_handler(void)
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
   {
     device_info_update_state(DEVICE_STATE_ACTIVE);
+    sys_input_clear_data_for_new_rental();
     sys_ui_unlock();
     LOG_DBG("Device unlocked and active");
   }
@@ -343,6 +344,7 @@ void sys_manager_unlock_from_network_handler(void)
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
   sys_manager_stop_danger_noti();
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
+  sys_input_clear_data_for_new_rental();
   sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
 

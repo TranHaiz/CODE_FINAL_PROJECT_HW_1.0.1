@@ -69,6 +69,12 @@ void sys_input_init(void);
 status_function_t sys_input_process(void);
 
 /**
+ * @brief Clear input data when starting new rental session
+ * @return none
+ */
+void sys_input_clear_data_for_new_rental(void);
+
+/**
  * @brief Get current sensor input data
  *
  * @return status_function_t Status of operation

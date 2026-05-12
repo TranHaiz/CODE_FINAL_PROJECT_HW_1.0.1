@@ -149,6 +149,12 @@ status_function_t sys_input_process(void)
   return STATUS_OK;
 }
 
+void sys_input_clear_data_for_new_rental(void)
+{
+  input_ctx.prev_distance_m = 0.0f;
+  input_ctx.data.distance_m = 0.0f;
+}
+
 status_function_t sys_input_get_data(sys_input_data_t *data)
 {
   if (data == NULL || !input_ctx.initialized)
