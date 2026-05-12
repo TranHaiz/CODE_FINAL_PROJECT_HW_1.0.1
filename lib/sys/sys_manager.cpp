@@ -26,6 +26,7 @@
 #include "sys_led.h"
 #include "sys_log.h"
 #include "sys_network.h"
+#include "sys_network_adapter_lte.h"
 #include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
@@ -237,7 +238,7 @@ static void sys_manager_change_topic_sub_handler(void)
   LOG_DBG("Changing MQTT sub cmd change %s to new topic: %s", g_device_info.last_mqtt_cmd_topic,
           g_device_info.mqtt_cmd_topic);
   bsp_sim_mqtt_unsub(g_device_info.last_mqtt_cmd_topic);
-  bsp_sim_mqtt_sub(g_device_info.mqtt_cmd_topic, sys_network_mqtt_message_cb);
+  bsp_sim_mqtt_sub(g_device_info.mqtt_cmd_topic, sys_network_adapter_lte_mqtt_cb);
   strncpy(g_device_info.last_mqtt_cmd_topic, g_device_info.mqtt_cmd_topic,
           sizeof(g_device_info.last_mqtt_cmd_topic) - 1);
   LOG_DBG("MQTT last cmd topic: %s", g_device_info.last_mqtt_cmd_topic);
@@ -253,7 +254,7 @@ static void sys_manager_reboot_handler(void)
 static void sys_manager_user_lock_handler(void)
 {
   LOG_DBG("Handling user lock event");
-  sys_network_mqtt_publish_noti(NETWORK_NOTI_USERLOCK_PAYLOAD, strlen(NETWORK_NOTI_USERLOCK_PAYLOAD));
+  sys_network_publish_noti(NETWORK_NOTI_USERLOCK_PAYLOAD, strlen(NETWORK_NOTI_USERLOCK_PAYLOAD));
 #if (DEVICE_LOCK_DEBUG_MODE_ENABLED)
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_lock();
@@ -267,7 +268,7 @@ static void sys_manager_user_lock_handler(void)
 static void sys_manager_user_pause_handler(void)
 {
   LOG_DBG("Handling user pause event");
-  sys_network_mqtt_publish_noti(NETWORK_NOTI_USERPAUSE_PAYLOAD, strlen(NETWORK_NOTI_USERPAUSE_PAYLOAD));
+  sys_network_publish_noti(NETWORK_NOTI_USERPAUSE_PAYLOAD, strlen(NETWORK_NOTI_USERPAUSE_PAYLOAD));
 #if (DEVICE_LOCK_DEBUG_MODE_ENABLED)
   // TODO: implement pause functionality, for now just lock and send noti
   device_info_update_state(DEVICE_STATE_LOCKED);
@@ -345,7 +346,7 @@ void sys_manager_unlock_from_network_handler(void)
   sys_manager_stop_danger_noti();
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
   sys_input_clear_data_for_new_rental();
-  sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
+  sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
 
 void sys_manager_lock_from_network_handler(void)
@@ -359,7 +360,7 @@ void sys_manager_lock_from_network_handler(void)
 #endif  // DEVICE_IDLE_MODE_ENABLED
     LOG_DBG("Device locked from network");
   }
-  sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
+  sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
 
 static void sys_manager_stop_rental_fail_handler(void)
@@ -372,7 +373,7 @@ static void sys_manager_stop_rental_success_handler(void)
 {
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
   device_info_update_state(DEVICE_STATE_LOCKED);
-  sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
+  sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 #if (DEVICE_IDLE_MODE_ENABLED)
   bsp_timer_start(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
@@ -411,7 +412,7 @@ static void sys_manager_stop_danger_noti(void)
 static void sys_manager_flush_log(void)
 {
   sys_log_deinit();
-  sys_network_mqtt_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
+  sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
 
 static void sys_manager_rental_noti_limit_handler(void)

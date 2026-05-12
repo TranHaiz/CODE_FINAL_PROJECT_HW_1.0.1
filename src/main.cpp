@@ -33,6 +33,8 @@
 #include "sys_log.h"
 #include "sys_manager.h"
 #include "sys_network.h"
+#include "sys_network_adapter_ble.h"
+#include "sys_network_adapter_lte.h"
 #include "sys_ui.h"
 #include "sys_ui_simple.h"
 
@@ -59,8 +61,9 @@ OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 3, 4096);
 #endif
 
 #if (DEVICE_NETWORK_ENABLED)
-OS_THREAD_DECLARE(sys_network_thread, tskIDLE_PRIORITY + 2, 8192);
-OS_THREAD_DECLARE(network_data_thread, tskIDLE_PRIORITY + 3, 6144);
+OS_THREAD_DECLARE(sys_network_thread, tskIDLE_PRIORITY + 3, 6144);
+OS_THREAD_DECLARE(sys_network_lte_thread, tskIDLE_PRIORITY + 2, 8192);
+OS_THREAD_DECLARE(sys_network_ble_thread, tskIDLE_PRIORITY + 3, 8192);
 #endif
 
 #if (DEVICE_UI_ENABLED)
@@ -108,9 +111,9 @@ void setup()
   bsp_sdcard_init();
   delay(1000);
   device_info_init();
+  sys_ble_init();
   sys_network_init();
   delay(1000);
-  sys_ble_init();
   OS_THREAD_CREATE(sys_cmd_thread, sys_cmd_thread_func);
   OS_THREAD_CREATE(sys_ble_thread, sys_ble_thread_func);
   OS_THREAD_CREATE(sys_cmd_usb_thread, sys_cmd_usb_thread_func);
@@ -120,8 +123,9 @@ void setup()
 #endif
 
 #if (DEVICE_NETWORK_ENABLED)
-  OS_THREAD_CREATE(sys_network_thread, sys_network_process);
-  OS_THREAD_CREATE(network_data_thread, sys_network_data_task);
+  OS_THREAD_CREATE(sys_network_thread, sys_network_task);
+  OS_THREAD_CREATE(sys_network_lte_thread, sys_network_adapter_lte_task);
+  OS_THREAD_CREATE(sys_network_ble_thread, sys_network_adapter_ble_task);
 #endif
 
 #if (DEVICE_UI_ENABLED)
@@ -278,7 +282,8 @@ void kill_all_threads(void)
 #endif
 #if (DEVICE_NETWORK_ENABLED)
   OS_THREAD_DELETE(sys_network_thread);
-  OS_THREAD_DELETE(network_data_thread);
+  OS_THREAD_DELETE(sys_network_lte_thread);
+  OS_THREAD_DELETE(sys_network_ble_thread);
 #endif
 #if (DEVICE_UI_ENABLED)
   OS_THREAD_DELETE(sys_ui_thread);

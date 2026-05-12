@@ -26,7 +26,8 @@ typedef enum
   BSP_BLE_EVT_NONE = 0,
   BSP_BLE_EVT_CONNECT,
   BSP_BLE_EVT_DISCONNECT,
-  BSP_BLE_EVT_RECEIVE_DATA
+  BSP_BLE_EVT_RECEIVE_DATA,
+  BSP_BLE_EVT_CMD_WRITE
 } bsp_ble_event_t;
 
 typedef void (*bsp_ble_cb_t)(bsp_ble_event_t event);
@@ -68,12 +69,59 @@ status_function_t bsp_ble_send(const uint8_t *data, size_t size);
 status_function_t bsp_ble_disconnect(void);
 
 /**
- * @brief Get received data from static buffer
+ * @brief Get received data from Nordic UART RX buffer
  * @param[out] out_buffer Pointer to application buffer
  * @param[in] max_size Maximum length to copy
  * @return size_t Length of data copied
  */
 size_t bsp_ble_get(uint8_t *out_buffer, size_t max_size);
+
+/**
+ * @brief Register a second event callback 2.
+ * @param[in] cb Callback to register
+ * @return status_function_t STATUS_OK
+ */
+status_function_t bsp_ble_add_callback(bsp_ble_cb_t cb);
+
+/**
+ * @brief Check BLE connection state
+ * @return true if a client is connected
+ */
+bool bsp_ble_is_connected(void);
+
+/* --- Tracker Network Service sends (NET_CH_DATA / NOTI / CMD_RESP) --- */
+
+/**
+ * @brief Notify DATA characteristic (telemetry → app)
+ * @param[in] data Pointer to data to send
+ * @param[in] size Size of data
+ * @return status_function_t STATUS_OK if successful, STATUS_ERROR if no connection
+ */
+status_function_t bsp_ble_send_data(const uint8_t *data, size_t size);
+
+/**
+ * @brief Notify NOTI characteristic (alarm/event → app)
+ * @param[in] data Pointer to data to send
+ * @param[in] size Size of data
+ * @return status_function_t STATUS_OK if successful, STATUS_ERROR if no connection
+ */
+status_function_t bsp_ble_send_noti(const uint8_t *data, size_t size);
+
+/**
+ * @brief Notify CMD characteristic (command response → app)
+ * @param[in] data Pointer to data to send
+ * @param[in] size Size of data
+ * @return status_function_t STATUS_OK if successful, STATUS_ERROR if no connection
+ */
+status_function_t bsp_ble_send_cmd_resp(const uint8_t *data, size_t size);
+
+/**
+ * @brief Get payload of the last CMD characteristic write (app → device)
+ * @param[out] out_buffer Destination buffer
+ * @param[in]  max_size   Maximum bytes to copy
+ * @return size_t Bytes copied; 0 if no new write available
+ */
+size_t bsp_ble_get_cmd(uint8_t *out_buffer, size_t max_size);
 
 #endif /* BSP_BLE_H */
 

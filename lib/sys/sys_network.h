@@ -1,12 +1,13 @@
 /**
  * @file       sys_network.h
- * @copyright  Copyright (C) 2019 ITRVN. All rights reserved.
+ * @copyright  Copyright (C) 2025 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
- * @version    2.0.0
- * @date       2026-04-10
+ * @version    3.0.0
+ * @date       2026-05-12
  * @author     Hai Tran
  *
- * @brief      System Network Layer - Network management interface
+ * @brief      Network dispatcher — owns cbuffer/SD, chooses active adapter,
+ *             routes telemetry and commands through it.
  *
  */
 
@@ -23,65 +24,35 @@
 #define MQTT_REQUEST_PUBLISH_SIZE (128)
 #define SD_OFFLINE_LOG_PATH       "/buff/offline_log.json"
 
-/* Public enumerate/structure ----------------------------------------- */
-/* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
 extern volatile bool is_data_network_ready;
 
 /* Public function prototypes ----------------------------------------- */
 /**
- * @brief Initialize the network layer (SIM, MQTT, cbuffer, semaphores).
- *
- * @return none
+ * @brief Initialize the dispatcher: cbuffer (PSRAM), SD, mutexes,
+ *        and both adapters.  Call from setup() before spawning tasks.
  */
 void sys_network_init(void);
 
 /**
- * @brief Network state machine process task entry point.
- *        Manages SIM/MQTT connection and publishes from cbuffer or SD.
- *
- * @param[in] param  Unused.
- *
- * @return none
+ * @brief Dispatcher task entry point.
+ *        Pulls telemetry, manages adapter switching, drains noti/data queues.
  */
-void sys_network_process(void *param);
-
-/**
- * @brief Data task entry point.
- *        Reads telemetry from sys_input, builds JSON payload, pushes into cbuffer.
- *        When offline and cbuffer usage exceeds 80%, flushes to SD card.
- *
- * @param[in] param  Unused.
- *
- * @return none
- */
-void sys_network_data_task(void *param);
+void sys_network_task(void *param);
 
 /**
  * @brief Trigger a network wakeup (e.g. after device unlock).
- *
- * @return none
  */
 void sys_network_wakeup(void);
 
 /**
- * @brief Publish a notification or command response via MQTT.
+ * @brief Enqueue a notification/command-response for the active adapter.
+ *        Thread-safe; may be called from any task.
  *
- * @param[in] payload Payload data to publish.
- * @param[in] payload_len Length of the payload data in bytes.
- *
- * @return none
+ * @param[in] payload     Null-terminated string payload.
+ * @param[in] payload_len Length of payload (excluding null terminator).
  */
-void sys_network_mqtt_publish_noti(const char *payload, size_t payload_len);
-
-/**
- * @brief MQTT message callback for incoming commands.
- * @param[in] topic MQTT topic of the received message.
- * @param[in] data Pointer to the received payload data.
- * @param[in] len Length of the received payload data.
- * @return none
- */
-void sys_network_mqtt_message_cb(const char *topic, const uint8_t *data, size_t len);
+void sys_network_publish_noti(const char *payload, size_t payload_len);
 
 #endif /* End file _SYS_NETWORK_H_ */
 
