@@ -18,7 +18,7 @@
 #include "device_info.h"
 #include "log_service.h"
 #include "os_lib.h"
-#include "sys_ble.h"
+#include "sys_network_adapter_ble.h"
 #include "sys_led.h"
 
 /* Private defines ---------------------------------------------------- */

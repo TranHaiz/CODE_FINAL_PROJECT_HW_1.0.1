@@ -23,7 +23,7 @@
 #include "device_info.h"
 #include "log_service.h"
 #include "os_lib.h"
-#include "sys_ble.h"
+#include "sys_network_adapter_ble.h"
 #include "sys_button.h"
 #include "sys_cmd.h"
 #include "sys_cmd_usb.h"
@@ -33,7 +33,6 @@
 #include "sys_log.h"
 #include "sys_manager.h"
 #include "sys_network.h"
-#include "sys_network_adapter_ble.h"
 #include "sys_network_adapter_lte.h"
 #include "sys_ui.h"
 #include "sys_ui_simple.h"
@@ -47,7 +46,6 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_MAIN)
 #define SYS_MISC_UPDATE_RATE_MS   (100)
 #define SYS_BUTTON_UPDATE_RATE_MS (10)
 #define SYS_ERROR_UPDATE_RATE_MS  (100)
-#define SYS_BLE_UPDATE_RATE_MS    (100)
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -63,7 +61,6 @@ OS_THREAD_DECLARE(sys_input_thread, tskIDLE_PRIORITY + 3, 4096);
 #if (DEVICE_NETWORK_ENABLED)
 OS_THREAD_DECLARE(sys_network_thread, tskIDLE_PRIORITY + 3, 6144);
 OS_THREAD_DECLARE(sys_network_lte_thread, tskIDLE_PRIORITY + 2, 8192);
-OS_THREAD_DECLARE(sys_network_ble_thread, tskIDLE_PRIORITY + 3, 8192);
 #endif
 
 #if (DEVICE_UI_ENABLED)
@@ -125,7 +122,6 @@ void setup()
 #if (DEVICE_NETWORK_ENABLED)
   OS_THREAD_CREATE(sys_network_thread, sys_network_task);
   OS_THREAD_CREATE(sys_network_lte_thread, sys_network_adapter_lte_task);
-  OS_THREAD_CREATE(sys_network_ble_thread, sys_network_adapter_ble_task);
 #endif
 
 #if (DEVICE_UI_ENABLED)
@@ -266,12 +262,11 @@ void sys_error_thread_func(void *param)
 
 void sys_ble_thread_func(void *param)
 {
-  // sys_ble_init() moved to setup() before thread creation to avoid
-  // BLE controller OOM during init.
+  // sys_ble_init() called in setup() — BLE controller OOM if init is inside task.
+  // sys_ble_process() internally calls ble_adapter_poll() (blocks up to 20 ms).
   while (true)
   {
     sys_ble_process();
-    OS_DELAY_MS(SYS_BLE_UPDATE_RATE_MS);
   }
 }
 
@@ -283,7 +278,6 @@ void kill_all_threads(void)
 #if (DEVICE_NETWORK_ENABLED)
   OS_THREAD_DELETE(sys_network_thread);
   OS_THREAD_DELETE(sys_network_lte_thread);
-  OS_THREAD_DELETE(sys_network_ble_thread);
 #endif
 #if (DEVICE_UI_ENABLED)
   OS_THREAD_DELETE(sys_ui_thread);

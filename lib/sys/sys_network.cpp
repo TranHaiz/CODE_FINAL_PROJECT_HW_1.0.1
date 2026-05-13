@@ -25,7 +25,6 @@
 #include "sys_input.h"
 #include "sys_led.h"
 #include "sys_manager.h"
-#include "sys_ble.h"
 #include "sys_network_adapter_ble.h"
 #include "sys_network_adapter_lte.h"
 #include "sys_ui_simple.h"

@@ -15,7 +15,7 @@
 
 #include "bsp_rtc.h"
 #include "bsp_sdcard.h"
-#include "sys_ble.h"
+#include "sys_network_adapter_ble.h"
 
 #include <stdio.h>
 #include <string.h>
