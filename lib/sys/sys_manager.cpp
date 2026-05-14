@@ -191,7 +191,7 @@ static void sys_manager_wakeup_handler(void)
 
 static void sys_manager_lock_handler(void)
 {
-  // TODO: NOTI state to server
+  sys_network_trigger_end_trip();
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_lock();
 #if (DEVICE_IDLE_MODE_ENABLED)
@@ -223,6 +223,7 @@ static void sys_manager_unlocked_handler(void)
 
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
   {
+    sys_network_trigger_new_trip();
     device_info_update_state(DEVICE_STATE_ACTIVE);
     sys_input_clear_data_for_new_rental();
     sys_ui_unlock();
@@ -256,6 +257,7 @@ static void sys_manager_user_lock_handler(void)
   LOG_DBG("Handling user lock event");
   sys_network_publish_noti(NETWORK_NOTI_USERLOCK_PAYLOAD, strlen(NETWORK_NOTI_USERLOCK_PAYLOAD));
 #if (DEVICE_LOCK_DEBUG_MODE_ENABLED)
+  sys_network_trigger_end_trip();
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_lock();
 
@@ -270,9 +272,8 @@ static void sys_manager_user_pause_handler(void)
   LOG_DBG("Handling user pause event");
   sys_network_publish_noti(NETWORK_NOTI_USERPAUSE_PAYLOAD, strlen(NETWORK_NOTI_USERPAUSE_PAYLOAD));
 #if (DEVICE_LOCK_DEBUG_MODE_ENABLED)
-  // TODO: implement pause functionality, for now just lock and send noti
+  sys_network_trigger_end_trip();
   device_info_update_state(DEVICE_STATE_LOCKED);
-  // device_info_update_state(DEVICE_STATE_PAUSED);
   sys_ui_lock();
 
 #if (DEVICE_IDLE_MODE_ENABLED)
@@ -334,6 +335,7 @@ void sys_manager_unlock_from_network_handler(void)
     bsp_timer_reset(&manager_handler.shutdown_timer);
     bsp_timer_stop(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
+    sys_network_trigger_new_trip();
     device_info_update_state(DEVICE_STATE_ACTIVE);
     if (g_device_info.nvs_info.prev_state == DEVICE_STATE_IDLE)
     {
@@ -353,6 +355,7 @@ void sys_manager_lock_from_network_handler(void)
 {
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_LOCKED)
   {
+    sys_network_trigger_end_trip();
     device_info_update_state(DEVICE_STATE_LOCKED);
     sys_ui_lock();
 #if (DEVICE_IDLE_MODE_ENABLED)
@@ -372,6 +375,7 @@ static void sys_manager_stop_rental_fail_handler(void)
 static void sys_manager_stop_rental_success_handler(void)
 {
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
+  sys_network_trigger_end_trip();
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 #if (DEVICE_IDLE_MODE_ENABLED)
@@ -388,11 +392,7 @@ static void sys_manager_stop_rental_success_handler(void)
 
 static void sys_manager_reset_offline_data_handler(void)
 {
-  status_function_t ret = bsp_sdcard_delete(SD_OFFLINE_LOG_PATH);
-  if (ret != STATUS_OK)
-  {
-    LOG_ERR("Failed to delete offline data");
-  }
+  sys_network_reset_offline_data();
   OS_DELAY_MS(1000);
   bsp_device_reboot();
 }

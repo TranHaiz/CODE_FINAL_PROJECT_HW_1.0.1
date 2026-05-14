@@ -41,11 +41,15 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_SYS_NETWORK)
 #define NETWORK_BYTES               (NETWORK_CBUFF_COUNT * NETWORK_CBUFF_SLOT_SIZE)
 #define NETWORK_CBUFF_FLUSH_THRESH  (80)
 #define MQTT_REQUEST_PUBLISH_MAX    (10)
-#define SD_OFFLINE_DIR              "/buff"
+#define SD_OFFLINE_DIR              "/offline"
+#define SD_TRIP_PREFIX              "/offline/trip_"
 #define SD_JSON_LINE_MAX_LEN        (NETWORK_CBUFF_SLOT_SIZE + 2)
 #define SD_CARD_RETRY_COUNT         (3)
 #define SD_CARD_RETRY_DELAY_MS      (100)
 #define MQTT_PUBLISH_RETRY_DELAY_MS (100)
+#define MAX_UPLOAD_TRIPS            (100)
+#define MAX_OFFLINE_TRIP_PATH_LEN   (128)
+#define MAX_OFFLINE_TRIP_NAME_LEN   (64)
 
 /* Private variables -------------------------------------------------- */
 static bool s_is_init = false;
@@ -60,6 +64,9 @@ static size_t s_network_sd_offset  = 0;
 static char   s_sd_line[SD_JSON_LINE_MAX_LEN];
 static char   s_pub_slot[NETWORK_CBUFF_SLOT_SIZE];
 static bool   s_pub_slot_valid = false;
+
+static uint32_t s_active_trip_id                        = 0;
+static char     s_current_upload_trip[MAX_UPLOAD_TRIPS] = { 0 };
 
 volatile bool is_data_network_ready = false;
 
@@ -77,6 +84,7 @@ static bool              sys_network_publish_from_cbuffer(net_adapter_t *adapter
 static bool              sys_network_need_push_sd(void);
 static status_function_t sys_network_prepare_sd_card(void);
 static bool              sys_network_check_sd_pending(void);
+static void              sys_network_write_trip_info(const char *meta_path, uint32_t trip_id, trip_state_t state);
 
 /* Function definitions ----------------------------------------------- */
 void sys_network_init(void)
@@ -102,7 +110,6 @@ void sys_network_init(void)
 
   (void) sys_network_prepare_sd_card();
   s_is_data_sd_pending = sys_network_check_sd_pending();
-  s_network_sd_offset  = 0;
   if (s_is_data_sd_pending)
   {
     LOG_INF("Offline log found on SD — will drain after reconnect");
@@ -118,6 +125,47 @@ void sys_network_init(void)
 void sys_network_wakeup(void)
 {
   OS_SEM_GIVE(net_wakeup_sem);
+}
+
+void sys_network_trigger_new_trip(void)
+{
+  uint32_t new_trip_id = 1;
+  char     info_path[MAX_OFFLINE_TRIP_PATH_LEN];
+  snprintf(info_path, sizeof(info_path), "%s/trip_info.dat", SD_OFFLINE_DIR);
+
+  if (sys_network_prepare_sd_card() == STATUS_OK)
+  {
+    bsp_sdcard_file_t trip_info_file;
+    size_t            read_len = 0;
+    trip_meta_info_t  old_trip_info;
+    if (bsp_sdcard_open(info_path, BSP_SDCARD_MODE_READ, &trip_info_file) == STATUS_OK)
+    {
+      bsp_sdcard_read(&trip_info_file, (uint8_t *) &old_trip_info, sizeof(old_trip_info), &read_len);
+      bsp_sdcard_close(&trip_info_file);
+    }
+    if (read_len == sizeof(old_trip_info))
+      new_trip_id = old_trip_info.current_trip_id + 1;
+
+    sys_network_write_trip_info(info_path, new_trip_id, TRIP_ACTIVE);
+  }
+
+  s_active_trip_id     = new_trip_id;
+  s_is_data_sd_pending = sys_network_check_sd_pending();
+  LOG_INF("New trip started: %lu", new_trip_id);
+}
+
+void sys_network_trigger_end_trip(void)
+{
+  if (s_active_trip_id != 0 && sys_network_prepare_sd_card() == STATUS_OK)
+  {
+    char info_path[MAX_OFFLINE_TRIP_PATH_LEN];
+    snprintf(info_path, sizeof(info_path), "%s/trip_info.dat", SD_OFFLINE_DIR);
+    sys_network_write_trip_info(info_path, s_active_trip_id, TRIP_COMPLETED);
+  }
+
+  LOG_INF("Trip %lu ended", s_active_trip_id);
+  s_active_trip_id     = 0;
+  s_is_data_sd_pending = sys_network_check_sd_pending();
 }
 
 void sys_network_publish_noti(const char *payload, size_t payload_len)
@@ -247,7 +295,8 @@ void sys_network_task(void *param)
       continue;
     }
 
-    /* --- 5. Drain SD first, then cbuffer --- */
+    // --- 5. Drain SD first, then cbuffer.
+    // check_sd_pending() ensures active trip's SD takes priority > old backlog. */
     if (s_is_data_sd_pending)
     {
       sys_network_push_sd_to_adapter(active);
@@ -429,20 +478,30 @@ static void sys_network_flush_cbuffer_to_sd(void)
 
   if (bsp_sdcard_is_mounted() != STATUS_OK)
   {
-    LOG_ERR("SD not mounted — cannot flush");
+    LOG_ERR("SD not mounted - cannot flush");
     return;
   }
 
   if (sys_network_prepare_sd_card() != STATUS_OK)
     return;
 
+  char log_path[MAX_OFFLINE_TRIP_PATH_LEN];
+  if (s_active_trip_id != 0)
+  {
+    snprintf(log_path, sizeof(log_path), "%s%lu.log", SD_TRIP_PREFIX, s_active_trip_id);
+  }
+  else
+  {
+    snprintf(log_path, sizeof(log_path), "%s/trip_0.log", SD_OFFLINE_DIR);
+  }
+
   bsp_sdcard_file_t fh;
   bsp_sdcard_mode_t mode =
-    (bsp_sdcard_file_exists(SD_OFFLINE_LOG_PATH) == STATUS_OK) ? BSP_SDCARD_MODE_APPEND : BSP_SDCARD_MODE_WRITE;
+    (bsp_sdcard_file_exists(log_path) == STATUS_OK) ? BSP_SDCARD_MODE_APPEND : BSP_SDCARD_MODE_WRITE;
 
-  if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, mode, &fh) != STATUS_OK)
+  if (bsp_sdcard_open(log_path, mode, &fh) != STATUS_OK)
   {
-    LOG_ERR("Cannot open offline log");
+    LOG_ERR("Cannot open offline log %s", log_path);
     return;
   }
 
@@ -473,28 +532,33 @@ static void sys_network_flush_cbuffer_to_sd(void)
   bsp_sdcard_close(&fh);
   if (flushed > 0)
   {
-    LOG_INF("Flushed %u records to SD", (unsigned) flushed);
-    s_is_data_sd_pending = true;
+    LOG_INF("Flushed %u records to SD (%s)", (unsigned) flushed, log_path);
+    s_is_data_sd_pending = sys_network_check_sd_pending();
   }
 }
 
 static status_function_t sys_network_push_sd_to_adapter(net_adapter_t *adapter)
 {
-  if (bsp_sdcard_is_mounted() != STATUS_OK)
+  if (bsp_sdcard_is_mounted() != STATUS_OK || s_current_upload_trip[0] == '\0')
   {
     s_is_data_sd_pending = false;
-    s_network_sd_offset  = 0;
     return STATUS_BUSY;
   }
 
-  if (sys_network_prepare_sd_card() != STATUS_OK)
-    return STATUS_BUSY;
+  char  log_path[128];
+  char  ack_path[128];
+  char *dot;
+  snprintf(log_path, sizeof(log_path), "%s/%s", SD_OFFLINE_DIR, s_current_upload_trip);
+  snprintf(ack_path, sizeof(ack_path), "%s", log_path);
+  dot = strrchr(ack_path, '.');
+  if (dot != NULL)
+    strcpy(dot, ".ack");
 
   bsp_sdcard_file_t fh;
-  if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, BSP_SDCARD_MODE_READ, &fh) != STATUS_OK)
+  if (bsp_sdcard_open(log_path, BSP_SDCARD_MODE_READ, &fh) != STATUS_OK)
   {
-    s_is_data_sd_pending = false;
-    s_network_sd_offset  = 0;
+    s_is_data_sd_pending     = false;
+    s_current_upload_trip[0] = '\0';
     return STATUS_BUSY;
   }
 
@@ -502,10 +566,11 @@ static status_function_t sys_network_push_sd_to_adapter(net_adapter_t *adapter)
   if (s_network_sd_offset >= total)
   {
     bsp_sdcard_close(&fh);
-    bsp_sdcard_delete(SD_OFFLINE_LOG_PATH);
-    s_is_data_sd_pending = false;
-    s_network_sd_offset  = 0;
-    LOG_INF("Offline log fully drained");
+    bsp_sdcard_delete(log_path);
+    bsp_sdcard_delete(ack_path);
+    s_current_upload_trip[0] = '\0';
+    s_is_data_sd_pending     = sys_network_check_sd_pending();
+    LOG_INF("Offline log %s fully drained", log_path);
     return STATUS_OK;
   }
 
@@ -542,12 +607,21 @@ static status_function_t sys_network_push_sd_to_adapter(net_adapter_t *adapter)
   }
 
   s_network_sd_offset += line_len + 1;
+
+  bsp_sdcard_file_t ack_fh;
+  if (bsp_sdcard_open(ack_path, BSP_SDCARD_MODE_WRITE, &ack_fh) == STATUS_OK)
+  {
+    bsp_sdcard_write(&ack_fh, (const uint8_t *) &s_network_sd_offset, sizeof(s_network_sd_offset), NULL);
+    bsp_sdcard_close(&ack_fh);
+  }
+
   if (s_network_sd_offset >= total)
   {
-    bsp_sdcard_delete(SD_OFFLINE_LOG_PATH);
-    s_is_data_sd_pending = false;
-    s_network_sd_offset  = 0;
-    LOG_INF("Offline log fully drained");
+    bsp_sdcard_delete(log_path);
+    bsp_sdcard_delete(ack_path);
+    s_current_upload_trip[0] = '\0';
+    s_is_data_sd_pending     = sys_network_check_sd_pending();
+    LOG_INF("Offline log %s fully drained", log_path);
   }
   return STATUS_OK;
 }
@@ -580,20 +654,7 @@ static status_function_t sys_network_prepare_sd_card(void)
     }
   }
 
-  if (bsp_sdcard_file_exists(SD_OFFLINE_LOG_PATH) == STATUS_OK)
-    return STATUS_OK;
-
-  bsp_sdcard_file_t fh;
-  for (uint8_t i = 0; i < SD_CARD_RETRY_COUNT; i++)
-  {
-    if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, BSP_SDCARD_MODE_WRITE, &fh) == STATUS_OK)
-    {
-      bsp_sdcard_close(&fh);
-      return STATUS_OK;
-    }
-    OS_DELAY_MS(SD_CARD_RETRY_DELAY_MS);
-  }
-  return STATUS_ERROR;
+  return STATUS_OK;
 }
 
 static bool sys_network_check_sd_pending(void)
@@ -603,13 +664,101 @@ static bool sys_network_check_sd_pending(void)
   if (sys_network_prepare_sd_card() != STATUS_OK)
     return false;
 
-  bsp_sdcard_file_t fh;
-  if (bsp_sdcard_open(SD_OFFLINE_LOG_PATH, BSP_SDCARD_MODE_READ, &fh) != STATUS_OK)
+  char  ack_path[MAX_OFFLINE_TRIP_PATH_LEN];
+  char *dot;
+
+  // Active trip mode: only look for this trip's own log, never touch old backlog.
+  if (s_active_trip_id != 0)
+  {
+    char active_path[MAX_OFFLINE_TRIP_PATH_LEN];
+    snprintf(s_current_upload_trip, sizeof(s_current_upload_trip), "trip_%lu.log", s_active_trip_id);
+    snprintf(active_path, sizeof(active_path), "%s/%s", SD_OFFLINE_DIR, s_current_upload_trip);
+    if (bsp_sdcard_file_exists(active_path) != STATUS_OK)
+    {
+      s_current_upload_trip[0] = '\0';
+      return false;
+    }
+    s_network_sd_offset = 0;
+    snprintf(ack_path, sizeof(ack_path), "%s/trip_%lu.ack", SD_OFFLINE_DIR, s_active_trip_id);
+    bsp_sdcard_file_t ack_file_handle;
+    if (bsp_sdcard_open(ack_path, BSP_SDCARD_MODE_READ, &ack_file_handle) == STATUS_OK)
+    {
+      size_t read_len = 0;
+      bsp_sdcard_read(&ack_file_handle, (uint8_t *) &s_network_sd_offset, sizeof(s_network_sd_offset), &read_len);
+      bsp_sdcard_close(&ack_file_handle);
+    }
+    return true;
+  }
+
+  // No active trip: scan for any remaining backlog.
+  bsp_sdcard_dir_t dir;
+  if (bsp_sdcard_dir_open(SD_OFFLINE_DIR, &dir) != STATUS_OK)
     return false;
 
-  bool non_empty = (fh.file.size() > 0);
-  bsp_sdcard_close(&fh);
-  return non_empty;
+  char file_name[64];
+  while (bsp_sdcard_dir_read_next(&dir, file_name, sizeof(file_name)) == STATUS_OK)
+  {
+    if (strstr(file_name, ".log") == NULL)
+      continue;
+
+    snprintf(s_current_upload_trip, sizeof(s_current_upload_trip), "%s", file_name);
+    bsp_sdcard_dir_close(&dir);
+
+    s_network_sd_offset = 0;
+    snprintf(ack_path, sizeof(ack_path), "%s/%s", SD_OFFLINE_DIR, file_name);
+    dot = strrchr(ack_path, '.');
+    if (dot != NULL)
+    {
+      strcpy(dot, ".ack");
+      bsp_sdcard_file_t ack_file_handle;
+      if (bsp_sdcard_open(ack_path, BSP_SDCARD_MODE_READ, &ack_file_handle) == STATUS_OK)
+      {
+        size_t read_len = 0;
+        bsp_sdcard_read(&ack_file_handle, (uint8_t *) &s_network_sd_offset, sizeof(s_network_sd_offset), &read_len);
+        bsp_sdcard_close(&ack_file_handle);
+      }
+    }
+    return true;
+  }
+
+  bsp_sdcard_dir_close(&dir);
+  s_current_upload_trip[0] = '\0';
+  return false;
+}
+
+void sys_network_reset_offline_data(void)
+{
+  if (bsp_sdcard_is_mounted() != STATUS_OK)
+    return;
+
+  bsp_sdcard_dir_t dir;
+  if (bsp_sdcard_dir_open(SD_OFFLINE_DIR, &dir) == STATUS_OK)
+  {
+    char file_name[MAX_OFFLINE_TRIP_NAME_LEN];
+    char file_path[MAX_OFFLINE_TRIP_PATH_LEN];
+    while (bsp_sdcard_dir_read_next(&dir, file_name, sizeof(file_name)) == STATUS_OK)
+    {
+      snprintf(file_path, sizeof(file_path), "%s/%s", SD_OFFLINE_DIR, file_name);
+      bsp_sdcard_delete(file_path);
+    }
+    bsp_sdcard_dir_close(&dir);
+    bsp_sdcard_delete(SD_OFFLINE_DIR);
+  }
+
+  s_is_data_sd_pending     = false;
+  s_active_trip_id         = 0;
+  s_current_upload_trip[0] = '\0';
+  s_network_sd_offset      = 0;
+}
+
+static void sys_network_write_trip_info(const char *meta_path, uint32_t trip_id, trip_state_t state)
+{
+  bsp_sdcard_file_t trip_info_file;
+  if (bsp_sdcard_open(meta_path, BSP_SDCARD_MODE_WRITE, &trip_info_file) != STATUS_OK)
+    return;
+  trip_meta_info_t meta = { .current_trip_id = trip_id, .trip_state = state };
+  bsp_sdcard_write(&trip_info_file, (const uint8_t *) &meta, sizeof(meta), NULL);
+  bsp_sdcard_close(&trip_info_file);
 }
 
 /* End of file -------------------------------------------------------- */

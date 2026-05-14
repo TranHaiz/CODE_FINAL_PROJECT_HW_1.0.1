@@ -33,6 +33,11 @@ typedef enum
   BSP_SDCARD_MODE_APPEND  // Open for appending
 } bsp_sdcard_mode_t;
 
+typedef struct
+{
+  File dir;
+} bsp_sdcard_dir_t;
+
 /**
  * @brief SD card file handle structure
  */
@@ -137,6 +142,30 @@ status_function_t bsp_sdcard_file_exists(const char *path);
  * @return status_function_t Status of operation
  */
 status_function_t bsp_sdcard_dir_exists(const char *path);
+
+/**
+ * @brief Open a directory for iteration
+ * @param[in]  path Directory path
+ * @param[out] dir  Pointer to directory handle
+ * @return status_function_t Status of operation
+ */
+status_function_t bsp_sdcard_dir_open(const char *path, bsp_sdcard_dir_t *dir);
+
+/**
+ * @brief Read the next file in the directory
+ * @param[in]  dir       Pointer to directory handle
+ * @param[out] file_name Buffer to hold the file name
+ * @param[in]  max_len   Size of the buffer
+ * @return status_function_t Status of operation
+ */
+status_function_t bsp_sdcard_dir_read_next(bsp_sdcard_dir_t *dir, char *file_name, size_t max_len);
+
+/**
+ * @brief Close directory
+ * @param[in] dir Pointer to directory handle
+ * @return status_function_t Status of operation
+ */
+status_function_t bsp_sdcard_dir_close(bsp_sdcard_dir_t *dir);
 
 /**
  * @brief Deinitialize SD card

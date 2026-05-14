@@ -22,7 +22,6 @@
 
 /* Public defines ----------------------------------------------------- */
 #define MQTT_REQUEST_PUBLISH_SIZE (128)
-#define SD_OFFLINE_LOG_PATH       "/buff/offline_log.json"
 
 /* Public variables --------------------------------------------------- */
 extern volatile bool is_data_network_ready;
@@ -33,6 +32,24 @@ extern volatile bool is_data_network_ready;
  *        and both adapters.  Call from setup() before spawning tasks.
  */
 void sys_network_init(void);
+
+/**
+ * @brief Start a new trip session: generates a sequential trip ID from SD,
+ * @return none
+ */
+void sys_network_trigger_new_trip(void);
+
+/**
+ * @brief End the active trip: marks trip_info.dat as COMPLETED and backlog SD uploads.
+ * @return none
+ */
+void sys_network_trigger_end_trip(void);
+
+/**
+ * @brief Delete all files in the offline SD directory and resetstate Safe to call before reboot.
+ * @return none
+ */
+void sys_network_reset_offline_data(void);
 
 /**
  * @brief Dispatcher task entry point.

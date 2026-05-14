@@ -39,6 +39,18 @@ typedef enum
 
 typedef enum
 {
+  TRIP_ACTIVE = 0,
+  TRIP_COMPLETED
+} trip_state_t;
+
+typedef struct
+{
+  uint32_t     current_trip_id;
+  trip_state_t trip_state;
+} trip_meta_info_t;
+
+typedef enum
+{
   BATTERY_LEVEL = 0,
   GPS_POSITION,
   SPEED,
