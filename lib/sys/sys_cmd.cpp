@@ -56,6 +56,7 @@ static void sys_cmd_rental_noti_limit_handler(void);
 static void sys_cmd_warn_debt_handler(void);
 static void sys_cmd_clear_debt_handler(void);
 static void sys_cmd_warn_low_balance_handler(void);
+static void sys_cmd_start_rental_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -80,6 +81,7 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("WARN_DEBT", sys_cmd_warn_debt_handler),
   INFO("DEBT_CLEAR", sys_cmd_clear_debt_handler),
   INFO("WARN_LOW_BALANCE", sys_cmd_warn_low_balance_handler),
+  INFO("START_RENTAL", sys_cmd_start_rental_handler)
 };
 #undef INFO
 // clang-format on
@@ -377,6 +379,40 @@ static void sys_cmd_clear_debt_handler(void)
 static void sys_cmd_warn_low_balance_handler(void)
 {
   sys_cmd_request_evt(SYS_MANAGER_EVT_WARN_LOW_BALANCE);
+}
+
+static void sys_cmd_start_rental_handler(void)
+{
+  const char *cmd      = g_cmd_input_buffer;
+  const char *time_str = strchr(cmd, '=');
+
+  if (!time_str || strlen(time_str + 1) == 0)
+  {
+    return;
+  }
+
+  int year, month, day, hour, min, sec;
+  int num = sscanf(time_str + 1, "%4d-%2d-%2dT%2d:%2d:%2d", &year, &month, &day, &hour, &min, &sec);
+
+  if (num != 6)
+  {
+    LOG_WRN("START_RENTAL: Failed to parse time: %s", time_str + 1);
+    return;
+  }
+
+  timeline_t req_time = { 0 };
+  req_time.year       = (uint32_t) year;
+  req_time.month      = (uint8_t) month;
+  req_time.date       = (uint8_t) day;
+  req_time.hour       = (uint8_t) hour;
+  req_time.minute     = (uint8_t) min;
+  req_time.second     = (uint8_t) sec;
+
+  LOG_DBG("START_RENTAL parsed: %02d:%02d:%02d %02d/%02d/%04d", req_time.hour, req_time.minute, req_time.second,
+          req_time.date, req_time.month, req_time.year);
+
+  bsp_rtc_set(&req_time);
+  sys_cmd_request_evt(SYS_MANAGER_EVT_START_RENTAL);
 }
 
 /* End of file -------------------------------------------------------- */

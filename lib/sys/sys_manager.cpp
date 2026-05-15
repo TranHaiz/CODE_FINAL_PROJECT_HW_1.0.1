@@ -79,6 +79,7 @@ static void sys_manager_shutdown_handler(void);
 static void sys_manager_device_danger_handler(void);
 static void sys_manager_unlock_from_network_handler(void);
 static void sys_manager_lock_from_network_handler(void);
+static void sys_manager_start_rental_handler(void);
 static void sys_manager_stop_rental_fail_handler(void);
 static void sys_manager_stop_rental_success_handler(void);
 static void sys_manager_reset_offline_data_handler(void);
@@ -125,6 +126,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_DEVICE_DANGER        ,   sys_manager_device_danger_handler       );
   INFO(SYS_MANAGER_EVT_UNLOCK_FROM_NETWORK  ,   sys_manager_unlock_from_network_handler );
   INFO(SYS_MANAGER_EVT_LOCK_FROM_NETWORK    ,   sys_manager_lock_from_network_handler   );
+  INFO(SYS_MANAGER_EVT_START_RENTAL         ,   sys_manager_start_rental_handler        );
   INFO(SYS_MANAGER_EVT_STOP_RENTAL_FAIL     ,   sys_manager_stop_rental_fail_handler    );
   INFO(SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS  ,   sys_manager_stop_rental_success_handler );
   INFO(SYS_MANAGER_EVT_RESET_OFFLINE_DATA   ,   sys_manager_reset_offline_data_handler  );
@@ -331,7 +333,7 @@ void sys_manager_unlock_from_network_handler(void)
     bsp_timer_reset(&manager_handler.shutdown_timer);
     bsp_timer_stop(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
-    sys_network_trigger_new_trip();
+    // sys_network_trigger_new_trip();
     device_info_update_state(DEVICE_STATE_ACTIVE);
     if (g_device_info.nvs_info.prev_state == DEVICE_STATE_IDLE)
     {
@@ -359,6 +361,30 @@ void sys_manager_lock_from_network_handler(void)
 #endif  // DEVICE_IDLE_MODE_ENABLED
     LOG_DBG("Device locked from network");
   }
+  sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
+}
+
+static void sys_manager_start_rental_handler(void)
+{
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
+  {
+#if (DEVICE_IDLE_MODE_ENABLED)
+    bsp_timer_reset(&manager_handler.shutdown_timer);
+    bsp_timer_stop(&manager_handler.shutdown_timer);
+#endif  // DEVICE_IDLE_MODE_ENABLED
+    sys_network_trigger_new_trip();
+    device_info_update_state(DEVICE_STATE_ACTIVE);
+    if (g_device_info.nvs_info.prev_state == DEVICE_STATE_IDLE)
+    {
+      sys_ui_wakeup();
+    }
+    sys_ui_unlock();
+    LOG_DBG("Device unlocked and active from network");
+  }
+  g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
+  sys_manager_stop_danger_noti();
+  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
+  sys_input_clear_data_for_new_rental();
   sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
 
