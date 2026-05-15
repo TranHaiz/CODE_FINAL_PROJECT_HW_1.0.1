@@ -114,6 +114,13 @@ void sys_led_process(void)
     LOG_DBG("LED event changed from %d to %d", sys_led_handler.prev_event, sys_led_handler.curr_event);
     sys_led_handler.prev_event = sys_led_handler.curr_event;
   }
+  else
+  {
+    if (!sys_led_handler.is_active[sys_led_handler.curr_event])
+    {
+      bsp_led_off();
+    }
+  }
   bsp_led_task();
 }
 
