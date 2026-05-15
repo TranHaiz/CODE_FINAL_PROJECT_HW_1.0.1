@@ -102,7 +102,7 @@ status_function_t bsp_sdcard_open(const char *path, bsp_sdcard_mode_t mode, bsp_
   const char *file_mode;
   switch (mode)
   {
-  case BSP_SDCARD_MODE_WRITE: file_mode = FILE_WRITE; break;
+  case BSP_SDCARD_MODE_WRITE: file_mode = "w"; break;   // create+truncate (FILE_WRITE = "r+" trên ESP32 core mới)
   case BSP_SDCARD_MODE_APPEND: file_mode = FILE_APPEND; break;
   case BSP_SDCARD_MODE_READ:
   default: file_mode = FILE_READ; break;
@@ -266,6 +266,50 @@ status_function_t bsp_sdcard_dir_exists(const char *path)
   }
 
   file_handle.close();
+  return STATUS_OK;
+}
+
+status_function_t bsp_sdcard_dir_open(const char *path, bsp_sdcard_dir_t *dir)
+{
+  if (path == nullptr || dir == nullptr || !is_sdcard_mounted)
+    return STATUS_ERROR;
+
+  dir->dir = SD.open(path, FILE_READ);
+  if (!dir->dir || !dir->dir.isDirectory())
+  {
+    dir->dir.close();
+    return STATUS_ERROR;
+  }
+
+  return STATUS_OK;
+}
+
+status_function_t bsp_sdcard_dir_read_next(bsp_sdcard_dir_t *dir, char *file_name, size_t max_len)
+{
+  if (dir == nullptr || file_name == nullptr || max_len == 0)
+    return STATUS_ERROR;
+
+  File entry = dir->dir.openNextFile();
+  if (!entry)
+    return STATUS_ERROR;
+
+  const char *full_name = entry.name();
+  const char *basename  = strrchr(full_name, '/');
+  basename              = (basename != nullptr) ? basename + 1 : full_name;
+
+  strncpy(file_name, basename, max_len - 1);
+  file_name[max_len - 1] = '\0';
+  entry.close();
+
+  return STATUS_OK;
+}
+
+status_function_t bsp_sdcard_dir_close(bsp_sdcard_dir_t *dir)
+{
+  if (dir == nullptr)
+    return STATUS_ERROR;
+
+  dir->dir.close();
   return STATUS_OK;
 }
 
