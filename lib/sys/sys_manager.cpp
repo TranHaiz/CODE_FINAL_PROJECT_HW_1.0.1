@@ -191,7 +191,6 @@ static void sys_manager_wakeup_handler(void)
 
 static void sys_manager_lock_handler(void)
 {
-  sys_network_trigger_end_trip();
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_lock();
 #if (DEVICE_IDLE_MODE_ENABLED)
@@ -223,7 +222,6 @@ static void sys_manager_unlocked_handler(void)
 
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
   {
-    sys_network_trigger_new_trip();
     device_info_update_state(DEVICE_STATE_ACTIVE);
     sys_input_clear_data_for_new_rental();
     sys_ui_unlock();
@@ -257,7 +255,6 @@ static void sys_manager_user_lock_handler(void)
   LOG_DBG("Handling user lock event");
   sys_network_publish_noti(NETWORK_NOTI_USERLOCK_PAYLOAD, strlen(NETWORK_NOTI_USERLOCK_PAYLOAD));
 #if (DEVICE_LOCK_DEBUG_MODE_ENABLED)
-  sys_network_trigger_end_trip();
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_lock();
 
@@ -272,7 +269,6 @@ static void sys_manager_user_pause_handler(void)
   LOG_DBG("Handling user pause event");
   sys_network_publish_noti(NETWORK_NOTI_USERPAUSE_PAYLOAD, strlen(NETWORK_NOTI_USERPAUSE_PAYLOAD));
 #if (DEVICE_LOCK_DEBUG_MODE_ENABLED)
-  sys_network_trigger_end_trip();
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_ui_lock();
 
