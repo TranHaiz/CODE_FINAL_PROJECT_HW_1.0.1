@@ -23,7 +23,6 @@
 #include "device_info.h"
 #include "log_service.h"
 #include "os_lib.h"
-#include "sys_network_adapter_ble.h"
 #include "sys_button.h"
 #include "sys_cmd.h"
 #include "sys_cmd_usb.h"
@@ -33,6 +32,7 @@
 #include "sys_log.h"
 #include "sys_manager.h"
 #include "sys_network.h"
+#include "sys_network_adapter_ble.h"
 #include "sys_network_adapter_lte.h"
 #include "sys_ui.h"
 #include "sys_ui_simple.h"
@@ -108,7 +108,7 @@ void setup()
   bsp_sdcard_init();
   delay(1000);
   device_info_init();
-  sys_ble_init();
+  sys_network_adapter_ble_init();
   sys_network_init();
   delay(1000);
   OS_THREAD_CREATE(sys_cmd_thread, sys_cmd_thread_func);
@@ -262,11 +262,11 @@ void sys_error_thread_func(void *param)
 
 void sys_ble_thread_func(void *param)
 {
-  // sys_ble_init() called in setup() — BLE controller OOM if init is inside task.
-  // sys_ble_process() internally calls ble_adapter_poll() (blocks up to 20 ms).
+  // sys_network_adapter_ble_init() called in setup() — BLE controller OOM if init is inside task.
+  // sys_network_adapter_ble_process() internally calls ble_adapter_poll() (blocks up to 20 ms).
   while (true)
   {
-    sys_ble_process();
+    sys_network_adapter_ble_process();
   }
 }
 

@@ -92,9 +92,9 @@ void log_service_print(log_level_t level, const char *tag, const char *fmt, ...)
   }
 #endif
   // Send over BLE if connected
-  if (sys_ble_is_connected())
+  if (sys_network_adapter_ble_is_connected())
   {
-    sys_ble_send((const uint8_t *) line, len);
+    sys_network_adapter_ble_send((const uint8_t *) line, len);
   }
 }
 

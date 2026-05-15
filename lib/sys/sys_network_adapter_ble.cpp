@@ -54,7 +54,7 @@ static void sys_ble_callback_handler(bsp_ble_event_t event);
 static void ble_adapter_poll(void);
 
 /* Function definitions ----------------------------------------------- */
-void sys_ble_init(void)
+void sys_network_adapter_ble_init(void)
 {
   OS_SEM_CREATE(sys_ble_rx_sem);
   OS_MUTEX_CREATE(sys_ble_tx_mutex);
@@ -72,7 +72,7 @@ void sys_ble_init(void)
 #endif
 }
 
-void sys_ble_send(const uint8_t *data, size_t len)
+void sys_network_adapter_ble_send(const uint8_t *data, size_t len)
 {
   if (data == NULL || len == 0 || len > SYS_BLE_MAX_TX_LEN)
   {
@@ -84,7 +84,6 @@ void sys_ble_send(const uint8_t *data, size_t len)
   memcpy(msg.data, data, len);
 
   OS_MUTEX_LOCK(sys_ble_tx_mutex);
-  // cbuffer ghi theo byte nên ta kiểm tra số byte thực tế ghi được so với struct msg
   if (cb_write(&sys_ble_tx_cb, &msg, sizeof(sys_ble_msg_t)) != sizeof(sys_ble_msg_t))
   {
     LOG_WRN("BLE TX buffer full, dropping message");
@@ -92,14 +91,18 @@ void sys_ble_send(const uint8_t *data, size_t len)
   OS_MUTEX_UNLOCK(sys_ble_tx_mutex);
 }
 
-bool sys_ble_is_connected(void)
+bool sys_network_adapter_ble_is_connected(void)
 {
   return sys_ble_connected;
 }
 
-void sys_ble_set_advertise(bool enable)
+void sys_network_adapter_ble_set_advertise(bool enable)
 {
-  s_advertise_enabled = enable;
+  if (s_advertise_enabled == enable)
+  {
+    return;
+  }
+
   if (enable)
   {
     bsp_ble_advertise_start();
@@ -109,9 +112,10 @@ void sys_ble_set_advertise(bool enable)
     bsp_ble_disconnect();
     bsp_ble_advertise_stop();
   }
+  s_advertise_enabled = enable;
 }
 
-void sys_ble_process(void)
+void sys_network_adapter_ble_process(void)
 {
   if (!sys_ble_connected)
   {

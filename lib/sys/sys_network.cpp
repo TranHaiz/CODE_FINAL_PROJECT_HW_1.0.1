@@ -227,7 +227,7 @@ void sys_network_task(void *param)
       lte_lost_count   = 0;
       s_pub_slot_valid = false;
 #if (DEVICE_BLE_FALLBACK_ENABLED)
-      sys_ble_set_advertise(false);
+      sys_network_adapter_ble_set_advertise(false);
 #endif
       LOG_INF("Network: BLE → LTE");
     }
@@ -237,7 +237,7 @@ void sys_network_task(void *param)
       {
 #if (DEVICE_BLE_FALLBACK_ENABLED)
         if (lte_lost_count >= NETWORK_SWITCH_LOST_THRESHOLD)
-          sys_ble_set_advertise(false);
+          sys_network_adapter_ble_set_advertise(false);
 #endif
         lte_lost_count = 0;
       }
@@ -249,7 +249,7 @@ void sys_network_task(void *param)
         if (lte_lost_count >= NETWORK_SWITCH_LOST_THRESHOLD)
         {
 #if (DEVICE_BLE_FALLBACK_ENABLED)
-          sys_ble_set_advertise(true);
+          sys_network_adapter_ble_set_advertise(true);
 #endif
           if (ble_ready)
           {
