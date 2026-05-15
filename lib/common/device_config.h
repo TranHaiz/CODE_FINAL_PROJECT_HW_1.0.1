@@ -30,16 +30,24 @@
 #define DEVICE_SERIAL_NUMBER_MAX_LEN      (33)  // 32 chars + 1 null terminator
 #define DEVICE_MAGIC_NUMBER               (0xDEADBEEF)
 
-#define DEVICE_NORMAL_MODE                (true)
-#define DEVICE_FUSION_DEBUG_MODE          (true)
-#define DEVICE_FUSION_DEBUG_VIA_NETWORK   (false)
-#define DEVICE_FUSION_DEBUG_LOG_ENABLED   (false)
-#define DEVICE_IDLE_MODE_ENABLED          (true)  // Return to idle mode after a period of inactivity
-#define DEVICE_NETWORK_ENABLED            (true)
-#define DEVICE_NETWORK_TOTAL_KM_ENABLED   (true)  // Enable total km in network messages
-#define DEVICE_INPUT_ENABLED              (true)
-#define DEVICE_UI_ENABLED                 (true)
-#define DEVICE_LOCK_DEBUG_MODE_ENABLED    (false)  // Use stop and pause button to simulate lock and pause in debug mode
+#define DEVICE_NORMAL_MODE              (true)
+#define DEVICE_FUSION_DEBUG_MODE        (true)
+#define DEVICE_FUSION_DEBUG_VIA_NETWORK (false)
+#define DEVICE_FUSION_DEBUG_LOG_ENABLED (false)
+#define DEVICE_IDLE_MODE_ENABLED        (true)  // Return to idle mode after a period of inactivity
+#define DEVICE_NETWORK_ENABLED          (true)
+#define DEVICE_NETWORK_TOTAL_KM_ENABLED (true)  // Enable total km in network messages
+#define DEVICE_INPUT_ENABLED            (true)
+#define DEVICE_UI_ENABLED               (true)
+#define DEVICE_LOCK_DEBUG_MODE_ENABLED  (false)  // Use stop and pause button to simulate lock and pause in debug mode
+
+#define DEVICE_SIM_EG800K               (true)
+#define DEVICE_SIM_A7680C               (false)
+
+#if (DEVICE_SIM_EG800K && DEVICE_SIM_A7680C)
+#error \
+  "Only one SIM module can be selected. Please set either DEVICE_SIM_EG800K or DEVICE_SIM_A7680C to true, and the other to false."
+#endif
 
 // ------------------------------ LOG service configuration ------------------------------
 #define LOG_ENABLE                        (1)
