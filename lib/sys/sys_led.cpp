@@ -50,7 +50,7 @@ OS_MUTEX_DEFINE_STATIC(sys_led_event_mutex);
 static sys_led_handler_t sys_led_handler;
 
 /* Private function prototypes ---------------------------------------- */
-void sys_led_get_current_event(sys_led_evt_t *event);
+static void sys_led_get_current_event(sys_led_evt_t *event);
 
 /* Function definitions ----------------------------------------------- */
 void sys_led_init(void)
@@ -125,7 +125,7 @@ void sys_led_process(void)
 }
 
 /* Private definitions ----------------------------------------------- */
-void sys_led_get_current_event(sys_led_evt_t *event)
+static void sys_led_get_current_event(sys_led_evt_t *event)
 {
   OS_MUTEX_LOCK(sys_led_event_mutex);
   for (size_t i = 0; i < SYS_LED_EVT_MAX; i++)
