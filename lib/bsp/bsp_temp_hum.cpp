@@ -35,33 +35,36 @@ static temp_hum_handler_t temp_hum_handler = { .handler = Adafruit_SHT31(), .is_
 /* Function definitions ----------------------------------------------- */
 status_function_t bsp_temp_hum_init(void)
 {
-  // Initialize the SHT31 sensor
-  if (Wire.begin(TEMP_HUM_I2C_SDA_PIN, TEMP_HUM_I2C_SCL_PIN))
-    LOG_DBG("I2C bus initialized for Temp/Hum sensor");
-  else
-  {
-    LOG_ERR("Failed to initialize I2C bus for Temp/Hum sensor");
-    return STATUS_ERROR;
-  }
+  Wire.begin(TEMP_HUM_I2C_SDA_PIN, TEMP_HUM_I2C_SCL_PIN);
+
   if (!temp_hum_handler.handler.begin(TEMP_HUM_I2C_ADDR))
   {
-    LOG_ERR("Failed to initialize Temp/Hum sensor");
+    LOG_ERR("SHT3x not found at 0x%02X", TEMP_HUM_I2C_ADDR);
     return STATUS_ERROR;
   }
+
   temp_hum_handler.is_init = true;
+  LOG_DBG("SHT3x initialized at 0x%02X", TEMP_HUM_I2C_ADDR);
   return STATUS_OK;
 }
 
 status_function_t bsp_temp_hum_read(temp_hum_data_t *data)
 {
-  if (!temp_hum_handler.is_init)
+  if (!temp_hum_handler.is_init || data == nullptr)
   {
     return STATUS_ERROR;
   }
 
-  data->temperature = temp_hum_handler.handler.readTemperature();
-  data->humidity    = temp_hum_handler.handler.readHumidity();
+  float temp = NAN;
+  float hum  = NAN;
+  if (!temp_hum_handler.handler.readBoth(&temp, &hum))
+  {
+    LOG_ERR("SHT3x read failed (I2C error or CRC mismatch)");
+    return STATUS_ERROR;
+  }
 
+  data->temperature = temp;
+  data->humidity    = hum;
   return STATUS_OK;
 }
 
