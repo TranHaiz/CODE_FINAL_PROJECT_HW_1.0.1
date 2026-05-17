@@ -44,8 +44,8 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 #define SYS_UI_COLOR_SUCCESS                       SYS_UI_WIDGET_COLOR_GREEN
 #define SYS_UI_COLOR_WARNING                       SYS_UI_WIDGET_COLOR_ORANGE
 #define SYS_UI_COLOR_DANGER                        SYS_UI_WIDGET_COLOR_RED
-#define SYS_UI_COLOR_TEXT                          SYS_UI_WIDGET_COLOR_WHITE
-#define SYS_UI_COLOR_TEXT_DIM                      SYS_UI_WIDGET_COLOR_GRAY
+#define SYS_UI_COLOR_TEXT                          ui_ctx.text_color
+#define SYS_UI_COLOR_TEXT_DIM                      ui_ctx.text_dim_color
 #define SYS_UI_DATA_HISTORY_SAMPLES                (100)
 #define SYS_UI_BRIGHTNESS_PERCENT_OFF              (0)
 
@@ -84,7 +84,7 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 #define SYS_UI_HEADING_TEXT_Y                      (SYS_UI_COMPASS_CY - 12)
 #define SYS_UI_COMPASS_DEG_X                       (SYS_UI_COMPASS_CX - 12)
 #define SYS_UI_COMPASS_DEG_Y                       (SYS_UI_COMPASS_CY + 5)
-#define SYS_UI_COMPASS_PANEL_BG_COLOR              (0x0A1520)
+#define SYS_UI_COMPASS_PANEL_BG_COLOR              ui_ctx.compass_bg
 
 // Warning label
 #define SYS_UI_WARNING_LABEL_X                     (SYS_UI_MAP_PANEL_X + SYS_UI_MAP_PANEL_W + 10)
@@ -170,7 +170,7 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 #define SYS_UI_OUT_BTN_LABEL                       "OUT"
 #define SYS_UI_SPEEDO_START_ANGLE                  (135)
 #define SYS_UI_SPEEDO_END_ANGLE                    (405)
-#define SYS_UI_SPEEDO_BG_COLOR                     (0x1A2A3A)
+#define SYS_UI_SPEEDO_BG_COLOR                     ui_ctx.speedo_bg
 #define SYS_UI_SPEED_LABEL_X_OFFSET                (-20)
 #define SYS_UI_SPEED_LABEL_Y_OFFSET                (-14)
 #define SYS_UI_SPEED_LABEL_INIT                    "0"
@@ -217,8 +217,8 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 #define SYS_UI_SPEED_LABEL_FORMAT                  "%d"
 #define SYS_UI_TIME_LABEL_FORMAT                   "%d:%02d:%02d"
 #define SYS_UI_DISTANCE_LABEL_FORMAT               "%.2f"
-#define SYS_UI_TEMP_LABEL_FORMAT                   "%.1f\xc2\xb0C"
-#define SYS_UI_HUM_LABEL_FORMAT                    "%.0f%%"
+#define SYS_UI_TEMP_LABEL_FORMAT                   "%.1f \xc2\xb0 C"
+#define SYS_UI_HUM_LABEL_FORMAT                    "%.1f%%"
 #define SYS_UI_COMPASS_DEG_FORMAT                  "%.0f\xc2\xb0"
 #define SYS_UI_SPEED_MIN_KPH                       (0)
 #define SYS_UI_SPEED_MAX_KPH                       (40)
@@ -237,7 +237,7 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 #define SYS_UI_SETTINGS_BG_X                       (40)
 #define SYS_UI_SETTINGS_BG_Y                       (108)
 #define SYS_UI_SETTINGS_BG_TEXT                    "Background"
-#define SYS_UI_SETTINGS_SLIDER_BG_COLOR            (0x1A2A3A)
+#define SYS_UI_SETTINGS_SLIDER_BG_COLOR            ui_ctx.slider_bg
 #define SYS_UI_SETTINGS_SLIDER_X                   (40)
 #define SYS_UI_SETTINGS_SLIDER_Y                   (72)
 #define SYS_UI_SETTINGS_SLIDER_W                   (220)
@@ -381,13 +381,24 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 #define SYS_UI_DEVICE_ID_LABEL_FONT                (&lv_font_montserrat_10)
 
 /* Background color palette for settings screen
- * INFO(index, R, G, B, label)            */
+ * INFO(index, R, G, B, label)              */
 #define SYS_UI_BG_COLOR_TABLE(INFO) \
   INFO(0, 13, 27, 42, "Navy")       \
   INFO(1, 3, 4, 94, "Ocean")        \
-  INFO(2, 10, 10, 10, "Black")
-#define SYS_UI_BG_COLOR_COUNT         (3)
+  INFO(2, 10, 10, 10, "Black")      \
+  INFO(3, 255, 255, 255, "White")
+#define SYS_UI_BG_COLOR_COUNT         (4)
 #define SYS_UI_CLAMP(val, minv, maxv) ((val) < (minv) ? (minv) : ((val) > (maxv) ? (maxv) : (val)))
+// clang-format off
+//                      field         | dark background               | light background
+#define SYS_UI_THEME_TABLE(INFO)                                                                    \
+  INFO(text_color,     SYS_UI_WIDGET_COLOR_WHITE,           SYS_UI_WIDGET_COLOR_DARK_NAVY       )   \
+  INFO(text_dim_color, SYS_UI_WIDGET_COLOR_GRAY,            SYS_UI_WIDGET_COLOR_STEEL           )   \
+  INFO(card_bg,        SYS_UI_WIDGET_COLOR_BLUE_GRAY,       SYS_UI_WIDGET_COLOR_LIGHT_CARD      )   \
+  INFO(speedo_bg,      SYS_UI_WIDGET_COLOR_DARK_PANEL,      SYS_UI_WIDGET_COLOR_LIGHT_PANEL     )   \
+  INFO(compass_bg,     SYS_UI_WIDGET_COLOR_DEEP_NAVY,       SYS_UI_WIDGET_COLOR_LIGHT_PANEL_DIM )   \
+  INFO(slider_bg,      SYS_UI_WIDGET_COLOR_DARK_PANEL,      SYS_UI_WIDGET_COLOR_LIGHT_PANEL     )
+// clang-format on
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
@@ -511,11 +522,18 @@ typedef struct
   int    battery_percent;
   int    brightness_percent;
   size_t background_color;
+  size_t text_color;
+  size_t text_dim_color;
+  size_t card_bg;
+  size_t speedo_bg;
+  size_t compass_bg;
+  size_t slider_bg;
   int    last_device_state;
   // Navigation
   sys_ui_view_t view;
   sys_ui_view_t last_view;
   bool          pending_main_redraw;
+  bool          pending_settings_redraw;
   uint16_t      last_touch_x;
   uint16_t      last_touch_y;
   // History logs
@@ -652,17 +670,41 @@ static void                sys_ui_env_fifo_push(fifo_t *fifo, float value, size_
 static sys_ui_env_sample_t sys_ui_env_fifo_get(const fifo_t *fifo, int index);
 // LVGL driver
 static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data);
+// Theme
+static void sys_ui_update_theme_colors(void);
 
 /* Function definitions ----------------------------------------------- */
+static void sys_ui_update_theme_colors(void)
+{
+  uint8_t  r    = (uint8_t) ((ui_ctx.background_color >> 16) & 0xFF);
+  uint8_t  g    = (uint8_t) ((ui_ctx.background_color >> 8) & 0xFF);
+  uint8_t  b    = (uint8_t) (ui_ctx.background_color & 0xFF);
+  uint32_t luma = (77u * r + 150u * g + 29u * b) >> 8;
+
+  if (luma > 128)
+  {
+#define INFO(field, dark_val, light_val) ui_ctx.field = (light_val);
+    SYS_UI_THEME_TABLE(INFO)
+#undef INFO
+  }
+  else
+  {
+#define INFO(field, dark_val, light_val) ui_ctx.field = (dark_val);
+    SYS_UI_THEME_TABLE(INFO)
+#undef INFO
+  }
+}
+
 void sys_ui_init(void)
 {
   memset(&ui_ctx, 0, sizeof(ui_ctx));
 
   OS_SEM_CREATE(sys_ui_wakeup_sem);
-  ui_ctx.prev_speed_int      = -1;
-  ui_ctx.battery_percent     = 85;
-  ui_ctx.brightness_percent  = 80;
-  ui_ctx.background_color    = SYS_UI_COLOR_BG;
+  ui_ctx.prev_speed_int     = -1;
+  ui_ctx.battery_percent    = 85;
+  ui_ctx.brightness_percent = 80;
+  ui_ctx.background_color   = SYS_UI_COLOR_BG;
+  sys_ui_update_theme_colors();
   ui_ctx.session_start_ms    = OS_GET_TICK();
   ui_ctx.last_device_state   = g_device_info.nvs_info.curr_state;
   ui_ctx.view                = SYS_UI_VIEW_LOCK;
@@ -1241,8 +1283,9 @@ static void sys_ui_main_screen_create(void)
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
 
   // Time card
-  ui_ctx.widgets.time_card = sys_ui_widget_create_card(ui_ctx.widgets.main_screen, SYS_UI_CARD_X, SYS_UI_TIME_CARD_Y,
-                                                       SYS_UI_CARD_W, SYS_UI_TIME_CARD_H, SYS_UI_COLOR_PRIMARY);
+  ui_ctx.widgets.time_card =
+    sys_ui_widget_create_card(ui_ctx.widgets.main_screen, SYS_UI_CARD_X, SYS_UI_TIME_CARD_Y, SYS_UI_CARD_W,
+                              SYS_UI_TIME_CARD_H, ui_ctx.card_bg, SYS_UI_COLOR_PRIMARY);
   sys_ui_widget_create_label(ui_ctx.widgets.time_card, SYS_UI_TIME_CARD_LABEL_X, SYS_UI_TIME_CARD_LABEL_Y,
                              SYS_UI_TIME_CARD_LABEL, SYS_UI_COLOR_PRIMARY, &lv_font_montserrat_10);
   ui_ctx.widgets.time_label =
@@ -1255,7 +1298,7 @@ static void sys_ui_main_screen_create(void)
   // Distance card
   ui_ctx.widgets.distance_card =
     sys_ui_widget_create_card(ui_ctx.widgets.main_screen, SYS_UI_CARD_X, SYS_UI_DIST_CARD_Y, SYS_UI_CARD_W,
-                              SYS_UI_DIST_CARD_H, SYS_UI_COLOR_ACCENT);
+                              SYS_UI_DIST_CARD_H, ui_ctx.card_bg, SYS_UI_COLOR_ACCENT);
   sys_ui_widget_create_label(ui_ctx.widgets.distance_card, SYS_UI_DISTANCE_TITLE_X, SYS_UI_DISTANCE_TITLE_Y,
                              SYS_UI_DISTANCE_TITLE_LABEL, SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
   ui_ctx.widgets.distance_label =
@@ -1266,8 +1309,9 @@ static void sys_ui_main_screen_create(void)
                                SYS_UI_DISTANCE_UNIT_LABEL, SYS_UI_COLOR_TEXT_DIM, &lv_font_montserrat_10);
 
   // Environment card
-  ui_ctx.widgets.env_card = sys_ui_widget_create_card(ui_ctx.widgets.main_screen, SYS_UI_CARD_X, SYS_UI_ENV_CARD_Y,
-                                                      SYS_UI_CARD_W, SYS_UI_ENV_CARD_H, SYS_UI_COLOR_TEXT_DIM);
+  ui_ctx.widgets.env_card =
+    sys_ui_widget_create_card(ui_ctx.widgets.main_screen, SYS_UI_CARD_X, SYS_UI_ENV_CARD_Y, SYS_UI_CARD_W,
+                              SYS_UI_ENV_CARD_H, ui_ctx.card_bg, SYS_UI_COLOR_TEXT_DIM);
   sys_ui_widget_create_label(ui_ctx.widgets.env_card, SYS_UI_ENV_TITLE_X, SYS_UI_ENV_TITLE_Y, SYS_UI_ENV_TITLE_LABEL,
                              SYS_UI_COLOR_TEXT, &lv_font_montserrat_10);
   ui_ctx.widgets.temp_label =
@@ -1588,9 +1632,12 @@ static void sys_ui_settings_screen_cb_color_btn(lv_event_t *event)
 
   if (btn_index >= 0 && btn_index < SYS_UI_BG_COLOR_COUNT)
   {
-    ui_ctx.background_color    = bg_colors[btn_index];
-    ui_ctx.pending_main_redraw = true;
-    LOG_DBG("sys_ui_settings_screen_cb_color_btn: index=%d", btn_index);
+    ui_ctx.background_color = bg_colors[btn_index];
+    sys_ui_update_theme_colors();
+    ui_ctx.pending_settings_redraw = true;
+    ui_ctx.pending_main_redraw     = true;
+    LOG_DBG("sys_ui_settings_screen_cb_color_btn: index=%d color=0x%06X luma=%s", btn_index,
+            (unsigned) ui_ctx.background_color, (ui_ctx.text_color == SYS_UI_WIDGET_COLOR_WHITE) ? "dark" : "light");
   }
 }
 
@@ -2363,16 +2410,15 @@ static void sys_ui_process_active(void)
   default: break;
   }
 
-  if (ui_ctx.view == SYS_UI_VIEW_MAIN && ui_ctx.pending_main_redraw)
+  if ((ui_ctx.view == SYS_UI_VIEW_SETTINGS) && ui_ctx.pending_settings_redraw)
   {
-    if (ui_ctx.widgets.main_screen != nullptr)
+    if (ui_ctx.widgets.settings_screen != nullptr)
     {
-      lv_obj_del(ui_ctx.widgets.main_screen);
+      lv_obj_del(ui_ctx.widgets.settings_screen);
+      ui_ctx.widgets.settings_screen = nullptr;
     }
-    sys_ui_reset_all_widgets(&ui_ctx.widgets);
-    sys_ui_init_all_widgets();
-    sys_ui_register_callbacks();
-    ui_ctx.pending_main_redraw = false;
+    ui_ctx.pending_settings_redraw = false;
+    sys_ui_change_screen(SYS_UI_VIEW_SETTINGS);
   }
 }
 

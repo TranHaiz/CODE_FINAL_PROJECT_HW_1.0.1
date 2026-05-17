@@ -25,12 +25,12 @@ lv_obj_t *sys_ui_widget_create_screen(size_t bg_color)
   return screen;
 }
 
-lv_obj_t *sys_ui_widget_create_card(lv_obj_t *parent, int x, int y, int w, int h, size_t border_color)
+lv_obj_t *sys_ui_widget_create_card(lv_obj_t *parent, int x, int y, int w, int h, size_t bg_color, size_t border_color)
 {
   lv_obj_t *card = lv_obj_create(parent);
   lv_obj_set_pos(card, x, y);
   lv_obj_set_size(card, w, h);
-  lv_obj_set_style_bg_color(card, lv_color_hex(SYS_UI_WIDGET_COLOR_BLUE_GRAY), 0);
+  lv_obj_set_style_bg_color(card, lv_color_hex(bg_color), 0);
   lv_obj_set_style_border_color(card, lv_color_hex(border_color), 0);
   lv_obj_set_style_border_width(card, SYS_UI_WIDGET_CARD_BORDER, 0);
   lv_obj_set_style_radius(card, SYS_UI_WIDGET_CARD_RADIUS, 0);

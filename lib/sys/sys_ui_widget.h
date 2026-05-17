@@ -20,21 +20,28 @@
 #include <lvgl.h>
 
 /* Public defines ----------------------------------------------------- */
-#define SYS_UI_WIDGET_COLOR_DARK_NAVY BSP_DISPLAY_RGB_TO_HEX(13, 27, 42)
-#define SYS_UI_WIDGET_COLOR_BLUE_GRAY BSP_DISPLAY_RGB_TO_HEX(22, 40, 60)
-#define SYS_UI_WIDGET_COLOR_CYAN      BSP_DISPLAY_RGB_TO_HEX(0, 180, 216)
-#define SYS_UI_WIDGET_COLOR_GOLD      BSP_DISPLAY_RGB_TO_HEX(255, 183, 3)
-#define SYS_UI_WIDGET_COLOR_GREEN     BSP_DISPLAY_RGB_TO_HEX(6, 214, 160)
-#define SYS_UI_WIDGET_COLOR_ORANGE    BSP_DISPLAY_RGB_TO_HEX(249, 160, 63)
-#define SYS_UI_WIDGET_COLOR_RED       BSP_DISPLAY_RGB_TO_HEX(239, 71, 111)
-#define SYS_UI_WIDGET_COLOR_WHITE     BSP_DISPLAY_RGB_TO_HEX(255, 255, 255)
-#define SYS_UI_WIDGET_COLOR_GRAY      BSP_DISPLAY_RGB_TO_HEX(141, 153, 174)
+#define SYS_UI_WIDGET_COLOR_DARK_NAVY       BSP_DISPLAY_RGB_TO_HEX(13, 27, 42)
+#define SYS_UI_WIDGET_COLOR_BLUE_GRAY       BSP_DISPLAY_RGB_TO_HEX(22, 40, 60)
+#define SYS_UI_WIDGET_COLOR_DARK_PANEL      BSP_DISPLAY_RGB_TO_HEX(26, 42, 58)
+#define SYS_UI_WIDGET_COLOR_DEEP_NAVY       BSP_DISPLAY_RGB_TO_HEX(10, 21, 32)
+#define SYS_UI_WIDGET_COLOR_WHITE           BSP_DISPLAY_RGB_TO_HEX(255, 255, 255)
+#define SYS_UI_WIDGET_COLOR_GRAY            BSP_DISPLAY_RGB_TO_HEX(141, 153, 174)
+#define SYS_UI_WIDGET_COLOR_LIGHT_CARD      BSP_DISPLAY_RGB_TO_HEX(220, 228, 240)
+#define SYS_UI_WIDGET_COLOR_LIGHT_PANEL     BSP_DISPLAY_RGB_TO_HEX(210, 220, 235)
+#define SYS_UI_WIDGET_COLOR_LIGHT_PANEL_DIM BSP_DISPLAY_RGB_TO_HEX(195, 210, 228)
+#define SYS_UI_WIDGET_COLOR_STEEL           BSP_DISPLAY_RGB_TO_HEX(70, 90, 115)
 
-#define SYS_UI_WIDGET_CARD_RADIUS     (4)
-#define SYS_UI_WIDGET_CARD_BORDER     (1)
-#define SYS_UI_WIDGET_CARD_PAD        (4)
-#define SYS_UI_WIDGET_BTN_RADIUS      (6)
-#define SYS_UI_WIDGET_ARC_WIDTH       (10)
+#define SYS_UI_WIDGET_COLOR_CYAN            BSP_DISPLAY_RGB_TO_HEX(0, 180, 216)
+#define SYS_UI_WIDGET_COLOR_GOLD            BSP_DISPLAY_RGB_TO_HEX(255, 183, 3)
+#define SYS_UI_WIDGET_COLOR_GREEN           BSP_DISPLAY_RGB_TO_HEX(6, 214, 160)
+#define SYS_UI_WIDGET_COLOR_ORANGE          BSP_DISPLAY_RGB_TO_HEX(249, 160, 63)
+#define SYS_UI_WIDGET_COLOR_RED             BSP_DISPLAY_RGB_TO_HEX(239, 71, 111)
+
+#define SYS_UI_WIDGET_CARD_RADIUS           (4)
+#define SYS_UI_WIDGET_CARD_BORDER           (1)
+#define SYS_UI_WIDGET_CARD_PAD              (4)
+#define SYS_UI_WIDGET_BTN_RADIUS            (6)
+#define SYS_UI_WIDGET_ARC_WIDTH             (10)
 
 /* Public enumerate/structure ----------------------------------------- */
 /**
@@ -67,11 +74,12 @@ lv_obj_t *sys_ui_widget_create_screen(size_t bg_color);
  * @param[in] y Y position
  * @param[in] w Width
  * @param[in] h Height
+ * @param[in] bg_color Background color (hex)
  * @param[in] border_color Border color (hex)
  *
  * @return Card object pointer
  */
-lv_obj_t *sys_ui_widget_create_card(lv_obj_t *parent, int x, int y, int w, int h, size_t border_color);
+lv_obj_t *sys_ui_widget_create_card(lv_obj_t *parent, int x, int y, int w, int h, size_t bg_color, size_t border_color);
 
 /**
  * @brief Create a card with custom style
