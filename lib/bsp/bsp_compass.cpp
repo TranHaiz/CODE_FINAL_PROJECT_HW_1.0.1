@@ -107,6 +107,7 @@ status_function_t bsp_compass_read_raw(bsp_compass_raw_data_t *data)
   uint8_t buffer[6];
   if (bsp_compass_read_registers(BSP_COMPASS_REG_DATA_X_MSB, buffer, 6) != STATUS_OK)
   {
+    LOG_ERR("Failed to read compass raw data");
     return STATUS_ERROR;
   }
 
@@ -119,6 +120,7 @@ status_function_t bsp_compass_read_raw(bsp_compass_raw_data_t *data)
   if (data->raw_x == BSP_COMPASS_OVERFLOW_VALUE || data->raw_y == BSP_COMPASS_OVERFLOW_VALUE
       || data->raw_z == BSP_COMPASS_OVERFLOW_VALUE)
   {
+    LOG_ERR("Compass raw data overflow detected");
     return STATUS_ERROR;
   }
 
