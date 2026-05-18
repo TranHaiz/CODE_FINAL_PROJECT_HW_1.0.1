@@ -102,10 +102,28 @@ status_function_t bsp_sdcard_open(const char *path, bsp_sdcard_mode_t mode, bsp_
   const char *file_mode;
   switch (mode)
   {
-  case BSP_SDCARD_MODE_WRITE: file_mode = "w"; break;   // create+truncate (FILE_WRITE = "r+" trên ESP32 core mới)
-  case BSP_SDCARD_MODE_APPEND: file_mode = FILE_APPEND; break;
+  case BSP_SDCARD_MODE_WRITE:
+  {
+    file_mode = "w";
+    break;
+  }
+  case BSP_SDCARD_MODE_APPEND:
+  {
+    file_mode = FILE_APPEND;
+    break;
+  }
+
   case BSP_SDCARD_MODE_READ:
-  default: file_mode = FILE_READ; break;
+  default:
+  {
+    if (!SD.exists(path))
+    {
+      file->is_open = false;
+      return STATUS_ERROR;
+    }
+    file_mode = FILE_READ;
+    break;
+  }
   }
 
   file->file = SD.open(path, file_mode);
@@ -240,15 +258,14 @@ status_function_t bsp_sdcard_file_exists(const char *path)
     return STATUS_ERROR;
   }
 
-  File file_handle = SD.open(path, FILE_READ);
-  if (!file_handle || file_handle.isDirectory())
+  if (!SD.exists(path))
   {
-    file_handle.close();
     return STATUS_ERROR;
   }
-
-  file_handle.close();
-  return STATUS_OK;
+  File f      = SD.open(path, FILE_READ);
+  bool is_dir = f.isDirectory();
+  f.close();
+  return is_dir ? STATUS_ERROR : STATUS_OK;
 }
 
 status_function_t bsp_sdcard_dir_exists(const char *path)

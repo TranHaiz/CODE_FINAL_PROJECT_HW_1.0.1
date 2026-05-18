@@ -149,8 +149,9 @@ void sys_network_trigger_new_trip(void)
     sys_network_write_trip_info(info_path, new_trip_id, TRIP_ACTIVE);
   }
 
-  s_active_trip_id     = new_trip_id;
-  s_is_data_sd_pending = sys_network_check_sd_pending();
+  s_active_trip_id         = new_trip_id;
+  s_current_upload_trip[0] = '\0';
+  s_is_data_sd_pending     = false;
   LOG_INF("New trip started: %lu", new_trip_id);
 }
 
