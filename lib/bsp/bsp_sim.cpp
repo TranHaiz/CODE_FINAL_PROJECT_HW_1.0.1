@@ -26,6 +26,10 @@ LOG_MODULE_REGISTER(bsp_sim, LOG_LEVEL_BSP_SIM)
 #define WAIT_MS_AFTER_REBOOT (500)
 #endif
 
+#if (DEVICE_SIM_A7680C == true)
+#define WAIT_MS_AFTER_REBOOT (5000)
+#endif
+
 #if (CONFIG_MQTT_SERVER == true)
 #define MQTT_MAX_TOPIC_LEN   (128u)
 #define MQTT_MAX_PAYLOAD_LEN (1024u)
@@ -80,6 +84,7 @@ static char                    client_id[MQTT_CLIENT_ID_LEN] = "001";
 
 /* Private function prototypes ---------------------------------------- */
 static bool bsp_sim_send_and_wait_response(const char *cmd, const char *resp, size_t timeout);
+static bool bsp_sim_detect_baudrate(void);
 
 #if (CONFIG_FIREBASE_SERVER == true)
 static status_function_t
@@ -93,20 +98,65 @@ static void bsp_sim_build_client_id(char *buf, size_t buf_size);
 #endif
 
 /* Function definitions ----------------------------------------------- */
+static bool bsp_sim_detect_baudrate(void)
+{
+  uint32_t baudrates[] = { SIM_UART_BAUDRATE, 115200, 9600, 38400, 57600 };
+
+  for (uint8_t i = 0; i < sizeof(baudrates) / sizeof(baudrates[0]); i++)
+  {
+    bsp_uart_config_t uart_cfg = { .port     = SIM_UART_HANDLER,
+                                   .tx_pin   = SIM_UART_TX,
+                                   .rx_pin   = SIM_UART_RX,
+                                   .baudrate = baudrates[i],
+                                   .callback = bsp_sim_rsp_callback };
+    bsp_uart_init(&uart_cfg);
+
+    for (uint8_t retry = 0; retry < 3; retry++)
+    {
+      if (bsp_sim_send_and_wait_response("AT\r\n", "OK", 500))
+      {
+        if (baudrates[i] != SIM_UART_BAUDRATE)
+        {
+          LOG_INF("Found SIM at %lu, setting to %lu", baudrates[i], (uint32_t) SIM_UART_BAUDRATE);
+          char buf[32];
+          snprintf(buf, sizeof(buf), "AT+IPR=%lu\r\n", (uint32_t) SIM_UART_BAUDRATE);
+          bsp_sim_send_and_wait_response(buf, "OK", 1000);
+
+          uart_cfg.baudrate = SIM_UART_BAUDRATE;
+          bsp_uart_init(&uart_cfg);
+          OS_DELAY_MS(100);
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+status_function_t bsp_sim_hard_reset(void)
+{
+#if (DEVICE_SIM_EG800K == true)
+  bsp_sim_send_and_wait_response("AT+CFUN=1,1\r\n", "OK", 2000);
+  OS_DELAY_MS(WAIT_MS_AFTER_REBOOT);
+  return STATUS_OK;
+#elif (DEVICE_SIM_A7680C == true)
+  bsp_sim_send_and_wait_response("AT+CRESET\r\n", "OK", 2000);
+  OS_DELAY_MS(WAIT_MS_AFTER_REBOOT);
+  return STATUS_OK;
+#else
+  return STATUS_ERROR;
+#endif
+}
+
 status_function_t bsp_sim_init(void)
 {
-  bsp_uart_config_t uart2_cfg = { .port     = SIM_UART_HANDLER,
-                                  .tx_pin   = SIM_UART_TX,
-                                  .rx_pin   = SIM_UART_RX,
-                                  .baudrate = SIM_UART_BAUDRATE,
-                                  .callback = bsp_sim_rsp_callback };
-  bsp_uart_init(&uart2_cfg);
+  if (!bsp_sim_detect_baudrate())
+  {
+    LOG_ERR("Could not detect SIM baudrate!");
+    return STATUS_ERROR;
+  }
 
-#if (DEVICE_SIM_EG800K == true)
-  // EG800K: cold-reboot modem to clear stale session state
-  SIM_SEND("AT+CFUN=1,1\r\n");
-  OS_DELAY_MS(WAIT_MS_AFTER_REBOOT);
-#endif
+  bsp_sim_hard_reset();
 
   SIM_SEND("ATE0\r\n");
   OS_DELAY_MS(50);

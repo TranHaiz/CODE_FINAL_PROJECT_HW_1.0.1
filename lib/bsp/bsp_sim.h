@@ -63,7 +63,11 @@ bool bsp_sim_is_ready(void);
  */
 status_function_t bsp_sim_reset_http(void);
 
-// TODO: Add SIM power management functions here
+/**
+ * @brief Hard reset the SIM module
+ * @return Function status
+ */
+status_function_t bsp_sim_hard_reset(void);
 
 #if (CONFIG_FIREBASE_SERVER == true)
 /**
