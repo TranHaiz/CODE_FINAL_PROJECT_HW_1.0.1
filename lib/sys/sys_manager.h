@@ -22,6 +22,7 @@
 /* Public defines ----------------------------------------------------- */
 #define NETWORK_NOTI_USERLOCK_PAYLOAD  "STOP_RENTAL"
 #define NETWORK_NOTI_USERPAUSE_PAYLOAD "NOTI_PAUSE"
+#define NETWORK_NOTI_HELP              "NOTI_HELP"
 #define NETWORK_DEVICE_RESP_OK_PAYLOAD "OK"
 
 /* Public enumerate/structure ----------------------------------------- */
@@ -50,6 +51,7 @@ typedef enum
   SYS_MANAGER_EVT_WARN_LOW_BALANCE,
   SYS_MANAGER_EVT_WARN_DEBT,
   SYS_MANAGER_EVT_CLEAR_DEBT,
+  SYS_MANAGER_EVT_HELP,
   SYS_MANAGER_EVT_MAX
 } sys_manager_event_t;
 

@@ -91,6 +91,7 @@ static void sys_manager_warn_debt_handler(void);
 static void sys_manager_clear_debt_handler(void);
 static void sys_manager_warn_low_balance_handler(void);
 static void sys_manager_low_balance_noti_timer_callback(TimerHandle_t xTimer);
+static void sys_manager_help_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -136,6 +137,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_WARN_LOW_BALANCE     ,   sys_manager_warn_low_balance_handler    );
   INFO(SYS_MANAGER_EVT_WARN_DEBT            ,   sys_manager_warn_debt_handler           );
   INFO(SYS_MANAGER_EVT_CLEAR_DEBT           ,   sys_manager_clear_debt_handler          );
+  INFO(SYS_MANAGER_EVT_HELP                 ,   sys_manager_help_handler                );
   // clang-format on
 }
 #undef INFO
@@ -479,6 +481,11 @@ static void sys_manager_warn_low_balance_handler(void)
 static void sys_manager_low_balance_noti_timer_callback(TimerHandle_t xTimer)
 {
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
+}
+
+static void sys_manager_help_handler(void)
+{
+  sys_network_publish_noti(NETWORK_NOTI_HELP, strlen(NETWORK_NOTI_HELP));
 }
 
 /* End of file -------------------------------------------------------- */

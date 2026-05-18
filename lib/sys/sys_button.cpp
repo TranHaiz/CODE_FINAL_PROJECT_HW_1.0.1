@@ -161,6 +161,8 @@ static void sys_button_handle_event(bsp_button_press_type_t event)
   case BUTTON_PRESS_LONG:
   {
     LOG_DBG("Button long press detected");
+    sys_manager_write_event(SYS_MANAGER_EVT_HELP);
+    sys_button_led_oneshot(SYS_LED_EVT_HELP);
     break;
   }
   case BUTTON_PRESS_SERVICE:

@@ -64,6 +64,7 @@ void sys_led_init(void)
 #define INFO(event, color, mode, brightness) SYS_LED_EVT_INFO[event] = { color, mode, brightness }
   /*Event                                 |Color                |Mode                      |Brightness   */
   INFO(SYS_LED_EVT_OFF,                    BSP_LED_COLOR_NONE,   BSP_LED_MODE_NONE,         0             );
+  INFO(SYS_LED_EVT_HELP,                   BSP_LED_COLOR_YELLOW,   BSP_LED_MODE_BLINK_ONCE,   100           );
   INFO(SYS_LED_EVT_SERVICE_ENTER,          BSP_LED_COLOR_CYAN,   BSP_LED_MODE_BLINK_ONCE,   100           );
   INFO(SYS_LED_EVT_SERVICE_DONE,           BSP_LED_COLOR_GREEN,  BSP_LED_MODE_BLINK_ONCE,   100           );
   INFO(SYS_LED_EVT_SERVICE_ABORT,          BSP_LED_COLOR_RED,    BSP_LED_MODE_BLINK_ONCE,   100           );
