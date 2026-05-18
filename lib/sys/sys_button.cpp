@@ -29,7 +29,7 @@ LOG_MODULE_REGISTER(sys_button, LOG_LEVEL_SYS_BUTTON)
 typedef enum
 {
   SVC_IDLE = 0,
-  SVC_COUNTING,
+  SERVICE_COUNTING,
 } sys_button_svc_state_t;
 
 /* Private macros ----------------------------------------------------- */
@@ -42,10 +42,10 @@ static cbuffer_t               s_sys_button_cb;
 static bsp_button_press_type_t s_sys_button_cb_buf[SYS_BUTTON_MAX_EVENTS + 1];
 static sys_manager_event_t     SERVICE_CMD_MAP[SYS_BUTTON_SVC_CMD_MAX + 1];
 
-static sys_button_svc_state_t s_svc_state           = SVC_IDLE;
-static uint8_t                s_svc_acc             = 0;
-static uint32_t               s_svc_enter_ms        = 0;
-static uint32_t               s_svc_last_press_ms   = 0;
+static sys_button_svc_state_t service_state         = SVC_IDLE;
+static uint8_t                service_press_accum   = 0;
+static uint32_t               service_enter_ms      = 0;
+static uint32_t               service_last_press_ms = 0;
 static sys_led_evt_t          service_led_evt       = SYS_LED_EVT_MAX;  // raised one-shot, MAX = none
 static uint32_t               service_led_raised_ms = 0;
 
@@ -128,22 +128,22 @@ static void sys_button_callback(bsp_button_press_type_t press_type)
 
 static void sys_button_handle_event(bsp_button_press_type_t event)
 {
-  if (s_svc_state == SVC_COUNTING)
+  if (service_state == SERVICE_COUNTING)
   {
     switch (event)
     {
     case BUTTON_PRESS_SHORT:
     {
-      s_svc_acc += 1;
-      s_svc_last_press_ms = OS_GET_TICK();
-      LOG_DBG("Service count: %d", s_svc_acc);
+      service_press_accum += 1;
+      service_last_press_ms = OS_GET_TICK();
+      LOG_DBG("Service count: %d", service_press_accum);
       break;
     }
     case BUTTON_PRESS_COUNT:
     {
-      s_svc_acc += bsp_button_get_count(BUTTON_EVT);
-      s_svc_last_press_ms = OS_GET_TICK();
-      LOG_DBG("Service count: %d", s_svc_acc);
+      service_press_accum += bsp_button_get_count(BUTTON_EVT);
+      service_last_press_ms = OS_GET_TICK();
+      LOG_DBG("Service count: %d", service_press_accum);
       break;
     }
     default: break;
@@ -166,10 +166,10 @@ static void sys_button_handle_event(bsp_button_press_type_t event)
   case BUTTON_PRESS_SERVICE:
   {
     LOG_DBG("Service mode entered");
-    s_svc_state         = SVC_COUNTING;
-    s_svc_acc           = 0;
-    s_svc_enter_ms      = OS_GET_TICK();
-    s_svc_last_press_ms = s_svc_enter_ms;
+    service_state         = SERVICE_COUNTING;
+    service_press_accum   = 0;
+    service_enter_ms      = OS_GET_TICK();
+    service_last_press_ms = service_enter_ms;
     sys_button_led_oneshot(SYS_LED_EVT_SERVICE_ENTER);
     break;
   }
@@ -193,45 +193,45 @@ static void sys_button_service_tick(void)
     service_led_evt = SYS_LED_EVT_MAX;
   }
 
-  if (s_svc_state != SVC_COUNTING)
+  if (service_state != SERVICE_COUNTING)
   {
     return;
   }
 
-  if ((now - s_svc_enter_ms) >= SYS_BUTTON_SVC_MAX_MS)
+  if ((now - service_enter_ms) >= SYS_BUTTON_SVC_MAX_MS)
   {
     LOG_DBG("Service mode timed out (max)");
     sys_button_led_oneshot(SYS_LED_EVT_SERVICE_ABORT);
-    s_svc_state = SVC_IDLE;
+    service_state = SVC_IDLE;
     return;
   }
 
-  uint32_t ref = (s_svc_acc > 0) ? s_svc_last_press_ms : s_svc_enter_ms;
+  uint32_t ref = (service_press_accum > 0) ? service_last_press_ms : service_enter_ms;
   if ((now - ref) < SYS_BUTTON_SVC_GAP_MS)
   {
     return;  // still within the counting window
   }
 
-  if (s_svc_acc == 0)
+  if (service_press_accum == 0)
   {
     LOG_DBG("Service mode aborted (no press)");
-    s_svc_state = SVC_IDLE;
+    service_state = SVC_IDLE;
     return;
   }
 
-  if (s_svc_acc <= SYS_BUTTON_SVC_CMD_MAX && SERVICE_CMD_MAP[s_svc_acc] != SYS_MANAGER_EVT_IDLE)
+  if (service_press_accum <= SYS_BUTTON_SVC_CMD_MAX && SERVICE_CMD_MAP[service_press_accum] != SYS_MANAGER_EVT_IDLE)
   {
-    LOG_DBG("Service cmd: %d presses -> event %d", s_svc_acc, SERVICE_CMD_MAP[s_svc_acc]);
-    sys_manager_write_event(SERVICE_CMD_MAP[s_svc_acc]);
+    LOG_DBG("Service cmd: %d presses -> event %d", service_press_accum, SERVICE_CMD_MAP[service_press_accum]);
+    sys_manager_write_event(SERVICE_CMD_MAP[service_press_accum]);
     sys_button_led_oneshot(SYS_LED_EVT_SERVICE_DONE);
   }
   else
   {
-    LOG_DBG("Service cmd: %d presses unmapped / out of range", s_svc_acc);
+    LOG_DBG("Service cmd: %d presses unmapped / out of range", service_press_accum);
     sys_button_led_oneshot(SYS_LED_EVT_SERVICE_ABORT);
   }
 
-  s_svc_state = SVC_IDLE;
+  service_state = SVC_IDLE;
 }
 
 static void sys_button_led_oneshot(sys_led_evt_t evt)
@@ -252,8 +252,8 @@ static void sys_button_service_reset(void)
     sys_led_clear_event(service_led_evt);
     service_led_evt = SYS_LED_EVT_MAX;
   }
-  s_svc_state = SVC_IDLE;
-  s_svc_acc   = 0;
+  service_state       = SVC_IDLE;
+  service_press_accum = 0;
 }
 
 /* End of file -------------------------------------------------------- */
