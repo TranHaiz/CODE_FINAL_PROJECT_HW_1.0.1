@@ -21,6 +21,7 @@
 #define BUTTON_SHORT_PRESS_MS  (1000)
 #define BUTTON_LONG_PRESS_MS   (15000)
 #define BUTTON_DOUBLE_PRESS_MS (500)
+#define BUTTON_SERVICE_HOLD_MS (5000)
 
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
@@ -34,6 +35,7 @@ typedef enum
   BUTTON_PRESS_SHORT = 0,
   BUTTON_PRESS_LONG,
   BUTTON_PRESS_COUNT,
+  BUTTON_PRESS_SERVICE,
 } bsp_button_press_type_t;
 
 typedef void (*bsp_button_callback_t)(bsp_button_press_type_t press_type);

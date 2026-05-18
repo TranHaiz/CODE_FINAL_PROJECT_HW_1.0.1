@@ -28,6 +28,7 @@ typedef struct
   volatile uint32_t         release_time;
   volatile bool             is_pressed;
   volatile bool             is_long_handled;
+  volatile bool             service_pending;
   volatile uint8_t          click_count;
   volatile uint32_t         last_click_time;
   uint8_t                   last_reported_count;
@@ -56,6 +57,7 @@ void bsp_button_init(bsp_button_type_t button, bsp_button_callback_t callback)
   s_buttons[button].release_time        = 0;
   s_buttons[button].is_pressed          = false;
   s_buttons[button].is_long_handled     = false;
+  s_buttons[button].service_pending     = false;
   s_buttons[button].click_count         = 0;
   s_buttons[button].last_click_time     = 0;
   s_buttons[button].last_reported_count = 0;
@@ -79,12 +81,20 @@ void bsp_button_process(void)
     // Watchdog for fast taps that missed the ISR release debounce
     if (!current_state && btn->is_pressed && ((now - btn->press_time) > BUTTON_DEBOUNCE_MS))
     {
-      btn->is_pressed   = false;
-      btn->release_time = now;
+      uint32_t press_duration = now - btn->press_time;
+      btn->is_pressed         = false;
+      btn->release_time       = now;
       if (!btn->is_long_handled)
       {
-        btn->click_count++;
-        btn->last_click_time = now;
+        if (press_duration >= BUTTON_SERVICE_HOLD_MS && press_duration < BUTTON_LONG_PRESS_MS)
+        {
+          btn->service_pending = true;
+        }
+        else
+        {
+          btn->click_count++;
+          btn->last_click_time = now;
+        }
       }
     }
 
@@ -99,6 +109,15 @@ void bsp_button_process(void)
         {
           btn->cb(BUTTON_PRESS_LONG);
         }
+      }
+    }
+
+    if (btn->service_pending)
+    {
+      btn->service_pending = false;
+      if (btn->cb)
+      {
+        btn->cb(BUTTON_PRESS_SERVICE);
       }
     }
 
@@ -168,15 +187,22 @@ static void IRAM_ATTR button_evt_isr_handler(void)
   {
     if ((now - btn->press_time) > BUTTON_DEBOUNCE_MS)
     {
+      uint32_t press_duration = now - btn->press_time;
+
       btn->is_pressed   = false;
       btn->release_time = now;
 
-      uint32_t press_duration = now - btn->press_time;
-
       if (!btn->is_long_handled && press_duration >= BUTTON_DEBOUNCE_MS)
       {
-        btn->click_count++;
-        btn->last_click_time = now;
+        if (press_duration >= BUTTON_SERVICE_HOLD_MS && press_duration < BUTTON_LONG_PRESS_MS)
+        {
+          btn->service_pending = true;
+        }
+        else
+        {
+          btn->click_count++;
+          btn->last_click_time = now;
+        }
       }
     }
   }

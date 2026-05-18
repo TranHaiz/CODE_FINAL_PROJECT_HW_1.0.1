@@ -48,6 +48,7 @@ static volatile int             pulse_val      = 0;
 static volatile int             fade_amount    = 5;
 static volatile uint32_t        flash_count    = 0;
 static volatile bool            flash_on       = false;
+static volatile uint32_t        blink_tick     = 0;
 static uint32_t                 led_tick_ms    = 1;
 
 /* Private function prototypes ---------------------------------------- */
@@ -106,6 +107,7 @@ void bsp_led_set(bsp_led_color_t color, bsp_led_mode_t mode_in, uint8_t brightne
   fade_amount = 5;
   flash_count = 0;
   flash_on    = false;
+  blink_tick  = 0;
 }
 
 /**
@@ -232,6 +234,20 @@ static void bsp_led_update_task(void)
 
     uint8_t pulse_brightness = (uint8_t) ((pulse_val * led_brightness) / LED_MAX_VALUE);
     led_strip.setPixelColor(0, bsp_led_make_color(led_color, pulse_brightness));
+    break;
+  }
+  case BSP_LED_MODE_BLINK_ONCE:
+  {
+    blink_tick += delta_ms;
+    if (blink_tick >= BSP_LED_TIME_BLINK_ONCE_MS)
+    {
+      led_strip.setPixelColor(0, LED_OFF_VALUE);
+      led_mode = BSP_LED_MODE_NONE;
+    }
+    else
+    {
+      led_strip.setPixelColor(0, bsp_led_make_color(led_color, led_brightness));
+    }
     break;
   }
   }

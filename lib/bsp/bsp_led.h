@@ -23,6 +23,7 @@
 #define BSP_LED_TIME_PULSE_LOW_SOLID_MS  (100)
 #define BSP_LED_TIME_FLASH_SLOW_MS       (1000)
 #define BSP_LED_TIME_FLASH_FAST_MS       (300)
+#define BSP_LED_TIME_BLINK_ONCE_MS       (1000)
 
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
@@ -47,6 +48,7 @@ typedef enum
   BSP_LED_MODE_FLASH_SLOW,
   BSP_LED_MODE_FLASH_FAST,
   BSP_LED_MODE_PULSE,
+  BSP_LED_MODE_BLINK_ONCE,
   BSP_LED_MODE_MAX
 } bsp_led_mode_t;
 
