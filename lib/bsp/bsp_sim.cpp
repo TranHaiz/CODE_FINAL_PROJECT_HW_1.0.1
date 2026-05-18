@@ -111,18 +111,11 @@ status_function_t bsp_sim_init(void)
   SIM_SEND("ATE0\r\n");
   OS_DELAY_MS(50);
 
-#if (DEVICE_SIM_A7680C == true)
-  // A7680C: suppress URCs that are not needed
-  bsp_sim_send_and_wait_response("AT*URCMODE=0\r\n", "OK", 1000);
-  bsp_sim_send_and_wait_response("AT+CIURC=0\r\n", "OK", 1000);
-  bsp_sim_send_and_wait_response("AT+STSF=0\r\n", "OK", 1000);
-#endif
-
   bsp_sim_send_and_wait_response("AT+CFUN=1\r\n", "OK", 2000);
-  bsp_sim_send_and_wait_response("AT+CNMI=0,0,0,0,0\r\n", "OK", 1000);
-  bsp_sim_send_and_wait_response("AT+CGEREP=0,0\r\n", "OK", 1000);
-  bsp_sim_send_and_wait_response("AT+CREG=0\r\n", "OK", 1000);
-  bsp_sim_send_and_wait_response("AT+CGREG=0\r\n", "OK", 1000);
+  bsp_sim_send_and_wait_response("AT+CNMI=0,0,0,0,0\r\n", "OK", 1000);  // SMS new-message URC off
+  bsp_sim_send_and_wait_response("AT+CGEREP=0,0\r\n", "OK", 1000);      // packet-domain event URC off
+  bsp_sim_send_and_wait_response("AT+CREG=0\r\n", "OK", 1000);          // network reg URC off
+  bsp_sim_send_and_wait_response("AT+CGREG=0\r\n", "OK", 1000);         // GPRS reg URC off
   bsp_sim_send_and_wait_response("AT\r\n", "OK", 2000);
 
   if (!bsp_sim_send_and_wait_response("AT+CPIN?\r\n", "+CPIN: READY", 2000))
@@ -330,6 +323,9 @@ status_function_t bsp_sim_mqtt_init(void)
   }
 
 #elif (DEVICE_SIM_A7680C == true)
+  bsp_sim_send_and_wait_response("AT+CMQTTDISC=0,60\r\n", "OK", 2000);
+  bsp_sim_send_and_wait_response("AT+CMQTTREL=0\r\n", "OK", 1000);
+  bsp_sim_send_and_wait_response("AT+CMQTTSTOP\r\n", "OK", 3000);
 
   if (!bsp_sim_send_and_wait_response("AT+CMQTTSTART\r\n", "+CMQTTSTART: 0", 5000))
   {
@@ -706,48 +702,74 @@ static void bsp_sim_rsp_callback(uart_port_t uart_num, uint8_t *data, size_t len
   }
 
 #elif (DEVICE_SIM_A7680C == true)
-  // A7680C delivers subscribed messages via multi-line +CMQTTRX* URCs
-  if (strstr((const char *) sim_rx_buffer, "+CMQTTRXSTART"))
+  static char   mqtt_urc[SIM_RX_BUFFER_SIZE];
+  static size_t mqtt_urc_len = 0;
+
+  if (mqtt_urc_len == 0 && strstr((const char *) sim_rx_buffer, "+CMQTTRXSTART") == NULL)
   {
-    const char *topic_marker   = strstr((const char *) sim_rx_buffer, "+CMQTTRXTOPIC:");
-    const char *payload_marker = strstr((const char *) sim_rx_buffer, "+CMQTTRXPAYLOAD:");
-    const char *end_marker     = strstr((const char *) sim_rx_buffer, "+CMQTTRXEND:");
-
-    if (topic_marker && payload_marker && end_marker)
+    // Do nothing
+  }
+  else
+  {
+    size_t copy = len;
+    if (mqtt_urc_len + copy > sizeof(mqtt_urc) - 1)
+      copy = sizeof(mqtt_urc) - 1 - mqtt_urc_len;
+    if (copy > 0)
     {
-      char        topic[128]  = { 0 };
-      const char *topic_start = strchr(topic_marker, '\n');
-      if (topic_start)
-      {
-        topic_start++;
-        const char *topic_end = strstr(topic_start, "\r\n+CMQTTRXPAYLOAD");
-        if (topic_end)
-        {
-          size_t tlen = topic_end - topic_start;
-          if (tlen < sizeof(topic))
-            memcpy(topic, topic_start, tlen);
-        }
-      }
+      memcpy(mqtt_urc + mqtt_urc_len, data, copy);
+      mqtt_urc_len += copy;
+      mqtt_urc[mqtt_urc_len] = '\0';
+    }
 
-      const char *payload_start = strchr(payload_marker, '\n');
-      if (payload_start)
+    bool complete = (strstr(mqtt_urc, "+CMQTTRXEND") != NULL);
+
+    if (complete)
+    {
+      const char *topic_marker   = strstr(mqtt_urc, "+CMQTTRXTOPIC:");
+      const char *payload_marker = strstr(mqtt_urc, "+CMQTTRXPAYLOAD:");
+
+      if (topic_marker && payload_marker)
       {
-        payload_start++;
-        const char *payload_end = strstr(payload_start, "\r\n+CMQTTRXEND");
-        if (payload_end)
+        char        topic[128]  = { 0 };
+        const char *topic_start = strchr(topic_marker, '\n');
+        if (topic_start)
         {
-          size_t plen = payload_end - payload_start;
-          if (plen > 0 && plen < sizeof(sim_mqtt_buf))
+          topic_start++;
+          const char *topic_end = strstr(topic_start, "\r\n+CMQTTRXPAYLOAD");
+          if (topic_end)
           {
-            memcpy(sim_mqtt_buf, payload_start, plen);
-            sim_mqtt_buf[plen] = '\0';
-            sim_mqtt_buf_len   = (uint16_t) plen;
+            size_t tlen = topic_end - topic_start;
+            if (tlen < sizeof(topic))
+              memcpy(topic, topic_start, tlen);
+          }
+        }
 
-            if (sim_mqtt_cb != NULL)
-              sim_mqtt_cb(topic, sim_mqtt_buf, sim_mqtt_buf_len);
+        const char *payload_start = strchr(payload_marker, '\n');
+        if (payload_start)
+        {
+          payload_start++;
+          const char *payload_end = strstr(payload_start, "\r\n+CMQTTRXEND");
+          if (payload_end)
+          {
+            size_t plen = payload_end - payload_start;
+            if (plen > 0 && plen < sizeof(sim_mqtt_buf))
+            {
+              memcpy(sim_mqtt_buf, payload_start, plen);
+              sim_mqtt_buf[plen] = '\0';
+              sim_mqtt_buf_len   = (uint16_t) plen;
+
+              if (sim_mqtt_cb != NULL)
+                sim_mqtt_cb(topic, sim_mqtt_buf, sim_mqtt_buf_len);
+            }
           }
         }
       }
+    }
+
+    if (complete || mqtt_urc_len >= sizeof(mqtt_urc) - 1)
+    {
+      mqtt_urc_len = 0;
+      mqtt_urc[0]  = '\0';
     }
   }
 #endif  // DEVICE_SIM_*
