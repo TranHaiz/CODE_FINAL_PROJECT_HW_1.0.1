@@ -141,6 +141,7 @@ static void sys_led_get_current_event(sys_led_evt_t *event)
         CLEAR_LED_EVENT(SYS_LED_EVT_NOTI_LOW_BALANCE);
         CLEAR_LED_EVENT(SYS_LED_EVT_NOTI_WARNING_DEBT);
         CLEAR_LED_EVENT(SYS_LED_EVT_NOTI_RENTAL_LIMIT);
+        CLEAR_LED_EVENT(SYS_LED_EVT_OFF);
       }
       break;
     }
