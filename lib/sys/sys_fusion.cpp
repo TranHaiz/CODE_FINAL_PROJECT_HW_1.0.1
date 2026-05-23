@@ -30,15 +30,17 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define DEMO_WALKING                (false)
 
 // Accelerometer parameters
-#define ACC_EMA_ALPHA               (0.25f)
-#define ACC_EMA_ALPHA_FAST          (0.45f)
-#define ACC_EMA_ALPHA_MEDIUM        (0.30f)
-#define ACC_EMA_ALPHA_SLOW          (0.10f)
+#define ACC_EMA_ALPHA               (0.3f)
+#define ACC_EMA_ALPHA_FAST          (0.55f)
+#define ACC_EMA_ALPHA_MEDIUM        (0.40f)
+#define ACC_EMA_ALPHA_SLOW          (0.20f)
 #define ACC_THRESHOLD_MS2           (0.02f)  // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
-#define ACC_FWD_DELTA_FAST          (0.60f)
-#define ACC_FWD_DELTA_MEDIUM        (0.30f)
-#define ACC_FWD_QUIET_LIMIT         (0.15f)
+#define ACC_FWD_DELTA_FAST          (0.70f)
+#define ACC_FWD_DELTA_MEDIUM        (0.45f)
+#define ACC_FWD_QUIET_LIMIT         (0.25f)
+#define ACC_SAMPLING_INTERVAL_MS    (5.0f)
+#define ACC_DENTA_SEC               (ACC_SAMPLING_INTERVAL_MS / 1000.0f)
 
 // Active-motion threshold — used to suppress GPS anchoring during transients,
 // because GPS speed lags real motion by ~1s during fast accel/decel.
@@ -301,8 +303,8 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   size_t current_time_us = micros();
   size_t current_time_ms = OS_GET_TICK();
   float  dt = (fusion_ctx.last_update_us == 0) ? 0.02f : (current_time_us - fusion_ctx.last_update_us) / US_TO_S;
-  if (dt > 0.1f)  // Sample rates (50-100ms)
-    dt = 0.1f;
+  if (dt > ACC_DENTA_SEC)
+    dt = ACC_DENTA_SEC;
 
   fusion_ctx.is_new_gps_fix_this_cycle = false;
 
