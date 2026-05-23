@@ -85,7 +85,7 @@
 #define CONFIG_FIREBASE_SERVER            (false)
 #define CONFIG_MQTT_SERVER                (true)
 #define NETWORK_SWITCH_LOST_THRESHOLD     (10)
-#define DEVICE_BLE_FALLBACK_ENABLED       (true)  // Advertise BLE only when LTE lost; false = always advertise (debug log mode)
+#define DEVICE_BLE_FALLBACK_ENABLED       (true)
 
 #define MQTT_MAX_TOPIC_LEN                (64)
 
