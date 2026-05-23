@@ -34,7 +34,7 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 
-#define SYS_UI_LED_DEFAULT_BRIGHTNESS              (80)
+#define SYS_UI_LED_DEFAULT_BRIGHTNESS              (50)
 
 // Platform UI settings
 #define SYS_UI_COLOR_BG                            SYS_UI_WIDGET_COLOR_DARK_NAVY
