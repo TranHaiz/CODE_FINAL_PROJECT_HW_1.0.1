@@ -33,7 +33,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define ACC_EMA_ALPHA               (0.3f)
 #define ACC_THRESHOLD_MS2           (0.02f)  // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
-#define ACC_SAMPLING_INTERVAL_MS    (5.0f)
+#define ACC_SAMPLING_INTERVAL_MS    (50.0f)
 #define ACC_DENTA_SEC               (ACC_SAMPLING_INTERVAL_MS / 1000.0f)
 
 // Active-motion threshold — used to suppress GPS anchoring during transients,
@@ -42,7 +42,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define GPS_ANCHOR_TRANSIENT_SCALE  (0.2f)  // Multiplier on anchor when active motion
 
 // Attitude complementary filter (gyro + accelerometer)
-#define ATTITUDE_GYRO_WEIGHT        (0.9756f)
+#define ATTITUDE_GYRO_WEIGHT        (0.9975f)
 #define GYRO_BIAS_CALIB_SAMPLES     (200)
 #define GYRO_BIAS_ALPHA             (0.01f)
 #define ACC_FORWARD_MAX_MS2         (3.0f)
@@ -50,14 +50,19 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 // Higher = faster GPS tracking; lower = smoother INS-dominant output
 #define CF_WC                       (2.0f)
+#define CF_WC_TRANSIENT             (4.0f)
+#define CF_WC_TRANSIENT_TH_MS2      (1.5f)
+#define CF_TRANSIENT_AGREE_MS       (2.0f)
 // Stop-response shaping: make Vout decay quicker near standstill.
 #define CF_WC_STOPPING              (6.0f)
+// Continuous soft GPS anchor — bounds INS drift between fresh fixes (TC ~2.5s at 200Hz)
+#define GPS_SOFT_ANCHOR_RATE        (0.002f)
 #define VEL_NEAR_ZERO_MS            (0.18f)
 #define VEL_SETTLE_BAND_MS          (0.12f)
 
 #if (DEMO_VEHICLE)
 #define ZUPT_ACC_THRESHOLD          (0.15f)
-#define ZUPT_TIME_THRESHOLD_MS      (800)
+#define ZUPT_TIME_THRESHOLD_MS      (400)
 #define INS_DECAY_NORMAL            (0.990f)
 #define INS_DECAY_STOPPING          (0.75f)
 #define INS_DECAY_GPS_LOST          (0.95f)
@@ -694,6 +699,13 @@ static void sys_fusion_update_ins_velocity(float dt)
   // 6. Accumulate INS distance
   if (fusion_ctx.velocity_ins > GPS_SPEED_MIN_MS)
     fusion_ctx.distance_ins += fusion_ctx.velocity_ins * dt;
+
+  // 7. Continuous soft GPS anchor — damps INS drift between fresh fixes
+  if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
+  {
+    fusion_ctx.velocity_ins = (1.0f - GPS_SOFT_ANCHOR_RATE) * fusion_ctx.velocity_ins
+                              + GPS_SOFT_ANCHOR_RATE * fusion_ctx.velocity_gps;
+  }
 }
 
 static void sys_fusion_update_gps_data(void)
@@ -866,7 +878,16 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
 
   bool  near_stop    = (v_ref < VEL_NEAR_ZERO_MS);
   bool  no_drive_acc = (fusion_ctx.acc_forward < ACC_THRESHOLD_MS2);
-  float cf_wc_effect = (near_stop && no_drive_acc) ? CF_WC_STOPPING : CF_WC;
+  bool  hard_motion  = (fabsf(fusion_ctx.acc_forward) > CF_WC_TRANSIENT_TH_MS2);
+  bool  gps_agrees   = (fusion_ctx.gps_state == GPS_STATE_ACTIVE)
+                       && (fabsf(fusion_ctx.velocity_ins - fusion_ctx.velocity_gps) < CF_TRANSIENT_AGREE_MS);
+  float cf_wc_effect;
+  if (near_stop && no_drive_acc)
+    cf_wc_effect = CF_WC_STOPPING;
+  else if (hard_motion && gps_agrees)
+    cf_wc_effect = CF_WC_TRANSIENT;
+  else
+    cf_wc_effect = CF_WC;
 
   // dt_gps: time since last GPS fix (used to scale GPS weight correctly)
   // Falls back to dt when no GPS so the expression stays well-formed.

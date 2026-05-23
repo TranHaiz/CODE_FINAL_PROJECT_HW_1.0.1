@@ -100,13 +100,17 @@ status_function_t bsp_gps_init(bsp_gps_callback_t callback)
   bsp_uart_init(&uart_cfg);
   memset(&gps_data, 0, sizeof(gps_data));
 
+  is_gps_initialized = true;  // must be set before config helpers (they guard on this)
+
   OS_DELAY_MS(500);
   bsp_gps_set_dynamic_model(BSP_GPS_DYN_AUTOMOTIVE);
   OS_DELAY_MS(100);
+  bsp_gps_configure_nmea(0x11);  // RMC + GGA only (fits 5Hz on 9600 baud)
+  OS_DELAY_MS(100);
+  bsp_gps_set_new_sample_rate(BSP_GPS_UPDATE_5HZ);
+  OS_DELAY_MS(100);
   bsp_gps_save_config();
 
-  is_gps_initialized = true;
-  return STATUS_OK;
   return STATUS_OK;
 }
 
