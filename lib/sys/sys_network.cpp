@@ -131,20 +131,25 @@ void sys_network_trigger_new_trip(void)
 {
   uint32_t new_trip_id = 1;
   char     info_path[MAX_OFFLINE_TRIP_PATH_LEN];
-  snprintf(info_path, sizeof(info_path), "%s/trip_info.dat", SD_OFFLINE_DIR);
+  snprintf(info_path, sizeof(info_path), "%s/trip_info.txt", SD_OFFLINE_DIR);
 
   if (sys_network_prepare_sd_card() == STATUS_OK)
   {
     bsp_sdcard_file_t trip_info_file;
-    size_t            read_len = 0;
-    trip_meta_info_t  old_trip_info;
+    size_t            read_len     = 0;
+    char              info_buf[32] = { 0 };
     if (bsp_sdcard_open(info_path, BSP_SDCARD_MODE_READ, &trip_info_file) == STATUS_OK)
     {
-      bsp_sdcard_read(&trip_info_file, (uint8_t *) &old_trip_info, sizeof(old_trip_info), &read_len);
+      bsp_sdcard_read(&trip_info_file, (uint8_t *) info_buf, sizeof(info_buf) - 1, &read_len);
       bsp_sdcard_close(&trip_info_file);
     }
-    if (read_len == sizeof(old_trip_info))
-      new_trip_id = old_trip_info.current_trip_id + 1;
+    if (read_len > 0)
+    {
+      size_t saved_id = 0;
+      sscanf(info_buf, "%lu", &saved_id);
+      if (saved_id > 0)
+        new_trip_id = (uint32_t) saved_id + 1;
+    }
 
     sys_network_write_trip_info(info_path, new_trip_id, TRIP_ACTIVE);
   }
@@ -160,7 +165,7 @@ void sys_network_trigger_end_trip(void)
   if (s_active_trip_id != 0 && sys_network_prepare_sd_card() == STATUS_OK)
   {
     char info_path[MAX_OFFLINE_TRIP_PATH_LEN];
-    snprintf(info_path, sizeof(info_path), "%s/trip_info.dat", SD_OFFLINE_DIR);
+    snprintf(info_path, sizeof(info_path), "%s/trip_info.txt", SD_OFFLINE_DIR);
     sys_network_write_trip_info(info_path, s_active_trip_id, TRIP_COMPLETED);
   }
 
@@ -553,7 +558,7 @@ static status_function_t sys_network_push_sd_to_adapter(net_adapter_t *adapter)
   snprintf(ack_path, sizeof(ack_path), "%s", log_path);
   dot = strrchr(ack_path, '.');
   if (dot != NULL)
-    strcpy(dot, ".ack");
+    strcpy(dot, "_ack.txt");
 
   bsp_sdcard_file_t fh;
   if (bsp_sdcard_open(log_path, BSP_SDCARD_MODE_READ, &fh) != STATUS_OK)
@@ -612,7 +617,9 @@ static status_function_t sys_network_push_sd_to_adapter(net_adapter_t *adapter)
   bsp_sdcard_file_t ack_fh;
   if (bsp_sdcard_open(ack_path, BSP_SDCARD_MODE_WRITE, &ack_fh) == STATUS_OK)
   {
-    bsp_sdcard_write(&ack_fh, (const uint8_t *) &s_network_sd_offset, sizeof(s_network_sd_offset), NULL);
+    char ack_buf[24];
+    snprintf(ack_buf, sizeof(ack_buf), "%u", (unsigned) s_network_sd_offset);
+    bsp_sdcard_write(&ack_fh, (const uint8_t *) ack_buf, strlen(ack_buf), NULL);
     bsp_sdcard_close(&ack_fh);
   }
 
@@ -680,13 +687,20 @@ static bool sys_network_check_sd_pending(void)
       return false;
     }
     s_network_sd_offset = 0;
-    snprintf(ack_path, sizeof(ack_path), "%s/trip_%lu.ack", SD_OFFLINE_DIR, s_active_trip_id);
+    snprintf(ack_path, sizeof(ack_path), "%s/trip_%lu_ack.txt", SD_OFFLINE_DIR, s_active_trip_id);
     bsp_sdcard_file_t ack_file_handle;
     if (bsp_sdcard_open(ack_path, BSP_SDCARD_MODE_READ, &ack_file_handle) == STATUS_OK)
     {
-      size_t read_len = 0;
-      bsp_sdcard_read(&ack_file_handle, (uint8_t *) &s_network_sd_offset, sizeof(s_network_sd_offset), &read_len);
+      char   ack_buf[24] = { 0 };
+      size_t read_len    = 0;
+      bsp_sdcard_read(&ack_file_handle, (uint8_t *) ack_buf, sizeof(ack_buf) - 1, &read_len);
       bsp_sdcard_close(&ack_file_handle);
+      if (read_len > 0)
+      {
+        unsigned long val = 0;
+        sscanf(ack_buf, "%lu", &val);
+        s_network_sd_offset = (size_t) val;
+      }
     }
     return true;
   }
@@ -710,13 +724,20 @@ static bool sys_network_check_sd_pending(void)
     dot = strrchr(ack_path, '.');
     if (dot != NULL)
     {
-      strcpy(dot, ".ack");
+      strcpy(dot, "_ack.txt");
       bsp_sdcard_file_t ack_file_handle;
       if (bsp_sdcard_open(ack_path, BSP_SDCARD_MODE_READ, &ack_file_handle) == STATUS_OK)
       {
-        size_t read_len = 0;
-        bsp_sdcard_read(&ack_file_handle, (uint8_t *) &s_network_sd_offset, sizeof(s_network_sd_offset), &read_len);
+        char   ack_buf[24] = { 0 };
+        size_t read_len    = 0;
+        bsp_sdcard_read(&ack_file_handle, (uint8_t *) ack_buf, sizeof(ack_buf) - 1, &read_len);
         bsp_sdcard_close(&ack_file_handle);
+        if (read_len > 0)
+        {
+          unsigned long val = 0;
+          sscanf(ack_buf, "%lu", &val);
+          s_network_sd_offset = (size_t) val;
+        }
       }
     }
     return true;
@@ -757,8 +778,9 @@ static void sys_network_write_trip_info(const char *meta_path, uint32_t trip_id,
   bsp_sdcard_file_t trip_info_file;
   if (bsp_sdcard_open(meta_path, BSP_SDCARD_MODE_WRITE, &trip_info_file) != STATUS_OK)
     return;
-  trip_meta_info_t meta = { .current_trip_id = trip_id, .trip_state = state };
-  bsp_sdcard_write(&trip_info_file, (const uint8_t *) &meta, sizeof(meta), NULL);
+  char meta_buf[32];
+  snprintf(meta_buf, sizeof(meta_buf), "%lu,%d", (unsigned long) trip_id, (int) state);
+  bsp_sdcard_write(&trip_info_file, (const uint8_t *) meta_buf, strlen(meta_buf), NULL);
   bsp_sdcard_close(&trip_info_file);
 }
 
