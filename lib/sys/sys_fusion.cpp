@@ -31,14 +31,8 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 // Accelerometer parameters
 #define ACC_EMA_ALPHA               (0.3f)
-#define ACC_EMA_ALPHA_FAST          (0.55f)
-#define ACC_EMA_ALPHA_MEDIUM        (0.40f)
-#define ACC_EMA_ALPHA_SLOW          (0.20f)
 #define ACC_THRESHOLD_MS2           (0.02f)  // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
-#define ACC_FWD_DELTA_FAST          (0.70f)
-#define ACC_FWD_DELTA_MEDIUM        (0.45f)
-#define ACC_FWD_QUIET_LIMIT         (0.25f)
 #define ACC_SAMPLING_INTERVAL_MS    (5.0f)
 #define ACC_DENTA_SEC               (ACC_SAMPLING_INTERVAL_MS / 1000.0f)
 
@@ -48,16 +42,16 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define GPS_ANCHOR_TRANSIENT_SCALE  (0.2f)  // Multiplier on anchor when active motion
 
 // Attitude complementary filter (gyro + accelerometer)
-#define ATTITUDE_GYRO_WEIGHT        (0.90f)
+#define ATTITUDE_GYRO_WEIGHT        (0.9756f)
 #define GYRO_BIAS_CALIB_SAMPLES     (200)
 #define GYRO_BIAS_ALPHA             (0.01f)
 #define ACC_FORWARD_MAX_MS2         (3.0f)
 
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 // Higher = faster GPS tracking; lower = smoother INS-dominant output
-#define CF_WC                       (0.4f)
+#define CF_WC                       (2.0f)
 // Stop-response shaping: make Vout decay quicker near standstill.
-#define CF_WC_STOPPING              (2.0f)
+#define CF_WC_STOPPING              (6.0f)
 #define VEL_NEAR_ZERO_MS            (0.18f)
 #define VEL_SETTLE_BAND_MS          (0.12f)
 
@@ -94,6 +88,14 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define COMPASS_EMA_ALPHA                  (0.15f)
 #define COMPASS_UPDATE_MS                  (100)
 
+// Butterworth 2nd-order lowpass: fc=8 Hz, fs=200 Hz
+// wn=tan(pi*8/200)=0.12683, D=1+sqrt(2)*wn+wn^2
+#define BW_B0                              (0.013450f)
+#define BW_B1                              (0.026899f)
+#define BW_B2                              (0.013450f)
+#define BW_A1                              (-1.646225f)
+#define BW_A2                              (0.699928f)
+
 #define GRAVITY_MS2                        (9.806f)
 #define KMH_TO_MS                          (1.0f / 3.6f)
 #define MS_TO_KMH                          (3.6f)
@@ -125,6 +127,14 @@ typedef enum
   GPS_STATE_FADING,
 } gps_state_t;
 
+#if (DEVICE_FUSION_ACC_FILTER == DEVICE_FUSION_FILTER_BTW)
+typedef struct
+{
+  float x1, x2;
+  float y1, y2;
+} biquad_state_t;
+#endif
+
 typedef struct
 {
   // GPS
@@ -149,15 +159,21 @@ typedef struct
   float  velocity_out;  // Complementary filter output velocity
   float  acc_raw;       // Net dynamic acc magnitude (g) — used for ZUPT
   float  acc_forward;   // Forward acceleration after body→nav projection (m/s²)
-  float  prev_acc_forward;
   float  offset_magnitude;
   float  distance_m;
 
-  // Acc per-axis EMA (filtered before rotation)
+  // Acc per-axis filter (EMA or Butterworth, selected by DEVICE_FUSION_ACC_FILTER)
   float acc_ema_x;
   float acc_ema_y;
   float acc_ema_z;
   bool  acc_ema_init;
+
+#if (DEVICE_FUSION_ACC_FILTER == DEVICE_FUSION_FILTER_BTW)
+  biquad_state_t bw_x;
+  biquad_state_t bw_y;
+  biquad_state_t bw_z;
+  bool           bw_init;
+#endif
 
   // Attitude — continuously updated via gyro + acc complementary filter
   float roll_rad;
@@ -474,6 +490,23 @@ void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
 }
 
 /* Private definitions ----------------------------------------------- */
+#if (DEVICE_FUSION_ACC_FILTER == DEVICE_FUSION_FILTER_BTW)
+static void biquad_reset(biquad_state_t *s, float v)
+{
+  s->x1 = s->x2 = s->y1 = s->y2 = v;
+}
+
+static float biquad_process(biquad_state_t *s, float x)
+{
+  float y = BW_B0 * x + BW_B1 * s->x1 + BW_B2 * s->x2 - BW_A1 * s->y1 - BW_A2 * s->y2;
+  s->x2   = s->x1;
+  s->x1   = x;
+  s->y2   = s->y1;
+  s->y1   = y;
+  return y;
+}
+#endif
+
 static void sys_fusion_calculate_offset_mag(void)
 {
   float sum = 0.0f;
@@ -555,7 +588,19 @@ static void sys_fusion_update_ins_velocity(float dt)
   }
 #endif
 
-  // 1. Acc EMA filter - 3 axes (giữ nguyên cho attitude)
+  // 1. Acc filter — per-axis body frame (EMA or Butterworth, see DEVICE_FUSION_ACC_FILTER)
+#if (DEVICE_FUSION_ACC_FILTER == DEVICE_FUSION_FILTER_BTW)
+  if (!fusion_ctx.bw_init)
+  {
+    biquad_reset(&fusion_ctx.bw_x, imu.acc_x);
+    biquad_reset(&fusion_ctx.bw_y, imu.acc_y);
+    biquad_reset(&fusion_ctx.bw_z, imu.acc_z);
+    fusion_ctx.bw_init = true;
+  }
+  fusion_ctx.acc_ema_x = biquad_process(&fusion_ctx.bw_x, imu.acc_x);
+  fusion_ctx.acc_ema_y = biquad_process(&fusion_ctx.bw_y, imu.acc_y);
+  fusion_ctx.acc_ema_z = biquad_process(&fusion_ctx.bw_z, imu.acc_z);
+#else
   if (!fusion_ctx.acc_ema_init)
   {
     fusion_ctx.acc_ema_x    = imu.acc_x;
@@ -569,6 +614,7 @@ static void sys_fusion_update_ins_velocity(float dt)
     fusion_ctx.acc_ema_y = ACC_EMA_ALPHA * imu.acc_y + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_y;
     fusion_ctx.acc_ema_z = ACC_EMA_ALPHA * imu.acc_z + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_z;
   }
+#endif
 
   float acc_x = fusion_ctx.acc_ema_x;
   float acc_y = fusion_ctx.acc_ema_y;
@@ -615,28 +661,13 @@ static void sys_fusion_update_ins_velocity(float dt)
   float acc_east = cos_pitch * sin_yaw * abx + (sin_roll * sin_pitch * sin_yaw + cos_roll * cos_yaw) * aby
                    + (cos_roll * sin_pitch * sin_yaw - sin_roll * cos_yaw) * abz;
 
-  // 4. Forward projection + Adaptive Filter
+  // 4. Forward projection — per-axis Butterworth already cleans the input
   float acc_forward_raw = acc_north * cos_yaw + acc_east * sin_yaw;
 
   float mag_g        = hypotf(hypotf(acc_x, acc_y), acc_z);
   fusion_ctx.acc_raw = mag_g - fusion_ctx.offset_magnitude;
 
-  float alpha = ACC_EMA_ALPHA;
-  float delta = fabsf(acc_forward_raw - fusion_ctx.prev_acc_forward);
-  if (delta > ACC_FWD_DELTA_FAST)
-  {
-    alpha = ACC_EMA_ALPHA_FAST;
-  }
-  else if (delta > ACC_FWD_DELTA_MEDIUM)
-  {
-    alpha = ACC_EMA_ALPHA_MEDIUM;
-  }
-  else if (fabsf(acc_forward_raw) < ACC_FWD_QUIET_LIMIT)
-  {
-    alpha = ACC_EMA_ALPHA_SLOW;
-  }
-  fusion_ctx.acc_forward      = alpha * acc_forward_raw + (1.0f - alpha) * fusion_ctx.prev_acc_forward;
-  fusion_ctx.prev_acc_forward = fusion_ctx.acc_forward;
+  fusion_ctx.acc_forward = acc_forward_raw;
 
   // 5. INS velocity integration
   bool gravity_leak = (fabsf(acc_forward_raw) > ACC_FORWARD_MAX_MS2) && (fabsf(mag_g - 1.0f) < 0.25f);

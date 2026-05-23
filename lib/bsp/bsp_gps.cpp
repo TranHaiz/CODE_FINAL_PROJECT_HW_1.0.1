@@ -101,7 +101,7 @@ status_function_t bsp_gps_init(bsp_gps_callback_t callback)
   memset(&gps_data, 0, sizeof(gps_data));
 
   OS_DELAY_MS(500);
-  bsp_gps_set_dynamic_model(BSP_GPS_DYN_PEDESTRIAN);
+  bsp_gps_set_dynamic_model(BSP_GPS_DYN_AUTOMOTIVE);
   OS_DELAY_MS(100);
   bsp_gps_save_config();
 
