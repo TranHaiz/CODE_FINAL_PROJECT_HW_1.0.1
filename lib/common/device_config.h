@@ -17,23 +17,27 @@
 /* Public defines ----------------------------------------------------- */
 
 // ------------------------------ Device configuration ------------------------------
-#define FIRRMWARE_MAJOR_VERSION           (1)
-#define FIRRMWARE_MINOR_VERSION           (1)
-#define FIRRMWARE_PATCH_VERSION           (0)
+#define FIRRMWARE_MAJOR_VERSION         (1)
+#define FIRRMWARE_MINOR_VERSION         (1)
+#define FIRRMWARE_PATCH_VERSION         (1)
 
-#define DEFAULT_DEVICE_NAME               "haq-trk-000"
-#define DEVICE_NAME_MAX_LEN               (32)
-#define DEVICE_NVS_NAMESPACE              "bsp_device"
-#define DEVICE_NVS_KEY_INFO               "dev_info"
-#define DEVICE_NVS_KEY_MAGIC              "dev_magic"
-#define DEVICE_VERSION_LEN                (6)   // example: 1.0.0 (5 chars + 1 null terminator)
-#define DEVICE_SERIAL_NUMBER_MAX_LEN      (33)  // 32 chars + 1 null terminator
-#define DEVICE_MAGIC_NUMBER               (0xDEADBEEF)
+#define DEFAULT_DEVICE_NAME             "haq-trk-000"
+#define DEVICE_NAME_MAX_LEN             (32)
+#define DEVICE_NVS_NAMESPACE            "bsp_device"
+#define DEVICE_NVS_KEY_INFO             "dev_info"
+#define DEVICE_NVS_KEY_MAGIC            "dev_magic"
+#define DEVICE_VERSION_LEN              (6)   // example: 1.0.0 (5 chars + 1 null terminator)
+#define DEVICE_SERIAL_NUMBER_MAX_LEN    (33)  // 32 chars + 1 null terminator
+#define DEVICE_MAGIC_NUMBER             (0xDEADBEEF)
 
 #define DEVICE_NORMAL_MODE              (true)
-#define DEVICE_FUSION_DEBUG_MODE        (true)
+#define DEVICE_FUSION_DEBUG_MODE        (false)
 #define DEVICE_FUSION_DEBUG_VIA_NETWORK (false)
 #define DEVICE_FUSION_DEBUG_LOG_ENABLED (false)
+
+#define DEVICE_FUSION_FILTER_EMA        (0)
+#define DEVICE_FUSION_FILTER_BTW        (1)
+#define DEVICE_FUSION_ACC_FILTER        DEVICE_FUSION_FILTER_BTW
 #define DEVICE_IDLE_MODE_ENABLED        (true)  // Return to idle mode after a period of inactivity
 #define DEVICE_NETWORK_ENABLED          (true)
 #define DEVICE_NETWORK_TOTAL_KM_ENABLED (true)  // Enable total km in network messages

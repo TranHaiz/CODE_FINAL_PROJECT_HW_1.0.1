@@ -221,7 +221,7 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 #define SYS_UI_HUM_LABEL_FORMAT                    "%.1f%%"
 #define SYS_UI_COMPASS_DEG_FORMAT                  "%.0f\xc2\xb0"
 #define SYS_UI_SPEED_MIN_KPH                       (0)
-#define SYS_UI_SPEED_MAX_KPH                       (40)
+#define SYS_UI_SPEED_MAX_KPH                       (50)
 #define SYS_UI_SPEED_SAFE_MAX_KPH                  (20)
 #define SYS_UI_SPEED_WARN_MAX_KPH                  (30)
 #define SYS_UI_SPEED_ARC_MAX_VALUE                 (100)
@@ -1483,7 +1483,7 @@ static void sys_ui_main_screen_update_speed_n_distance(void)
   ui_ctx.max_speed           = (ui_ctx.max_speed > ui_ctx.current_speed) ? ui_ctx.max_speed : ui_ctx.current_speed;
   ui_ctx.distance_km         = ui_ctx.fusion.distance_m / 1000.0f;
   ui_ctx.compass_heading_deg = ui_ctx.fusion.heading_deg;
-  sys_ui_main_screen_update_speed((int) ui_ctx.current_speed);
+  sys_ui_main_screen_update_speed((int) (ui_ctx.current_speed + 0.5f));
   sys_ui_main_screen_update_distance(ui_ctx.distance_km);
 }
 

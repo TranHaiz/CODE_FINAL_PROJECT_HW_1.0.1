@@ -109,8 +109,10 @@ status_function_t bsp_acc_init(void)
   }
 
   acc_handler.sensor->settings.accelRange      = 2;
-  acc_handler.sensor->settings.accelSampleRate = 104;
-  acc_handler.sensor->settings.accelBandWidth  = 50;
+  acc_handler.sensor->settings.accelSampleRate = 208;
+  acc_handler.sensor->settings.accelBandWidth  = 100;
+  acc_handler.sensor->settings.gyroSampleRate  = 208;
+  acc_handler.sensor->settings.gyroBandWidth   = 100;
 
   uint8_t result = acc_handler.sensor->begin();
 
@@ -149,7 +151,7 @@ status_function_t bsp_acc_init(void)
   reg &= ~LSM6DS3_BIT_PP_OD;
   acc_handler.sensor->writeRegister(LSM6DS3_REG_CTRL3_C, reg);
 
-  LOG_INF("[ACC] Initialized: ±2g, 104Hz ODR, 50Hz BW");
+  LOG_INF("[ACC] Initialized: ±2g, 208Hz ODR, 100Hz BW (accel + gyro)");
   return STATUS_OK;
 }
 status_function_t bsp_acc_get_raw_data(bsp_acc_raw_data_t *data)
