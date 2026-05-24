@@ -61,6 +61,14 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define VEL_NEAR_ZERO_MS            (0.18f)
 #define VEL_SETTLE_BAND_MS          (0.12f)
 
+// Output velocity safety anchor — bounds vout drift when vins is suspect
+#define VOUT_ANCHOR_NONE            (0)  // no extra anchor (baseline)
+#define VOUT_ANCHOR_SOFT            (1)  // continuous slow pull vout → vgps (TC ~2.5s)
+#define VOUT_ANCHOR_SNAP            (2)  // hard snap when |vout-vgps| exceeds threshold
+#define VOUT_ANCHOR_MODE            (VOUT_ANCHOR_SOFT)
+#define VOUT_ANCHOR_SOFT_RATE       (0.002f)  // per-cycle pull rate (TC ~2.5s @ 200Hz)
+#define VOUT_SNAP_TH_MS             (3.0f)    // m/s — snap when |vout-vgps| > 10.8 km/h
+
 #if (DEMO_VEHICLE)
 #define ZUPT_ACC_THRESHOLD          (0.15f)
 #define ZUPT_TIME_THRESHOLD_MS      (400)
@@ -946,6 +954,22 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
     fusion_ctx.velocity_out = 0.0f;
   else if (v_ref < VEL_SETTLE_BAND_MS && fusion_ctx.velocity_out < VEL_SETTLE_BAND_MS)
     fusion_ctx.velocity_out = 0.0f;
+
+  // Vout safety anchor — bounds output drift when vins is suspect
+#if (VOUT_ANCHOR_MODE == VOUT_ANCHOR_SOFT)
+  if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
+  {
+    fusion_ctx.velocity_out = (1.0f - VOUT_ANCHOR_SOFT_RATE) * fusion_ctx.velocity_out
+                              + VOUT_ANCHOR_SOFT_RATE * fusion_ctx.velocity_gps;
+  }
+#elif (VOUT_ANCHOR_MODE == VOUT_ANCHOR_SNAP)
+  if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS
+      && fabsf(fusion_ctx.velocity_out - fusion_ctx.velocity_gps) > VOUT_SNAP_TH_MS)
+  {
+    fusion_ctx.velocity_out = fusion_ctx.velocity_gps;
+    fusion_ctx.velocity_ins = fusion_ctx.velocity_gps;
+  }
+#endif
 
   data->velocity_ms  = fusion_ctx.velocity_out;
   data->velocity_kmh = fusion_ctx.velocity_out * MS_TO_KMH;
