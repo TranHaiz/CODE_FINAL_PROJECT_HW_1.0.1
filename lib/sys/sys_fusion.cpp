@@ -31,7 +31,8 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define DEMO_WALKING                (false)
 
 // Accelerometer parameters
-#define ACC_EMA_ALPHA               (0.3f)
+#define ACC_EMA_ALPHA               (0.077f)  // EMA fallback path (TC ~60ms at 5ms dt)
+#define DBG_GYRO_EMA_ALPHA          (0.3f)    // debug visualization only — algo uses raw gyro
 #define ACC_THRESHOLD_MS2           (0.02f)  // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
 #define ACC_SAMPLING_INTERVAL_MS    (50.0f)
@@ -56,8 +57,6 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define CF_TRANSIENT_AGREE_MS       (2.0f)
 // Stop-response shaping: make Vout decay quicker near standstill.
 #define CF_WC_STOPPING              (6.0f)
-// Continuous soft GPS anchor — bounds INS drift between fresh fixes (TC ~2.5s at 200Hz)
-#define GPS_SOFT_ANCHOR_RATE        (0.002f)
 #define VEL_NEAR_ZERO_MS            (0.18f)
 #define VEL_SETTLE_BAND_MS          (0.12f)
 
@@ -359,8 +358,8 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   // 5. Output velocity — complementary filter (INS + GPS)
   sys_fusion_compute_output_velocity(data, dt);
 
-  // 6. INS-only distance fallback when GPS unavailable
-  if (fusion_ctx.gps_state == GPS_STATE_INVALID && fusion_ctx.is_offset_mag_ready && dt > 0.0f
+  // 6. INS-only distance fallback when GPS isn't currently authoritative (FADING or INVALID)
+  if (fusion_ctx.gps_state != GPS_STATE_ACTIVE && fusion_ctx.is_offset_mag_ready && dt > 0.0f
       && data->velocity_ms > GPS_SPEED_MIN_MS)
   {
     fusion_ctx.distance_m += data->velocity_ms * dt;
@@ -620,9 +619,12 @@ static void sys_fusion_update_ins_velocity(float dt)
   }
   else
   {
-    fusion_ctx.debug_gyro_ema_x = ACC_EMA_ALPHA * imu.gyro_x + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_x;
-    fusion_ctx.debug_gyro_ema_y = ACC_EMA_ALPHA * imu.gyro_y + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_y;
-    fusion_ctx.debug_gyro_ema_z = ACC_EMA_ALPHA * imu.gyro_z + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_z;
+    fusion_ctx.debug_gyro_ema_x =
+      DBG_GYRO_EMA_ALPHA * imu.gyro_x + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_x;
+    fusion_ctx.debug_gyro_ema_y =
+      DBG_GYRO_EMA_ALPHA * imu.gyro_y + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_y;
+    fusion_ctx.debug_gyro_ema_z =
+      DBG_GYRO_EMA_ALPHA * imu.gyro_z + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_z;
   }
 #endif
 
@@ -735,28 +737,12 @@ static void sys_fusion_update_ins_velocity(float dt)
     fusion_ctx.distance_ins       += fusion_ctx.velocity_ins * dt;
     fusion_ctx.distance_ins_total += fusion_ctx.velocity_ins * dt;
   }
-
-  // 7. Continuous soft GPS anchor — damps INS drift between fresh fixes
-  if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
-  {
-    fusion_ctx.velocity_ins = (1.0f - GPS_SOFT_ANCHOR_RATE) * fusion_ctx.velocity_ins
-                              + GPS_SOFT_ANCHOR_RATE * fusion_ctx.velocity_gps;
-  }
 }
 
 static void sys_fusion_update_gps_data(void)
 {
   if (!fusion_ctx.gps_ready)
-  {
-    if (bsp_gps_init(sys_fusion_gps_callback) == STATUS_OK)
-    {
-      fusion_ctx.gps_ready = true;
-    }
-    else
-    {
-      return;
-    }
-  }
+    return;
 
   if (!fusion_ctx.is_new_gps_data_available || !fusion_ctx.gps_data_buffer.location_valid)
   {
