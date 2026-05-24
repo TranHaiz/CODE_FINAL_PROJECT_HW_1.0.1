@@ -27,6 +27,7 @@
 #include "sys_cmd.h"
 #include "sys_cmd_usb.h"
 #include "sys_error.h"
+#include "sys_fusion_log.h"
 #include "sys_input.h"
 #include "sys_led.h"
 #include "sys_log.h"
@@ -187,10 +188,16 @@ void sys_ui_thread_func(void *param)
 void sys_log_thread_func(void *param)
 {
   sys_log_init();
+#if (DEVICE_FUSION_DEBUG_LOG_ENABLED == 1)
+  sys_fusion_log_init();
+#endif
 
   while (true)
   {
     sys_log_process();
+#if (DEVICE_FUSION_DEBUG_LOG_ENABLED == 1)
+    sys_fusion_log_process();
+#endif
     OS_DELAY_MS(SYS_LOG_UPDATE_RATE_MS);
   }
 }
