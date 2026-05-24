@@ -18,6 +18,7 @@
 #include "bsp_gps.h"
 #include "log_service.h"
 #include "os_lib.h"
+#include "sys_fusion_log.h"
 #include "sys_led.h"
 
 #include <TinyGPSPlus.h>
@@ -30,7 +31,8 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define DEMO_WALKING                (false)
 
 // Accelerometer parameters
-#define ACC_EMA_ALPHA               (0.3f)
+#define ACC_EMA_ALPHA               (0.077f)  // EMA fallback path (TC ~60ms at 5ms dt)
+#define DBG_GYRO_EMA_ALPHA          (0.3f)    // debug visualization only — algo uses raw gyro
 #define ACC_THRESHOLD_MS2           (0.02f)  // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
 #define ACC_SAMPLING_INTERVAL_MS    (50.0f)
@@ -55,10 +57,16 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define CF_TRANSIENT_AGREE_MS       (2.0f)
 // Stop-response shaping: make Vout decay quicker near standstill.
 #define CF_WC_STOPPING              (6.0f)
-// Continuous soft GPS anchor — bounds INS drift between fresh fixes (TC ~2.5s at 200Hz)
-#define GPS_SOFT_ANCHOR_RATE        (0.002f)
 #define VEL_NEAR_ZERO_MS            (0.18f)
 #define VEL_SETTLE_BAND_MS          (0.12f)
+
+// Output velocity safety anchor — bounds vout drift when vins is suspect
+#define VOUT_ANCHOR_NONE            (0)  // no extra anchor (baseline)
+#define VOUT_ANCHOR_SOFT            (1)  // continuous slow pull vout → vgps (TC ~2.5s)
+#define VOUT_ANCHOR_SNAP            (2)  // hard snap when |vout-vgps| exceeds threshold
+#define VOUT_ANCHOR_MODE            (VOUT_ANCHOR_SOFT)
+#define VOUT_ANCHOR_SOFT_RATE       (0.002f)  // per-cycle pull rate (TC ~2.5s @ 200Hz)
+#define VOUT_SNAP_TH_MS             (3.0f)    // m/s — snap when |vout-vgps| > 10.8 km/h
 
 #if (DEMO_VEHICLE)
 #define ZUPT_ACC_THRESHOLD          (0.15f)
@@ -166,6 +174,8 @@ typedef struct
   float  acc_forward;   // Forward acceleration after body→nav projection (m/s²)
   float  offset_magnitude;
   float  distance_m;
+  float  distance_ins_total;  // cumulative INS-only distance (never reset, debug)
+  float  distance_gps_total;  // cumulative GPS haversine (never reset, debug)
 
   // Acc per-axis filter (EMA or Butterworth, selected by DEVICE_FUSION_ACC_FILTER)
   float acc_ema_x;
@@ -348,8 +358,8 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   // 5. Output velocity — complementary filter (INS + GPS)
   sys_fusion_compute_output_velocity(data, dt);
 
-  // 6. INS-only distance fallback when GPS unavailable
-  if (fusion_ctx.gps_state == GPS_STATE_INVALID && fusion_ctx.is_offset_mag_ready && dt > 0.0f
+  // 6. INS-only distance fallback when GPS isn't currently authoritative (FADING or INVALID)
+  if (fusion_ctx.gps_state != GPS_STATE_ACTIVE && fusion_ctx.is_offset_mag_ready && dt > 0.0f
       && data->velocity_ms > GPS_SPEED_MIN_MS)
   {
     fusion_ctx.distance_m += data->velocity_ms * dt;
@@ -392,14 +402,36 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   data->debug.compass_filter_x = fusion_ctx.compass_ema_x;
   data->debug.compass_filter_y = fusion_ctx.compass_ema_y;
   data->debug.compass_filter_z = fusion_ctx.compass_ema_z;
-  data->debug.v_ins            = fusion_ctx.velocity_ins;
-  data->debug.v_gps            = fusion_ctx.velocity_gps;
-  data->debug.distance_ins     = fusion_ctx.distance_ins;
-  data->debug.distance_gps     = fusion_ctx.debug_distance_gps;
+  data->debug.v_ins              = fusion_ctx.velocity_ins;
+  data->debug.v_gps              = fusion_ctx.velocity_gps;
+  data->debug.v_out              = fusion_ctx.velocity_out;
+  data->debug.distance_ins       = fusion_ctx.distance_ins;
+  data->debug.distance_gps       = fusion_ctx.debug_distance_gps;
+  data->debug.distance_ins_total = fusion_ctx.distance_ins_total;
+  data->debug.distance_gps_total = fusion_ctx.distance_gps_total;
+  data->debug.acc_forward        = fusion_ctx.acc_forward;
+  data->debug.roll_deg           = fusion_ctx.roll_rad * (180.0f / (float) M_PI);
+  data->debug.pitch_deg          = fusion_ctx.pitch_rad * (180.0f / (float) M_PI);
+  data->debug.gps_state          = (uint8_t) fusion_ctx.gps_state;
+  data->debug.is_stationary      = fusion_ctx.is_stationary ? 1 : 0;
+  data->debug.gps_reliable       = fusion_ctx.gps_reliable ? 1 : 0;
+  data->debug.satellites         = (uint8_t) fusion_ctx.gps_data_buffer.satellites;
+  data->debug.hdop               = fusion_ctx.gps_data_buffer.hdop;
+  data->debug.lat                = fusion_ctx.gps_data_buffer.latitude;
+  data->debug.lon                = fusion_ctx.gps_data_buffer.longitude;
 #endif
 
   fusion_ctx.last_update_us            = current_time_us;
   fusion_ctx.is_new_gps_data_available = false;
+
+#if (DEVICE_FUSION_DEBUG_LOG_ENABLED == 1)
+  static size_t last_log_ms = 0;
+  if (current_time_ms - last_log_ms >= 100)  // 10 Hz logging
+  {
+    last_log_ms = current_time_ms;
+    sys_fusion_log_push(data, current_time_ms);
+  }
+#endif
 
   return STATUS_OK;
 }
@@ -587,9 +619,12 @@ static void sys_fusion_update_ins_velocity(float dt)
   }
   else
   {
-    fusion_ctx.debug_gyro_ema_x = ACC_EMA_ALPHA * imu.gyro_x + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_x;
-    fusion_ctx.debug_gyro_ema_y = ACC_EMA_ALPHA * imu.gyro_y + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_y;
-    fusion_ctx.debug_gyro_ema_z = ACC_EMA_ALPHA * imu.gyro_z + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_z;
+    fusion_ctx.debug_gyro_ema_x =
+      DBG_GYRO_EMA_ALPHA * imu.gyro_x + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_x;
+    fusion_ctx.debug_gyro_ema_y =
+      DBG_GYRO_EMA_ALPHA * imu.gyro_y + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_y;
+    fusion_ctx.debug_gyro_ema_z =
+      DBG_GYRO_EMA_ALPHA * imu.gyro_z + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_z;
   }
 #endif
 
@@ -698,29 +733,16 @@ static void sys_fusion_update_ins_velocity(float dt)
 
   // 6. Accumulate INS distance
   if (fusion_ctx.velocity_ins > GPS_SPEED_MIN_MS)
-    fusion_ctx.distance_ins += fusion_ctx.velocity_ins * dt;
-
-  // 7. Continuous soft GPS anchor — damps INS drift between fresh fixes
-  if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
   {
-    fusion_ctx.velocity_ins = (1.0f - GPS_SOFT_ANCHOR_RATE) * fusion_ctx.velocity_ins
-                              + GPS_SOFT_ANCHOR_RATE * fusion_ctx.velocity_gps;
+    fusion_ctx.distance_ins       += fusion_ctx.velocity_ins * dt;
+    fusion_ctx.distance_ins_total += fusion_ctx.velocity_ins * dt;
   }
 }
 
 static void sys_fusion_update_gps_data(void)
 {
   if (!fusion_ctx.gps_ready)
-  {
-    if (bsp_gps_init(sys_fusion_gps_callback) == STATUS_OK)
-    {
-      fusion_ctx.gps_ready = true;
-    }
-    else
-    {
-      return;
-    }
-  }
+    return;
 
   if (!fusion_ctx.is_new_gps_data_available || !fusion_ctx.gps_data_buffer.location_valid)
   {
@@ -762,6 +784,8 @@ static void sys_fusion_update_gps_data(void)
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
       fusion_ctx.debug_distance_gps = distance_gps;
 #endif
+      if (distance_gps < GPS_MAX_STEP_M)
+        fusion_ctx.distance_gps_total += distance_gps;
 
       // GPS reliability check (Chiang 2013):
       // z_r = |d_INS - d_GPS|; reject GPS if residual exceeds threshold
@@ -916,6 +940,22 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
     fusion_ctx.velocity_out = 0.0f;
   else if (v_ref < VEL_SETTLE_BAND_MS && fusion_ctx.velocity_out < VEL_SETTLE_BAND_MS)
     fusion_ctx.velocity_out = 0.0f;
+
+  // Vout safety anchor — bounds output drift when vins is suspect
+#if (VOUT_ANCHOR_MODE == VOUT_ANCHOR_SOFT)
+  if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
+  {
+    fusion_ctx.velocity_out = (1.0f - VOUT_ANCHOR_SOFT_RATE) * fusion_ctx.velocity_out
+                              + VOUT_ANCHOR_SOFT_RATE * fusion_ctx.velocity_gps;
+  }
+#elif (VOUT_ANCHOR_MODE == VOUT_ANCHOR_SNAP)
+  if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS
+      && fabsf(fusion_ctx.velocity_out - fusion_ctx.velocity_gps) > VOUT_SNAP_TH_MS)
+  {
+    fusion_ctx.velocity_out = fusion_ctx.velocity_gps;
+    fusion_ctx.velocity_ins = fusion_ctx.velocity_gps;
+  }
+#endif
 
   data->velocity_ms  = fusion_ctx.velocity_out;
   data->velocity_kmh = fusion_ctx.velocity_out * MS_TO_KMH;
