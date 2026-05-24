@@ -35,6 +35,7 @@
 LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 
 #define SYS_UI_LED_DEFAULT_BRIGHTNESS              (50)
+#define SYS_UI_DEFAULT_BRIGHTNESS                  (50)
 
 // Platform UI settings
 #define SYS_UI_COLOR_BG                            SYS_UI_WIDGET_COLOR_DARK_NAVY
@@ -702,7 +703,7 @@ void sys_ui_init(void)
   OS_SEM_CREATE(sys_ui_wakeup_sem);
   ui_ctx.prev_speed_int     = -1;
   ui_ctx.battery_percent    = 85;
-  ui_ctx.brightness_percent = 80;
+  ui_ctx.brightness_percent = SYS_UI_DEFAULT_BRIGHTNESS;
   ui_ctx.background_color   = SYS_UI_COLOR_BG;
   sys_ui_update_theme_colors();
   ui_ctx.session_start_ms    = OS_GET_TICK();

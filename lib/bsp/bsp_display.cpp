@@ -43,7 +43,7 @@ typedef struct
 /* Private variables -------------------------------------------------- */
 static bsp_display_ctx_t display_ctx = {
   .tft                = TFT_eSPI(),
-  .brightness_percent = 80,
+  .brightness_percent = 50,
   .backlight_en       = false,
   .is_initialized     = false,
 };
