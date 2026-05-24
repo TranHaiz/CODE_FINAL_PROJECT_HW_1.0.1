@@ -17,6 +17,7 @@
 #include "bsp_rtc.h"
 #include "log_service.h"
 #include "os_lib.h"
+#include "sys_fusion_log.h"
 #include "sys_manager.h"
 
 /* Private defines ---------------------------------------------------- */
@@ -48,6 +49,9 @@ static void              sys_cmd_usb_set_danger_noti_handler(void);
 static void sys_cmd_usb_reset_distance_handler(void);
 #endif
 static void sys_cmd_usb_sleep_handler(void);
+#if (DEVICE_FUSION_DEBUG_LOG_ENABLED)
+static void sys_cmd_usb_flush_fusion_log_handler(void);
+#endif
 
 /* Private variables -------------------------------------------------- */
 // clang-format off
@@ -63,7 +67,10 @@ static sys_cmd_usb_t CMD_USB_INFO[SYS_CMD_USB_CMD_MAX] = {
   INFO("CLEAR_TOTAL_DISTANCE", sys_cmd_usb_reset_distance_handler),
   #endif
   INFO("SET_DANGER_NOTI",   sys_cmd_usb_set_danger_noti_handler),
-  INFO("SLEEP",             sys_cmd_usb_sleep_handler)
+  INFO("SLEEP",             sys_cmd_usb_sleep_handler),
+  #if (DEVICE_FUSION_DEBUG_LOG_ENABLED)
+  INFO("FLUSH_FUSION_LOG",  sys_cmd_usb_flush_fusion_log_handler)
+  #endif
 };
 #undef INFO
 // clang-format on
@@ -342,5 +349,12 @@ static void sys_cmd_usb_sleep_handler(void)
 {
   sys_manager_write_event(SYS_MANAGER_EVT_SHUTDOWN);
 }
+
+#if (DEVICE_FUSION_DEBUG_LOG_ENABLED)
+static void sys_cmd_usb_flush_fusion_log_handler(void)
+{
+  sys_fusion_log_flush();
+}
+#endif
 
 /* End of file -------------------------------------------------------- */

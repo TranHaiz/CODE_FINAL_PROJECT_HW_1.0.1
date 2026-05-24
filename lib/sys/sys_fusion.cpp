@@ -18,6 +18,7 @@
 #include "bsp_gps.h"
 #include "log_service.h"
 #include "os_lib.h"
+#include "sys_fusion_log.h"
 #include "sys_led.h"
 
 #include <TinyGPSPlus.h>
@@ -166,6 +167,8 @@ typedef struct
   float  acc_forward;   // Forward acceleration after body→nav projection (m/s²)
   float  offset_magnitude;
   float  distance_m;
+  float  distance_ins_total;  // cumulative INS-only distance (never reset, debug)
+  float  distance_gps_total;  // cumulative GPS haversine (never reset, debug)
 
   // Acc per-axis filter (EMA or Butterworth, selected by DEVICE_FUSION_ACC_FILTER)
   float acc_ema_x;
@@ -392,14 +395,36 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   data->debug.compass_filter_x = fusion_ctx.compass_ema_x;
   data->debug.compass_filter_y = fusion_ctx.compass_ema_y;
   data->debug.compass_filter_z = fusion_ctx.compass_ema_z;
-  data->debug.v_ins            = fusion_ctx.velocity_ins;
-  data->debug.v_gps            = fusion_ctx.velocity_gps;
-  data->debug.distance_ins     = fusion_ctx.distance_ins;
-  data->debug.distance_gps     = fusion_ctx.debug_distance_gps;
+  data->debug.v_ins              = fusion_ctx.velocity_ins;
+  data->debug.v_gps              = fusion_ctx.velocity_gps;
+  data->debug.v_out              = fusion_ctx.velocity_out;
+  data->debug.distance_ins       = fusion_ctx.distance_ins;
+  data->debug.distance_gps       = fusion_ctx.debug_distance_gps;
+  data->debug.distance_ins_total = fusion_ctx.distance_ins_total;
+  data->debug.distance_gps_total = fusion_ctx.distance_gps_total;
+  data->debug.acc_forward        = fusion_ctx.acc_forward;
+  data->debug.roll_deg           = fusion_ctx.roll_rad * (180.0f / (float) M_PI);
+  data->debug.pitch_deg          = fusion_ctx.pitch_rad * (180.0f / (float) M_PI);
+  data->debug.gps_state          = (uint8_t) fusion_ctx.gps_state;
+  data->debug.is_stationary      = fusion_ctx.is_stationary ? 1 : 0;
+  data->debug.gps_reliable       = fusion_ctx.gps_reliable ? 1 : 0;
+  data->debug.satellites         = (uint8_t) fusion_ctx.gps_data_buffer.satellites;
+  data->debug.hdop               = fusion_ctx.gps_data_buffer.hdop;
+  data->debug.lat                = fusion_ctx.gps_data_buffer.latitude;
+  data->debug.lon                = fusion_ctx.gps_data_buffer.longitude;
 #endif
 
   fusion_ctx.last_update_us            = current_time_us;
   fusion_ctx.is_new_gps_data_available = false;
+
+#if (DEVICE_FUSION_DEBUG_LOG_ENABLED == 1)
+  static size_t last_log_ms = 0;
+  if (current_time_ms - last_log_ms >= 100)  // 10 Hz logging
+  {
+    last_log_ms = current_time_ms;
+    sys_fusion_log_push(data, current_time_ms);
+  }
+#endif
 
   return STATUS_OK;
 }
@@ -698,7 +723,10 @@ static void sys_fusion_update_ins_velocity(float dt)
 
   // 6. Accumulate INS distance
   if (fusion_ctx.velocity_ins > GPS_SPEED_MIN_MS)
-    fusion_ctx.distance_ins += fusion_ctx.velocity_ins * dt;
+  {
+    fusion_ctx.distance_ins       += fusion_ctx.velocity_ins * dt;
+    fusion_ctx.distance_ins_total += fusion_ctx.velocity_ins * dt;
+  }
 
   // 7. Continuous soft GPS anchor — damps INS drift between fresh fixes
   if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
@@ -762,6 +790,8 @@ static void sys_fusion_update_gps_data(void)
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
       fusion_ctx.debug_distance_gps = distance_gps;
 #endif
+      if (distance_gps < GPS_MAX_STEP_M)
+        fusion_ctx.distance_gps_total += distance_gps;
 
       // GPS reliability check (Chiang 2013):
       // z_r = |d_INS - d_GPS|; reject GPS if residual exceeds threshold

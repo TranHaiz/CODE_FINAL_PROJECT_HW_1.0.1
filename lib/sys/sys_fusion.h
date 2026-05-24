@@ -49,10 +49,27 @@ typedef struct
   // Velocity components (m/s)
   float v_ins;
   float v_gps;
+  float v_out;  // mirror of velocity_ms
 
   // Distance accumulators (m)
-  float distance_ins;  // INS distance since last GPS update
-  float distance_gps;  // Last GPS step distance (haversine)
+  float distance_ins;        // INS distance since last GPS update
+  float distance_gps;        // Last GPS step distance (haversine)
+  float distance_ins_total;  // Cumulative INS-only distance (never reset)
+  float distance_gps_total;  // Cumulative GPS haversine (never reset)
+
+  // Nav-frame projection + attitude
+  float acc_forward;  // m/s² — input to INS integration
+  float roll_deg;
+  float pitch_deg;
+
+  // State flags
+  uint8_t gps_state;      // 0=INVALID, 1=ACTIVE, 2=FADING
+  uint8_t is_stationary;  // 0/1
+  uint8_t gps_reliable;   // 0/1
+  uint8_t satellites;
+  float   hdop;
+  double  lat;
+  double  lon;
 } sys_fusion_debug_data_t;
 #endif /* DEVICE_FUSION_DEBUG_MODE */
 

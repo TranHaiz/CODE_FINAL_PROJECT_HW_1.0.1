@@ -31,9 +31,13 @@
 #define DEVICE_MAGIC_NUMBER             (0xDEADBEEF)
 
 #define DEVICE_NORMAL_MODE              (true)
-#define DEVICE_FUSION_DEBUG_MODE        (false)
+#define DEVICE_FUSION_DEBUG_MODE        (true)
 #define DEVICE_FUSION_DEBUG_VIA_NETWORK (false)
-#define DEVICE_FUSION_DEBUG_LOG_ENABLED (false)
+#define DEVICE_FUSION_DEBUG_LOG_ENABLED (true)
+
+#if (DEVICE_FUSION_DEBUG_LOG_ENABLED && !DEVICE_FUSION_DEBUG_MODE)
+#error "DEVICE_FUSION_DEBUG_LOG_ENABLED requires DEVICE_FUSION_DEBUG_MODE to also be true"
+#endif
 
 #define DEVICE_FUSION_FILTER_EMA        (0)
 #define DEVICE_FUSION_FILTER_BTW        (1)
