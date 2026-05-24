@@ -116,21 +116,21 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define DEG_TO_RAD                         (0.01745329252f)
 
 // Avoid stolen
-#define DANGER_TILT_THRESHOLD_DEG          (30.0f)  // If device tilted >30° for certain time
-#define DANGER_TILT_CONFIRM_MS             (800)    // Must be tilted for at least 800ms to confirm
-#define DANGER_MOTION_THRESHOLD_G          (0.18f)  // If strong motion >0.18g for certain time
-#define DANGER_MOTION_CONFIRM_MS           (1200)   // Must have strong motion for at least 1200ms to confirm
-#define DANGER_VIBRATION_THRESHOLD_G       (0.35f)  // If vibration magnitude >0.35g for certain time
+#define DANGER_TILT_THRESHOLD_DEG          (45.0f)  // If device tilted >30° for certain time
+#define DANGER_TILT_CONFIRM_MS             (1500)    // Must be tilted for at least 800ms to confirm
+#define DANGER_MOTION_THRESHOLD_G          (0.3f)  // If strong motion >0.18g for certain time
+#define DANGER_MOTION_CONFIRM_MS           (2000)   // Must have strong motion for at least 1200ms to confirm
+#define DANGER_VIBRATION_THRESHOLD_G       (0.5f)  // If vibration magnitude >0.35g for certain time
 #define DANGER_VIBRATION_WINDOW_MS         (3000)   // Count how many strong vibration events in this rolling window
-#define DANGER_VIBRATION_COUNT_THRESH      (5)  // If strong vibration events exceed this count in the window, confirm danger
+#define DANGER_VIBRATION_COUNT_THRESH      (6)  // If strong vibration events exceed this count in the window, confirm danger
 
-#define DANGER_TILT_THRESHOLD_DEG_HIGH     (10.0f)
-#define DANGER_TILT_CONFIRM_MS_HIGH        (200)
-#define DANGER_MOTION_THRESHOLD_G_HIGH     (0.10f)
-#define DANGER_MOTION_CONFIRM_MS_HIGH      (400)
-#define DANGER_VIBRATION_THRESHOLD_G_HIGH  (0.10f)
+#define DANGER_TILT_THRESHOLD_DEG_HIGH     (30.0f)
+#define DANGER_TILT_CONFIRM_MS_HIGH        (1000)
+#define DANGER_MOTION_THRESHOLD_G_HIGH     (0.18f)
+#define DANGER_MOTION_CONFIRM_MS_HIGH      (800)
+#define DANGER_VIBRATION_THRESHOLD_G_HIGH  (0.20f)
 #define DANGER_VIBRATION_WINDOW_MS_HIGH    (2000)
-#define DANGER_VIBRATION_COUNT_THRESH_HIGH (2)
+#define DANGER_VIBRATION_COUNT_THRESH_HIGH (4)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
