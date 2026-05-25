@@ -14,7 +14,7 @@
 #include "sys_manager.h"
 
 #include "bsp_acc.h"
-#include "bsp_buzzer.h"
+#include "sys_buzzer.h"
 #include "bsp_device.h"
 #include "bsp_led.h"
 #include "bsp_sdcard.h"
@@ -325,7 +325,7 @@ static void sys_manager_device_stolen_handler(void)
   case DEVICE_STATE_PAUSED:
   {
     device_info_update_state(DEVICE_STATE_STOLEN);
-    bsp_buzzer_enable(true);
+    sys_buzzer_write_event(SYS_BUZZER_EVT_STOLEN);
     sys_led_write_event(SYS_LED_EVT_NOTI_DANGER);
     sys_input_wakeup();
     sys_network_wakeup();
@@ -392,7 +392,7 @@ void sys_manager_lock_from_network_handler(void)
       bsp_timer_stop(&manager_handler.danger_noti_timer);
       g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
       sys_led_write_event(SYS_LED_EVT_OFF);
-      bsp_buzzer_enable(false);
+      sys_buzzer_clear_event(SYS_BUZZER_EVT_STOLEN);
     }
     LOG_DBG("Device locked from network");
   }
@@ -449,7 +449,7 @@ static void sys_manager_stop_rental_success_handler(void)
     manager_handler.is_warning_debt_active = false;
     manager_handler.is_noti_limited_active = false;
     sys_led_write_event(SYS_LED_EVT_OFF);
-    bsp_buzzer_enable(false);
+    sys_buzzer_write_event(SYS_BUZZER_EVT_OFF);
   }
 }
 
@@ -475,7 +475,7 @@ static void sys_manager_stop_stolen_noti(void)
   bsp_timer_stop(&manager_handler.stolen_timeout_timer);
   sys_led_write_event(SYS_LED_EVT_OFF);
   sys_ui_wakeup();
-  bsp_buzzer_enable(false);
+  sys_buzzer_clear_event(SYS_BUZZER_EVT_STOLEN);
 }
 
 static void sys_manager_stolen_timeout_timer_callback(TimerHandle_t xTimer)
@@ -492,7 +492,7 @@ static void sys_manager_stolen_timeout_handler(void)
   bsp_timer_stop(&manager_handler.danger_noti_timer);
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_led_write_event(SYS_LED_EVT_OFF);
-  bsp_buzzer_enable(false);
+  sys_buzzer_clear_event(SYS_BUZZER_EVT_STOLEN);
   sys_ui_lock();
 #if (DEVICE_IDLE_MODE_ENABLED)
   bsp_timer_start(&manager_handler.shutdown_timer);
@@ -511,7 +511,7 @@ static void sys_manager_rental_noti_limit_handler(void)
     return;
   manager_handler.is_noti_limited_active = true;
   sys_led_write_event(SYS_LED_EVT_NOTI_RENTAL_LIMIT);
-  bsp_buzzer_beep_cycle(MAX_UINT32_VALUE, 1000, 2000);
+  sys_buzzer_write_event(SYS_BUZZER_EVT_RENTAL_LIMIT);
   sys_ui_noti_set(SYS_UI_NOTI_LABEL_RENTAL_LIMIT);
 }
 
@@ -521,7 +521,7 @@ static void sys_manager_warn_debt_handler(void)
     return;
   manager_handler.is_warning_debt_active = true;
   sys_led_write_event(SYS_LED_EVT_NOTI_WARNING_DEBT);
-  bsp_buzzer_beep_cycle(1, 500, 1500);
+  sys_buzzer_write_event(SYS_BUZZER_EVT_WARN_DEBT);
   sys_ui_noti_set(SYS_UI_NOTI_LABEL_WARN_ADD_FUND);
 }
 
@@ -531,7 +531,7 @@ static void sys_manager_clear_debt_handler(void)
     return;
   manager_handler.is_warning_debt_active = false;
   sys_led_write_event(SYS_LED_EVT_OFF);
-  bsp_buzzer_enable(false);
+  sys_buzzer_clear_event(SYS_BUZZER_EVT_WARN_DEBT);
 }
 
 static void sys_manager_warn_low_balance_handler(void)
@@ -539,7 +539,7 @@ static void sys_manager_warn_low_balance_handler(void)
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
     return;
   sys_ui_noti_set(SYS_UI_NOTI_LABEL_SHOULD_ADD_FUND);
-  bsp_buzzer_beep_long(500);
+  sys_buzzer_write_event(SYS_BUZZER_EVT_LOW_BALANCE);
   // xTimerReset starts the timer if stopped and resets the countdown if running.
   bsp_timer_reset(&manager_handler.low_balance_noti_timer);
 }
@@ -557,7 +557,7 @@ static void sys_manager_help_handler(void)
 static void sys_manager_noti_low_batt_handler(void)
 {
   sys_network_publish_noti(NETWORK_NOTI_LOW_BATT, strlen(NETWORK_NOTI_LOW_BATT));
-  bsp_buzzer_beep_long(500);
+  sys_buzzer_write_event(SYS_BUZZER_EVT_LOW_BATT);
   sys_ui_noti_set(SYS_UI_NOTI_LABEL_LOW_BATT);
 }
 

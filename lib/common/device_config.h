@@ -86,6 +86,7 @@
 #define LOG_LEVEL_SYS_BUTTON              LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_CMD                 LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_LED                 LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_BUZZER              LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_BLE                 LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_ERROR               LOG_LEVEL_DBG
 

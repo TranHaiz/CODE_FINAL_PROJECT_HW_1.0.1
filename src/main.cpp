@@ -11,7 +11,7 @@
  */
 
 /* Includes ----------------------------------------------------------- */
-#include "bsp_buzzer.h"
+#include "sys_buzzer.h"
 #include "bsp_error.h"
 #include "bsp_io.h"
 #include "bsp_led.h"
@@ -232,14 +232,14 @@ void sys_manager_thread_func(void *param)
 
 void sys_misc_thread_func(void *param)
 {
-  bsp_buzzer_init();
-  bsp_buzzer_beep_cycle(3, 200, 500);
+  sys_buzzer_init();
+  sys_buzzer_write_event(SYS_BUZZER_EVT_STARTUP);
   sys_led_init();
 
   while (true)
   {
     bsp_usb_process();
-    bsp_buzzer_process();
+    sys_buzzer_process();
     sys_led_process();
     OS_DELAY_MS(SYS_MISC_UPDATE_RATE_MS);
   }
