@@ -37,14 +37,16 @@ typedef enum
   SYS_UI_VIEW_UNKNOWN
 } sys_ui_view_t;
 
+// Order = priority: lower enum value = higher priority (shown first when multiple active).
+// NONE = 0 is a sentinel — never used as a real label.
 typedef enum
 {
   SYS_UI_NOTI_LABEL_NONE = 0,
+  SYS_UI_NOTI_LABEL_LOW_BATT,
+  SYS_UI_NOTI_LABEL_RENTAL_LIMIT,
   SYS_UI_NOTI_LABEL_OUT_OF_ZONE,
   SYS_UI_NOTI_LABEL_WARN_ADD_FUND,
   SYS_UI_NOTI_LABEL_SHOULD_ADD_FUND,
-  SYS_UI_NOTI_LABEL_RENTAL_LIMIT,
-  SYS_UI_NOTI_LABEL_LOW_BATT,
   SYS_UI_NOTI_LABEL_MAX
 } sys_ui_noti_label_type_t;
 
@@ -93,11 +95,21 @@ void sys_ui_wakeup(void);
 void sys_ui_change_time_active(void);
 
 /**
- * @brief Show rental limit notification on main screen
- * @param[in] label_type: Type of notification label to display
- * @return none
+ * @brief Activate a notification label (priority-based: highest active is shown)
+ * @param[in] label: notification label to mark active
  */
-void sys_ui_update_notification_label(sys_ui_noti_label_type_t label_type);
+void sys_ui_noti_set(sys_ui_noti_label_type_t label);
+
+/**
+ * @brief Deactivate a specific notification label
+ * @param[in] label: notification label to clear
+ */
+void sys_ui_noti_clear(sys_ui_noti_label_type_t label);
+
+/**
+ * @brief Clear all notification labels
+ */
+void sys_ui_noti_clear_all(void);
 
 #endif /*End file _SYS_UI_H_*/
 

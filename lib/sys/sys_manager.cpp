@@ -245,7 +245,7 @@ static void sys_manager_unlocked_handler(void)
   }
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
   sys_manager_stop_stolen_noti();
-  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
+  sys_ui_noti_clear_all();
 }
 
 static void sys_manager_change_topic_sub_handler(void)
@@ -370,7 +370,7 @@ void sys_manager_unlock_from_network_handler(void)
   }
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
   sys_manager_stop_stolen_noti();
-  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
+  sys_ui_noti_clear_all();
   sys_input_clear_data_for_new_rental();
   sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
@@ -424,7 +424,7 @@ static void sys_manager_start_rental_handler(void)
   }
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
   sys_manager_stop_stolen_noti();
-  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
+  sys_ui_noti_clear_all();
   sys_input_clear_data_for_new_rental();
   sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
 }
@@ -432,12 +432,12 @@ static void sys_manager_start_rental_handler(void)
 static void sys_manager_stop_rental_fail_handler(void)
 {
   device_info_update_state(DEVICE_STATE_ACTIVE);
-  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_OUT_OF_ZONE);
+  sys_ui_noti_set(SYS_UI_NOTI_LABEL_OUT_OF_ZONE);
 }
 
 static void sys_manager_stop_rental_success_handler(void)
 {
-  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
+  sys_ui_noti_clear_all();
   sys_network_trigger_end_trip();
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
@@ -512,7 +512,7 @@ static void sys_manager_rental_noti_limit_handler(void)
   manager_handler.is_noti_limited_active = true;
   sys_led_write_event(SYS_LED_EVT_NOTI_RENTAL_LIMIT);
   bsp_buzzer_beep_cycle(MAX_UINT32_VALUE, 1000, 2000);
-  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_RENTAL_LIMIT);
+  sys_ui_noti_set(SYS_UI_NOTI_LABEL_RENTAL_LIMIT);
 }
 
 static void sys_manager_warn_debt_handler(void)
@@ -522,7 +522,7 @@ static void sys_manager_warn_debt_handler(void)
   manager_handler.is_warning_debt_active = true;
   sys_led_write_event(SYS_LED_EVT_NOTI_WARNING_DEBT);
   bsp_buzzer_beep_cycle(1, 500, 1500);
-  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_WARN_ADD_FUND);
+  sys_ui_noti_set(SYS_UI_NOTI_LABEL_WARN_ADD_FUND);
 }
 
 static void sys_manager_clear_debt_handler(void)
@@ -538,7 +538,7 @@ static void sys_manager_warn_low_balance_handler(void)
 {
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
     return;
-  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_SHOULD_ADD_FUND);
+  sys_ui_noti_set(SYS_UI_NOTI_LABEL_SHOULD_ADD_FUND);
   bsp_buzzer_beep_long(500);
   // xTimerReset starts the timer if stopped and resets the countdown if running.
   bsp_timer_reset(&manager_handler.low_balance_noti_timer);
@@ -546,7 +546,7 @@ static void sys_manager_warn_low_balance_handler(void)
 
 static void sys_manager_low_balance_noti_timer_callback(TimerHandle_t xTimer)
 {
-  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
+  sys_ui_noti_clear(SYS_UI_NOTI_LABEL_SHOULD_ADD_FUND);
 }
 
 static void sys_manager_help_handler(void)
@@ -558,7 +558,7 @@ static void sys_manager_noti_low_batt_handler(void)
 {
   sys_network_publish_noti(NETWORK_NOTI_LOW_BATT, strlen(NETWORK_NOTI_LOW_BATT));
   bsp_buzzer_beep_long(500);
-  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_LOW_BATT);
+  sys_ui_noti_set(SYS_UI_NOTI_LABEL_LOW_BATT);
 }
 
 /* End of file -------------------------------------------------------- */

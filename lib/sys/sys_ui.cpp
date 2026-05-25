@@ -564,8 +564,8 @@ typedef struct
   bool is_add_fund_notification_active;
   bool is_should_add_fund_notification_active;
 
-  volatile sys_ui_noti_label_type_t pending_noti_label;
-  sys_ui_noti_label_type_t          current_noti_label;
+  volatile uint32_t pending_noti_mask;
+  uint32_t          current_noti_mask;
 } sys_ui_context_t;
 
 /* Public variables --------------------------------------------------- */
@@ -603,7 +603,8 @@ static void              sys_ui_init_history_data(void);
 static void              sys_ui_init_all_widgets(void);
 static void              sys_ui_reset_all_widgets(sys_ui_widgets_t *screen);
 static void              sys_ui_register_callbacks(void);
-static void              sys_ui_apply_notification_label(void);
+static void              sys_ui_apply_notifications(void);
+static lv_obj_t         *sys_ui_noti_widget(sys_ui_noti_label_type_t label);
 static status_function_t sys_ui_image_draw(lv_obj_t     *parent,
                                            const char   *path,
                                            uint16_t      width,
@@ -827,86 +828,66 @@ void sys_ui_change_time_active(void)
   }
 }
 
-void sys_ui_update_notification_label(sys_ui_noti_label_type_t label_type)
+void sys_ui_noti_set(sys_ui_noti_label_type_t label)
 {
-  if (label_type < SYS_UI_NOTI_LABEL_MAX)
+  if (label > SYS_UI_NOTI_LABEL_NONE && label < SYS_UI_NOTI_LABEL_MAX)
   {
-    ui_ctx.pending_noti_label = label_type;
+    ui_ctx.pending_noti_mask |= (1u << label);
   }
 }
 
-static void sys_ui_apply_notification_label(void)
+void sys_ui_noti_clear(sys_ui_noti_label_type_t label)
 {
-  sys_ui_noti_label_type_t label_type = ui_ctx.pending_noti_label;
-  if (label_type == ui_ctx.current_noti_label)
+  if (label > SYS_UI_NOTI_LABEL_NONE && label < SYS_UI_NOTI_LABEL_MAX)
   {
-    return;
+    ui_ctx.pending_noti_mask &= ~(1u << label);
   }
-  if (ui_ctx.widgets.warn_add_fund_label == nullptr || ui_ctx.widgets.should_add_fund_panel == nullptr
-      || ui_ctx.widgets.warn_rental_limit_label == nullptr || ui_ctx.widgets.warning_out_of_zone_label == nullptr
-      || ui_ctx.widgets.low_batt_label == nullptr)
-  {
-    return;
-  }
-  ui_ctx.current_noti_label = label_type;
+}
 
-  switch (label_type)
+void sys_ui_noti_clear_all(void)
+{
+  ui_ctx.pending_noti_mask = 0;
+}
+
+static lv_obj_t *sys_ui_noti_widget(sys_ui_noti_label_type_t label)
+{
+  switch (label)
   {
-  case SYS_UI_NOTI_LABEL_NONE:
-  {
-    lv_obj_add_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
-    break;
+  case SYS_UI_NOTI_LABEL_LOW_BATT:        return ui_ctx.widgets.low_batt_label;
+  case SYS_UI_NOTI_LABEL_RENTAL_LIMIT:    return ui_ctx.widgets.warn_rental_limit_label;
+  case SYS_UI_NOTI_LABEL_OUT_OF_ZONE:     return ui_ctx.widgets.warning_out_of_zone_label;
+  case SYS_UI_NOTI_LABEL_WARN_ADD_FUND:   return ui_ctx.widgets.warn_add_fund_label;
+  case SYS_UI_NOTI_LABEL_SHOULD_ADD_FUND: return ui_ctx.widgets.should_add_fund_panel;
+  default:                                return nullptr;
   }
-  case SYS_UI_NOTI_LABEL_WARN_ADD_FUND:
+}
+
+static void sys_ui_apply_notifications(void)
+{
+  uint32_t mask = ui_ctx.pending_noti_mask;
+  if (mask == ui_ctx.current_noti_mask)
+    return;
+
+  for (int i = SYS_UI_NOTI_LABEL_NONE + 1; i < SYS_UI_NOTI_LABEL_MAX; i++)
   {
-    lv_obj_clear_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
-    break;
+    if (sys_ui_noti_widget((sys_ui_noti_label_type_t) i) == nullptr)
+      return;
   }
-  case SYS_UI_NOTI_LABEL_SHOULD_ADD_FUND:
+  ui_ctx.current_noti_mask = mask;
+
+  bool shown = false;
+  for (int i = SYS_UI_NOTI_LABEL_NONE + 1; i < SYS_UI_NOTI_LABEL_MAX; i++)
   {
-    lv_obj_add_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
-    break;
-  }
-  case SYS_UI_NOTI_LABEL_OUT_OF_ZONE:
-  {
-    lv_obj_add_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
-    break;
-  }
-  case SYS_UI_NOTI_LABEL_RENTAL_LIMIT:
-  {
-    lv_obj_add_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
-    break;
-  }
-  case SYS_UI_NOTI_LABEL_LOW_BATT:
-  {
-    lv_obj_add_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
-    break;
-  }
-  default: break;
+    lv_obj_t *w = sys_ui_noti_widget((sys_ui_noti_label_type_t) i);
+    if (!shown && (mask & (1u << i)))
+    {
+      lv_obj_clear_flag(w, LV_OBJ_FLAG_HIDDEN);
+      shown = true;
+    }
+    else
+    {
+      lv_obj_add_flag(w, LV_OBJ_FLAG_HIDDEN);
+    }
   }
 }
 /* Private definitions ----------------------------------------------- */
@@ -1307,8 +1288,8 @@ static void sys_ui_main_screen_create(void)
     sys_ui_widget_create_label(ui_ctx.widgets.main_screen, SYS_UI_LOW_BATT_LABEL_X, SYS_UI_LOW_BATT_LABEL_Y,
                                SYS_UI_LOW_BATT_LABEL_TEXT, SYS_UI_LOW_BATT_LABEL_TEXT_COLOR, SYS_UI_LOW_BATT_LABEL_FONT);
 
-  ui_ctx.current_noti_label = SYS_UI_NOTI_LABEL_MAX;
-  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
+  ui_ctx.current_noti_mask = UINT32_MAX;  // force first apply to render
+  sys_ui_noti_clear_all();
 
   // Time card
   ui_ctx.widgets.time_card =
@@ -2411,7 +2392,7 @@ static void sys_ui_process_active(void)
       g_sys_ui_data_status.is_temp_hum_data_ready_for_ui = false;
     }
 
-    sys_ui_apply_notification_label();
+    sys_ui_apply_notifications();
     break;
   }
   case SYS_UI_VIEW_TIME:
