@@ -33,7 +33,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 // Accelerometer parameters
 #define ACC_EMA_ALPHA               (0.077f)  // EMA fallback path (TC ~60ms at 5ms dt)
 #define DBG_GYRO_EMA_ALPHA          (0.3f)    // debug visualization only — algo uses raw gyro
-#define ACC_THRESHOLD_MS2           (0.02f)  // Dead-band to gate INS integration (m/s²)
+#define ACC_THRESHOLD_MS2           (0.02f)   // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
 #define ACC_SAMPLING_INTERVAL_MS    (50.0f)
 #define ACC_DENTA_SEC               (ACC_SAMPLING_INTERVAL_MS / 1000.0f)
@@ -117,20 +117,20 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 // Avoid stolen
 #define DANGER_TILT_THRESHOLD_DEG          (45.0f)  // If device tilted >30° for certain time
-#define DANGER_TILT_CONFIRM_MS             (1500)    // Must be tilted for at least 800ms to confirm
-#define DANGER_MOTION_THRESHOLD_G          (0.3f)  // If strong motion >0.18g for certain time
+#define DANGER_TILT_CONFIRM_MS             (1500)   // Must be tilted for at least 800ms to confirm
+#define DANGER_MOTION_THRESHOLD_G          (0.3f)   // If strong motion >0.18g for certain time
 #define DANGER_MOTION_CONFIRM_MS           (2000)   // Must have strong motion for at least 1200ms to confirm
-#define DANGER_VIBRATION_THRESHOLD_G       (0.5f)  // If vibration magnitude >0.35g for certain time
+#define DANGER_VIBRATION_THRESHOLD_G       (0.5f)   // If vibration magnitude >0.35g for certain time
 #define DANGER_VIBRATION_WINDOW_MS         (3000)   // Count how many strong vibration events in this rolling window
 #define DANGER_VIBRATION_COUNT_THRESH      (6)  // If strong vibration events exceed this count in the window, confirm danger
 
-#define DANGER_TILT_THRESHOLD_DEG_HIGH     (30.0f)
-#define DANGER_TILT_CONFIRM_MS_HIGH        (1000)
-#define DANGER_MOTION_THRESHOLD_G_HIGH     (0.18f)
-#define DANGER_MOTION_CONFIRM_MS_HIGH      (800)
-#define DANGER_VIBRATION_THRESHOLD_G_HIGH  (0.20f)
+#define DANGER_TILT_THRESHOLD_DEG_HIGH     (10.0f)
+#define DANGER_TILT_CONFIRM_MS_HIGH        (200)
+#define DANGER_MOTION_THRESHOLD_G_HIGH     (0.10f)
+#define DANGER_MOTION_CONFIRM_MS_HIGH      (400)
+#define DANGER_VIBRATION_THRESHOLD_G_HIGH  (0.10f)
 #define DANGER_VIBRATION_WINDOW_MS_HIGH    (2000)
-#define DANGER_VIBRATION_COUNT_THRESH_HIGH (4)
+#define DANGER_VIBRATION_COUNT_THRESH_HIGH (2)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
@@ -384,24 +384,24 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   data->gps_position.longitude = fusion_ctx.gps_data_buffer.longitude;
 
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
-  data->debug.acc_raw_x        = fusion_ctx.debug_acc_raw_x;
-  data->debug.acc_raw_y        = fusion_ctx.debug_acc_raw_y;
-  data->debug.acc_raw_z        = fusion_ctx.debug_acc_raw_z;
-  data->debug.acc_filter_x     = fusion_ctx.acc_ema_x;
-  data->debug.acc_filter_y     = fusion_ctx.acc_ema_y;
-  data->debug.acc_filter_z     = fusion_ctx.acc_ema_z;
-  data->debug.gyro_raw_x       = fusion_ctx.debug_gyro_raw_x;
-  data->debug.gyro_raw_y       = fusion_ctx.debug_gyro_raw_y;
-  data->debug.gyro_raw_z       = fusion_ctx.debug_gyro_raw_z;
-  data->debug.gyro_filter_x    = fusion_ctx.debug_gyro_ema_x;
-  data->debug.gyro_filter_y    = fusion_ctx.debug_gyro_ema_y;
-  data->debug.gyro_filter_z    = fusion_ctx.debug_gyro_ema_z;
-  data->debug.compass_raw_x    = fusion_ctx.debug_compass_raw_x;
-  data->debug.compass_raw_y    = fusion_ctx.debug_compass_raw_y;
-  data->debug.compass_raw_z    = fusion_ctx.debug_compass_raw_z;
-  data->debug.compass_filter_x = fusion_ctx.compass_ema_x;
-  data->debug.compass_filter_y = fusion_ctx.compass_ema_y;
-  data->debug.compass_filter_z = fusion_ctx.compass_ema_z;
+  data->debug.acc_raw_x          = fusion_ctx.debug_acc_raw_x;
+  data->debug.acc_raw_y          = fusion_ctx.debug_acc_raw_y;
+  data->debug.acc_raw_z          = fusion_ctx.debug_acc_raw_z;
+  data->debug.acc_filter_x       = fusion_ctx.acc_ema_x;
+  data->debug.acc_filter_y       = fusion_ctx.acc_ema_y;
+  data->debug.acc_filter_z       = fusion_ctx.acc_ema_z;
+  data->debug.gyro_raw_x         = fusion_ctx.debug_gyro_raw_x;
+  data->debug.gyro_raw_y         = fusion_ctx.debug_gyro_raw_y;
+  data->debug.gyro_raw_z         = fusion_ctx.debug_gyro_raw_z;
+  data->debug.gyro_filter_x      = fusion_ctx.debug_gyro_ema_x;
+  data->debug.gyro_filter_y      = fusion_ctx.debug_gyro_ema_y;
+  data->debug.gyro_filter_z      = fusion_ctx.debug_gyro_ema_z;
+  data->debug.compass_raw_x      = fusion_ctx.debug_compass_raw_x;
+  data->debug.compass_raw_y      = fusion_ctx.debug_compass_raw_y;
+  data->debug.compass_raw_z      = fusion_ctx.debug_compass_raw_z;
+  data->debug.compass_filter_x   = fusion_ctx.compass_ema_x;
+  data->debug.compass_filter_y   = fusion_ctx.compass_ema_y;
+  data->debug.compass_filter_z   = fusion_ctx.compass_ema_z;
   data->debug.v_ins              = fusion_ctx.velocity_ins;
   data->debug.v_gps              = fusion_ctx.velocity_gps;
   data->debug.v_out              = fusion_ctx.velocity_out;
@@ -734,7 +734,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   // 6. Accumulate INS distance
   if (fusion_ctx.velocity_ins > GPS_SPEED_MIN_MS)
   {
-    fusion_ctx.distance_ins       += fusion_ctx.velocity_ins * dt;
+    fusion_ctx.distance_ins += fusion_ctx.velocity_ins * dt;
     fusion_ctx.distance_ins_total += fusion_ctx.velocity_ins * dt;
   }
 }
@@ -900,11 +900,11 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
   float v_gps_eff = use_gps ? fusion_ctx.velocity_gps : 0.0f;
   float v_ref     = fmaxf(fusion_ctx.velocity_ins, v_gps_eff);
 
-  bool  near_stop    = (v_ref < VEL_NEAR_ZERO_MS);
-  bool  no_drive_acc = (fusion_ctx.acc_forward < ACC_THRESHOLD_MS2);
-  bool  hard_motion  = (fabsf(fusion_ctx.acc_forward) > CF_WC_TRANSIENT_TH_MS2);
-  bool  gps_agrees   = (fusion_ctx.gps_state == GPS_STATE_ACTIVE)
-                       && (fabsf(fusion_ctx.velocity_ins - fusion_ctx.velocity_gps) < CF_TRANSIENT_AGREE_MS);
+  bool near_stop    = (v_ref < VEL_NEAR_ZERO_MS);
+  bool no_drive_acc = (fusion_ctx.acc_forward < ACC_THRESHOLD_MS2);
+  bool hard_motion  = (fabsf(fusion_ctx.acc_forward) > CF_WC_TRANSIENT_TH_MS2);
+  bool gps_agrees   = (fusion_ctx.gps_state == GPS_STATE_ACTIVE)
+                    && (fabsf(fusion_ctx.velocity_ins - fusion_ctx.velocity_gps) < CF_TRANSIENT_AGREE_MS);
   float cf_wc_effect;
   if (near_stop && no_drive_acc)
     cf_wc_effect = CF_WC_STOPPING;
@@ -945,8 +945,8 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
 #if (VOUT_ANCHOR_MODE == VOUT_ANCHOR_SOFT)
   if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
   {
-    fusion_ctx.velocity_out = (1.0f - VOUT_ANCHOR_SOFT_RATE) * fusion_ctx.velocity_out
-                              + VOUT_ANCHOR_SOFT_RATE * fusion_ctx.velocity_gps;
+    fusion_ctx.velocity_out =
+      (1.0f - VOUT_ANCHOR_SOFT_RATE) * fusion_ctx.velocity_out + VOUT_ANCHOR_SOFT_RATE * fusion_ctx.velocity_gps;
   }
 #elif (VOUT_ANCHOR_MODE == VOUT_ANCHOR_SNAP)
   if (fusion_ctx.gps_state == GPS_STATE_ACTIVE && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS

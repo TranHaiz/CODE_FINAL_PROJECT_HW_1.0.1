@@ -139,6 +139,17 @@ status_function_t sys_input_process(void)
     sys_input_process_idle();
     break;
   }
+  case DEVICE_STATE_STOLEN:
+  {
+    status_function_t               ret  = sys_input_process_active();  // full fusion+GPS to track stolen device
+    sys_fusion_danger_motion_flag_t flag = SYS_FUSION_DANGER_MOTION_NONE;
+    sys_fusion_detect_danger_motion(&flag);
+    if (flag != SYS_FUSION_DANGER_MOTION_NONE)
+    {
+      sys_manager_write_event(SYS_MANAGER_EVT_DEVICE_STOLEN);  // resets stolen_timeout_timer
+    }
+    return ret;
+  }
   case DEVICE_STATE_LOCKED:
   {
     sys_input_process_locked();
@@ -409,7 +420,7 @@ static void sys_input_process_locked(void)
   case SYS_FUSION_DANGER_MOTION_MOVING:
   case SYS_FUSION_DANGER_MOTION_VIBRATION:
   {
-    sys_manager_write_event(SYS_MANAGER_EVT_DEVICE_DANGER);
+    sys_manager_write_event(SYS_MANAGER_EVT_DEVICE_STOLEN);
     break;
   }
   default: break;

@@ -38,6 +38,7 @@ LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_SYS_MANAGER)
 
 #define DEVICE_DANGER_NOTI_INTERVAL_MS     (15000)
 #define DEVICE_LOW_BALANCE_NOTI_TIMEOUT_MS (5000)
+#define DEVICE_STOLEN_TIMEOUT_MS           (30000)  // no motion in STOLEN → auto exit to LOCKED
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef void (*sys_manager_process_handler_t)(void);
@@ -51,6 +52,7 @@ typedef struct
   bsp_timer_t                   shutdown_timer;
   bsp_timer_t                   danger_noti_timer;
   bsp_timer_t                   low_balance_noti_timer;
+  bsp_timer_t                   stolen_timeout_timer;
   bool                          is_noti_limited_active;
   bool                          is_warning_debt_active;
 } sys_manager_handler_t;
@@ -76,7 +78,7 @@ static void sys_manager_user_lock_handler(void);
 static void sys_manager_user_pause_handler(void);
 static void sys_manager_shutdown_timer_callback(TimerHandle_t xTimer);
 static void sys_manager_shutdown_handler(void);
-static void sys_manager_device_danger_handler(void);
+static void sys_manager_device_stolen_handler(void);
 static void sys_manager_unlock_from_network_handler(void);
 static void sys_manager_lock_from_network_handler(void);
 static void sys_manager_start_rental_handler(void);
@@ -84,7 +86,9 @@ static void sys_manager_stop_rental_fail_handler(void);
 static void sys_manager_stop_rental_success_handler(void);
 static void sys_manager_reset_offline_data_handler(void);
 static void sys_manager_danger_noti_timer_callback(TimerHandle_t xTimer);
-static void sys_manager_stop_danger_noti(void);
+static void sys_manager_stop_stolen_noti(void);
+static void sys_manager_stolen_timeout_timer_callback(TimerHandle_t xTimer);
+static void sys_manager_stolen_timeout_handler(void);
 static void sys_manager_flush_log(void);
 static void sys_manager_rental_noti_limit_handler(void);
 static void sys_manager_warn_debt_handler(void);
@@ -109,6 +113,9 @@ void sys_manager_init(void)
   bsp_timer_init(&manager_handler.low_balance_noti_timer, DEVICE_LOW_BALANCE_NOTI_TIMEOUT_MS, false,
                  sys_manager_low_balance_noti_timer_callback);
 
+  bsp_timer_init(&manager_handler.stolen_timeout_timer, DEVICE_STOLEN_TIMEOUT_MS, false,
+                 sys_manager_stolen_timeout_timer_callback);
+
   OS_SEM_CREATE(sys_manager_event_sem);
   OS_MUTEX_CREATE(sys_manager_event_mutex);
   cb_init(&manager_handler.event_cb, s_event_buffer, sizeof(s_event_buffer));
@@ -124,14 +131,15 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_USER_LOCK            ,   sys_manager_user_lock_handler           );
   INFO(SYS_MANAGER_EVT_USER_PAUSE           ,   sys_manager_user_pause_handler          );
   INFO(SYS_MANAGER_EVT_SHUTDOWN             ,   sys_manager_shutdown_handler            );
-  INFO(SYS_MANAGER_EVT_DEVICE_DANGER        ,   sys_manager_device_danger_handler       );
+  INFO(SYS_MANAGER_EVT_DEVICE_STOLEN        ,   sys_manager_device_stolen_handler       );
   INFO(SYS_MANAGER_EVT_UNLOCK_FROM_NETWORK  ,   sys_manager_unlock_from_network_handler );
   INFO(SYS_MANAGER_EVT_LOCK_FROM_NETWORK    ,   sys_manager_lock_from_network_handler   );
   INFO(SYS_MANAGER_EVT_START_RENTAL         ,   sys_manager_start_rental_handler        );
   INFO(SYS_MANAGER_EVT_STOP_RENTAL_FAIL     ,   sys_manager_stop_rental_fail_handler    );
   INFO(SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS  ,   sys_manager_stop_rental_success_handler );
   INFO(SYS_MANAGER_EVT_RESET_OFFLINE_DATA   ,   sys_manager_reset_offline_data_handler  );
-  INFO(SYS_MANAGER_EVT_STOP_DANGER_NOTI     ,   sys_manager_stop_danger_noti            );
+  INFO(SYS_MANAGER_EVT_STOP_STOLEN_NOTI     ,   sys_manager_stop_stolen_noti            );
+  INFO(SYS_MANAGER_EVT_STOLEN_TIMEOUT       ,   sys_manager_stolen_timeout_handler      );
   INFO(SYS_MANAGER_EVT_FLUSH_LOG            ,   sys_manager_flush_log                   );
   INFO(SYS_MANAGER_RENTAL_NOTI_LIMIT        ,   sys_manager_rental_noti_limit_handler   );
   INFO(SYS_MANAGER_EVT_WARN_LOW_BALANCE     ,   sys_manager_warn_low_balance_handler    );
@@ -214,7 +222,7 @@ static void sys_manager_active_handler(void)
   sys_ui_wakeup();
   sys_input_wakeup();
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
-  sys_manager_stop_danger_noti();
+  sys_manager_stop_stolen_noti();
   LOG_DBG("Handling active event");
 }
 
@@ -234,7 +242,7 @@ static void sys_manager_unlocked_handler(void)
     LOG_DBG("Device unlocked and active");
   }
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
-  sys_manager_stop_danger_noti();
+  sys_manager_stop_stolen_noti();
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
 }
 
@@ -300,7 +308,7 @@ static void sys_manager_shutdown_handler(void)
   }
 }
 
-static void sys_manager_device_danger_handler(void)
+static void sys_manager_device_stolen_handler(void)
 {
   if (!g_device_info.danger_noti_enabled)
     return;
@@ -314,8 +322,17 @@ static void sys_manager_device_danger_handler(void)
   case DEVICE_STATE_LOCKED:
   case DEVICE_STATE_PAUSED:
   {
+    device_info_update_state(DEVICE_STATE_STOLEN);
     bsp_buzzer_enable(true);
     sys_led_write_event(SYS_LED_EVT_NOTI_DANGER);
+    sys_input_wakeup();
+    sys_network_wakeup();
+    bsp_timer_start(&manager_handler.stolen_timeout_timer);
+    break;
+  }
+  case DEVICE_STATE_STOLEN:
+  {
+    bsp_timer_reset(&manager_handler.stolen_timeout_timer);  // motion still happening → extend window
     break;
   }
   case DEVICE_STATE_ACTIVE:
@@ -327,6 +344,7 @@ static void sys_manager_device_danger_handler(void)
   default: break;
   }
   bsp_timer_start(&manager_handler.danger_noti_timer);
+  sys_network_publish_noti(NETWORK_NOTI_DEVICE_STOLEN, strlen(NETWORK_NOTI_DEVICE_STOLEN));
 }
 
 void sys_manager_unlock_from_network_handler(void)
@@ -339,7 +357,8 @@ void sys_manager_unlock_from_network_handler(void)
 #endif  // DEVICE_IDLE_MODE_ENABLED
     // sys_network_trigger_new_trip();
     device_info_update_state(DEVICE_STATE_ACTIVE);
-    if (g_device_info.nvs_info.prev_state == DEVICE_STATE_IDLE)
+    if (g_device_info.nvs_info.prev_state == DEVICE_STATE_IDLE
+        || g_device_info.nvs_info.prev_state == DEVICE_STATE_STOLEN)
     {
       sys_ui_wakeup();
       sys_input_wakeup();
@@ -348,7 +367,7 @@ void sys_manager_unlock_from_network_handler(void)
     LOG_DBG("Device unlocked and active from network");
   }
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
-  sys_manager_stop_danger_noti();
+  sys_manager_stop_stolen_noti();
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
   sys_input_clear_data_for_new_rental();
   sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
@@ -358,12 +377,21 @@ void sys_manager_lock_from_network_handler(void)
 {
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_LOCKED)
   {
+    bool was_stolen = (g_device_info.nvs_info.curr_state == DEVICE_STATE_STOLEN);
     sys_network_trigger_end_trip();
     device_info_update_state(DEVICE_STATE_LOCKED);
     sys_ui_lock();
 #if (DEVICE_IDLE_MODE_ENABLED)
     bsp_timer_start(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
+    if (was_stolen)
+    {
+      bsp_timer_stop(&manager_handler.stolen_timeout_timer);
+      bsp_timer_stop(&manager_handler.danger_noti_timer);
+      g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
+      sys_led_write_event(SYS_LED_EVT_OFF);
+      bsp_buzzer_enable(false);
+    }
     LOG_DBG("Device locked from network");
   }
   sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
@@ -371,6 +399,11 @@ void sys_manager_lock_from_network_handler(void)
 
 static void sys_manager_start_rental_handler(void)
 {
+  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_STOLEN)
+  {
+    LOG_WRN("Start rental rejected: device is STOLEN");
+    return;
+  }
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
   {
 #if (DEVICE_IDLE_MODE_ENABLED)
@@ -388,7 +421,7 @@ static void sys_manager_start_rental_handler(void)
     LOG_DBG("Device unlocked and active from network");
   }
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
-  sys_manager_stop_danger_noti();
+  sys_manager_stop_stolen_noti();
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);
   sys_input_clear_data_for_new_rental();
   sys_network_publish_noti(NETWORK_DEVICE_RESP_OK_PAYLOAD, strlen(NETWORK_DEVICE_RESP_OK_PAYLOAD));
@@ -427,14 +460,41 @@ static void sys_manager_reset_offline_data_handler(void)
 
 static void sys_manager_danger_noti_timer_callback(TimerHandle_t xTimer)
 {
-  sys_manager_write_event(SYS_MANAGER_EVT_STOP_DANGER_NOTI);
+  sys_manager_write_event(SYS_MANAGER_EVT_STOP_STOLEN_NOTI);
 }
 
-static void sys_manager_stop_danger_noti(void)
+static void sys_manager_stop_stolen_noti(void)
 {
+  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_STOLEN)
+  {
+    bsp_timer_start(&manager_handler.danger_noti_timer);  // keep buzzer+LED until stolen clears
+    return;
+  }
+  bsp_timer_stop(&manager_handler.stolen_timeout_timer);
   sys_led_write_event(SYS_LED_EVT_OFF);
   sys_ui_wakeup();
   bsp_buzzer_enable(false);
+}
+
+static void sys_manager_stolen_timeout_timer_callback(TimerHandle_t xTimer)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_STOLEN_TIMEOUT);
+}
+
+static void sys_manager_stolen_timeout_handler(void)
+{
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_STOLEN)
+    return;
+
+  LOG_DBG("Stolen timeout: no motion → back to LOCKED");
+  bsp_timer_stop(&manager_handler.danger_noti_timer);
+  device_info_update_state(DEVICE_STATE_LOCKED);
+  sys_led_write_event(SYS_LED_EVT_OFF);
+  bsp_buzzer_enable(false);
+  sys_ui_lock();
+#if (DEVICE_IDLE_MODE_ENABLED)
+  bsp_timer_start(&manager_handler.shutdown_timer);
+#endif
 }
 
 static void sys_manager_flush_log(void)

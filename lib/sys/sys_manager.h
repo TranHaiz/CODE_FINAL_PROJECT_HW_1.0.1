@@ -16,15 +16,11 @@
 
 /* Includes ----------------------------------------------------------- */
 #include "common_type.h"
+#include "device_config.h"
 #include "log_service.h"
 #include "os_lib.h"
 
 /* Public defines ----------------------------------------------------- */
-#define NETWORK_NOTI_USERLOCK_PAYLOAD  "STOP_RENTAL"
-#define NETWORK_NOTI_USERPAUSE_PAYLOAD "NOTI_PAUSE"
-#define NETWORK_NOTI_HELP              "NOTI_HELP"
-#define NETWORK_DEVICE_RESP_OK_PAYLOAD "OK"
-
 /* Public enumerate/structure ----------------------------------------- */
 typedef enum
 {
@@ -40,12 +36,13 @@ typedef enum
   SYS_MANAGER_EVT_USER_LOCK,
   SYS_MANAGER_EVT_USER_PAUSE,
   SYS_MANAGER_EVT_SHUTDOWN,
-  SYS_MANAGER_EVT_DEVICE_DANGER,
+  SYS_MANAGER_EVT_DEVICE_STOLEN,
   SYS_MANAGER_EVT_START_RENTAL,
   SYS_MANAGER_EVT_STOP_RENTAL_FAIL,
   SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS,
   SYS_MANAGER_EVT_RESET_OFFLINE_DATA,
-  SYS_MANAGER_EVT_STOP_DANGER_NOTI,
+  SYS_MANAGER_EVT_STOP_STOLEN_NOTI,
+  SYS_MANAGER_EVT_STOLEN_TIMEOUT,
   SYS_MANAGER_EVT_FLUSH_LOG,
   SYS_MANAGER_RENTAL_NOTI_LIMIT,
   SYS_MANAGER_EVT_WARN_LOW_BALANCE,

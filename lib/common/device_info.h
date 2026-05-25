@@ -28,6 +28,7 @@ typedef enum
   DEVICE_STATE_ERROR,
   DEVICE_STATE_PAUSED,
   DEVICE_STATE_NOTI,
+  DEVICE_STATE_STOLEN,
   DEVICE_STATE_MAX
 } device_state_t;
 typedef enum

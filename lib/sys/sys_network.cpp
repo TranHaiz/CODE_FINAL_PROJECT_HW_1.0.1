@@ -209,7 +209,9 @@ void sys_network_task(void *param)
     }
 
     /* --- 1. Collect new telemetry from sys_input --- */
-    if ((g_device_info.nvs_info.curr_state == DEVICE_STATE_ACTIVE) && is_data_network_ready)
+    if (((g_device_info.nvs_info.curr_state == DEVICE_STATE_ACTIVE)
+         || (g_device_info.nvs_info.curr_state == DEVICE_STATE_STOLEN))
+        && is_data_network_ready)
     {
       is_data_network_ready = false;
       sys_input_data_t input;

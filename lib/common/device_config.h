@@ -175,6 +175,13 @@
 #define BUZZER_PIN                        (6)
 #define IO_BUTTON_PIN                     (17)
 
+// ------------------------------ Network notification ------------------------------
+#define NETWORK_NOTI_USERLOCK_PAYLOAD     "STOP_RENTAL"
+#define NETWORK_NOTI_USERPAUSE_PAYLOAD    "NOTI_PAUSE"
+#define NETWORK_NOTI_HELP                 "NOTI_HELP"
+#define NETWORK_NOTI_DEVICE_STOLEN        "NOTI_STOLEN"
+#define NETWORK_DEVICE_RESP_OK_PAYLOAD    "OK"
+
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
