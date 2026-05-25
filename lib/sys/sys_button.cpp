@@ -21,7 +21,8 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_button, LOG_LEVEL_SYS_BUTTON)
 #define SYS_BUTTON_MAX_EVENTS  10
-#define SYS_BUTTON_SVC_GAP_MS  (3000)
+#define SYS_BUTTON_SVC_COMMIT_MS (1000)  // gap after last press → commit cmd
+#define SYS_BUTTON_SVC_ENTRY_MS  (3000)  // gap with no press → abort
 #define SYS_BUTTON_SVC_MAX_MS  (30000)
 #define SYS_BUTTON_SVC_CMD_MAX (5)
 
@@ -208,8 +209,9 @@ static void sys_button_service_tick(void)
     return;
   }
 
-  uint32_t ref = (service_press_accum > 0) ? service_last_press_ms : service_enter_ms;
-  if ((now - ref) < SYS_BUTTON_SVC_GAP_MS)
+  uint32_t gap_ms = (service_press_accum > 0) ? SYS_BUTTON_SVC_COMMIT_MS : SYS_BUTTON_SVC_ENTRY_MS;
+  uint32_t ref    = (service_press_accum > 0) ? service_last_press_ms : service_enter_ms;
+  if ((now - ref) < gap_ms)
   {
     return;  // still within the counting window
   }
