@@ -20,11 +20,11 @@
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_button, LOG_LEVEL_SYS_BUTTON)
-#define SYS_BUTTON_MAX_EVENTS  10
+#define SYS_BUTTON_MAX_EVENTS    10
 #define SYS_BUTTON_SVC_COMMIT_MS (1000)  // gap after last press → commit cmd
 #define SYS_BUTTON_SVC_ENTRY_MS  (3000)  // gap with no press → abort
-#define SYS_BUTTON_SVC_MAX_MS  (30000)
-#define SYS_BUTTON_SVC_CMD_MAX (5)
+#define SYS_BUTTON_SVC_MAX_MS    (30000)
+#define SYS_BUTTON_SVC_CMD_MAX   (5)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
@@ -70,11 +70,12 @@ void sys_button_init(void)
 
   // clang-format off
 #define CMD(press_count, manager_evt) SERVICE_CMD_MAP[press_count] = manager_evt
-  CMD( 1          ,  SYS_MANAGER_EVT_MAX );
-  CMD( 2          ,  SYS_MANAGER_EVT_MAX );
-  CMD( 3          ,  SYS_MANAGER_EVT_LOCKED );
-  CMD( 4          ,  SYS_MANAGER_EVT_MAX );
-  CMD( 5          ,  SYS_MANAGER_EVT_UNLOCKED );
+// Count service button after enter service mode | Event triggered              |
+  CMD( 1                                         , SYS_MANAGER_EVT_MAX          );
+  CMD( 2                                         , SYS_MANAGER_EVT_MAX          );
+  CMD( 3                                         , SYS_MANAGER_EVT_LOCKED       );
+  CMD( 4                                         , SYS_MANAGER_EVT_REBOOT       );
+  CMD( 5                                         , SYS_MANAGER_EVT_UNLOCKED     );
 #undef CMD
   // clang-format on
 
@@ -84,7 +85,8 @@ void sys_button_init(void)
 
 void sys_button_process(void)
 {
-  if ((g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE) && (!bsp_button_is_service_pending()) && (service_state == SVC_IDLE))
+  if ((g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE) && (!bsp_button_is_service_pending())
+      && (service_state == SVC_IDLE))
   {
     sys_button_service_reset();  // abort service mode if the device sleeps mid-count
     OS_SEM_TAKE(sys_button_wakeup_sem, OS_MAX_DELAY);
