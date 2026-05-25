@@ -212,6 +212,7 @@ static void sys_manager_active_handler(void)
 
   device_info_update_state(DEVICE_STATE_ACTIVE);
   sys_ui_wakeup();
+  sys_input_wakeup();
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
   sys_manager_stop_danger_noti();
   LOG_DBG("Handling active event");
@@ -229,6 +230,7 @@ static void sys_manager_unlocked_handler(void)
     device_info_update_state(DEVICE_STATE_ACTIVE);
     sys_input_clear_data_for_new_rental();
     sys_ui_unlock();
+    sys_input_wakeup();
     LOG_DBG("Device unlocked and active");
   }
   g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
@@ -340,6 +342,7 @@ void sys_manager_unlock_from_network_handler(void)
     if (g_device_info.nvs_info.prev_state == DEVICE_STATE_IDLE)
     {
       sys_ui_wakeup();
+      sys_input_wakeup();
     }
     sys_ui_unlock();
     LOG_DBG("Device unlocked and active from network");
@@ -379,6 +382,7 @@ static void sys_manager_start_rental_handler(void)
     if (g_device_info.nvs_info.prev_state == DEVICE_STATE_IDLE)
     {
       sys_ui_wakeup();
+      sys_input_wakeup();
     }
     sys_ui_unlock();
     LOG_DBG("Device unlocked and active from network");
