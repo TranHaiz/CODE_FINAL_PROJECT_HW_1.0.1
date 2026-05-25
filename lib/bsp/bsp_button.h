@@ -73,6 +73,12 @@ void bsp_button_process(void);
  */
 uint8_t bsp_button_get_count(bsp_button_type_t button);
 
+/**
+ * @brief  Check if service mode is pending (long press detected but not yet serviced)
+ * @return true if service mode is pending, false otherwise
+ */
+bool bsp_button_is_service_pending(void);
+
 #endif /*End file _BSP_BUTTON_H_*/
 
 /* End of file -------------------------------------------------------- */

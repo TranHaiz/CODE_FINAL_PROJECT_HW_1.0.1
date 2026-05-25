@@ -152,6 +152,11 @@ uint8_t bsp_button_get_count(bsp_button_type_t button)
   return s_buttons[button].last_reported_count;
 }
 
+bool bsp_button_is_service_pending(void)
+{
+  return s_buttons[BUTTON_EVT].service_pending;
+}
+
 void bsp_button_set_isr_callback(bsp_button_type_t button, bsp_button_isr_callback_t isr_cb)
 {
   if (button < BUTTON_MAX)

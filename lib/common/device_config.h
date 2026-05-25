@@ -83,7 +83,7 @@
 #define LOG_LEVEL_SYS_UI                  LOG_LEVEL_ERROR
 #define LOG_LEVEL_SYS_INPUT               LOG_LEVEL_ERROR
 #define LOG_LEVEL_SYS_FUSION              LOG_LEVEL_ERROR
-#define LOG_LEVEL_SYS_BUTTON              LOG_LEVEL_ERROR
+#define LOG_LEVEL_SYS_BUTTON              LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_CMD                 LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_LED                 LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_BLE                 LOG_LEVEL_DBG

@@ -69,10 +69,10 @@ void sys_button_init(void)
 
   // clang-format off
 #define CMD(press_count, manager_evt) SERVICE_CMD_MAP[press_count] = manager_evt
-  CMD( 1          ,  SYS_MANAGER_EVT_IDLE );
-  CMD( 2          ,  SYS_MANAGER_EVT_IDLE );
+  CMD( 1          ,  SYS_MANAGER_EVT_MAX );
+  CMD( 2          ,  SYS_MANAGER_EVT_MAX );
   CMD( 3          ,  SYS_MANAGER_EVT_LOCKED );
-  CMD( 4          ,  SYS_MANAGER_EVT_IDLE );
+  CMD( 4          ,  SYS_MANAGER_EVT_MAX );
   CMD( 5          ,  SYS_MANAGER_EVT_UNLOCKED );
 #undef CMD
   // clang-format on
@@ -83,7 +83,7 @@ void sys_button_init(void)
 
 void sys_button_process(void)
 {
-  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE)
+  if ((g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE) && (!bsp_button_is_service_pending()) && (service_state == SVC_IDLE))
   {
     sys_button_service_reset();  // abort service mode if the device sleeps mid-count
     OS_SEM_TAKE(sys_button_wakeup_sem, OS_MAX_DELAY);
@@ -221,7 +221,7 @@ static void sys_button_service_tick(void)
     return;
   }
 
-  if (service_press_accum <= SYS_BUTTON_SVC_CMD_MAX && SERVICE_CMD_MAP[service_press_accum] != SYS_MANAGER_EVT_IDLE)
+  if (service_press_accum <= SYS_BUTTON_SVC_CMD_MAX && SERVICE_CMD_MAP[service_press_accum] != SYS_MANAGER_EVT_MAX)
   {
     LOG_DBG("Service cmd: %d presses -> event %d", service_press_accum, SERVICE_CMD_MAP[service_press_accum]);
     sys_manager_write_event(SERVICE_CMD_MAP[service_press_accum]);
