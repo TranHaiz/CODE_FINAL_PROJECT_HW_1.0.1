@@ -115,6 +115,13 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 #define SYS_UI_SHOULD_ADD_FUND_LABEL_TEXT_COLOR    SYS_UI_WIDGET_COLOR_RED
 #define SYS_UI_SHOULD_ADD_FUND_LABEL_FONT          (&lv_font_montserrat_14)
 
+// Low battery label
+#define SYS_UI_LOW_BATT_LABEL_X                    (SYS_UI_MAP_PANEL_X + SYS_UI_MAP_PANEL_W + 5)
+#define SYS_UI_LOW_BATT_LABEL_Y                    (SYS_UI_MAP_PANEL_Y)
+#define SYS_UI_LOW_BATT_LABEL_TEXT                 "PLEASE STOP"
+#define SYS_UI_LOW_BATT_LABEL_TEXT_COLOR           SYS_UI_WIDGET_COLOR_RED
+#define SYS_UI_LOW_BATT_LABEL_FONT                 (&lv_font_montserrat_14)
+
 // Right panel info cards
 #define SYS_UI_CARD_X                              (218)
 #define SYS_UI_CARD_W                              (100)
@@ -430,6 +437,7 @@ typedef struct
   lv_obj_t *warn_rental_limit_label;
   lv_obj_t *warn_add_fund_label;
   lv_obj_t *should_add_fund_panel;
+  lv_obj_t *low_batt_label;
   // Settings screen
   lv_obj_t *settings_screen;
   lv_obj_t *settings_title;
@@ -835,7 +843,8 @@ static void sys_ui_apply_notification_label(void)
     return;
   }
   if (ui_ctx.widgets.warn_add_fund_label == nullptr || ui_ctx.widgets.should_add_fund_panel == nullptr
-      || ui_ctx.widgets.warn_rental_limit_label == nullptr || ui_ctx.widgets.warning_out_of_zone_label == nullptr)
+      || ui_ctx.widgets.warn_rental_limit_label == nullptr || ui_ctx.widgets.warning_out_of_zone_label == nullptr
+      || ui_ctx.widgets.low_batt_label == nullptr)
   {
     return;
   }
@@ -849,6 +858,7 @@ static void sys_ui_apply_notification_label(void)
     lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
     break;
   }
   case SYS_UI_NOTI_LABEL_WARN_ADD_FUND:
@@ -857,6 +867,7 @@ static void sys_ui_apply_notification_label(void)
     lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
     break;
   }
   case SYS_UI_NOTI_LABEL_SHOULD_ADD_FUND:
@@ -865,6 +876,7 @@ static void sys_ui_apply_notification_label(void)
     lv_obj_clear_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
     break;
   }
   case SYS_UI_NOTI_LABEL_OUT_OF_ZONE:
@@ -873,6 +885,7 @@ static void sys_ui_apply_notification_label(void)
     lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
     break;
   }
   case SYS_UI_NOTI_LABEL_RENTAL_LIMIT:
@@ -881,6 +894,16 @@ static void sys_ui_apply_notification_label(void)
     lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
+    break;
+  }
+  case SYS_UI_NOTI_LABEL_LOW_BATT:
+  {
+    lv_obj_add_flag(ui_ctx.widgets.warn_add_fund_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.should_add_fund_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.warn_rental_limit_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_ctx.widgets.warning_out_of_zone_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(ui_ctx.widgets.low_batt_label, LV_OBJ_FLAG_HIDDEN);
     break;
   }
   default: break;
@@ -1279,6 +1302,10 @@ static void sys_ui_main_screen_create(void)
   ui_ctx.widgets.should_add_fund_panel = sys_ui_widget_create_label(
     ui_ctx.widgets.main_screen, SYS_UI_SHOULD_ADD_FUND_LABEL_X, SYS_UI_SHOULD_ADD_FUND_LABEL_Y,
     SYS_UI_SHOULD_ADD_FUND_LABEL_TEXT, SYS_UI_SHOULD_ADD_FUND_LABEL_TEXT_COLOR, SYS_UI_SHOULD_ADD_FUND_LABEL_FONT);
+
+  ui_ctx.widgets.low_batt_label =
+    sys_ui_widget_create_label(ui_ctx.widgets.main_screen, SYS_UI_LOW_BATT_LABEL_X, SYS_UI_LOW_BATT_LABEL_Y,
+                               SYS_UI_LOW_BATT_LABEL_TEXT, SYS_UI_LOW_BATT_LABEL_TEXT_COLOR, SYS_UI_LOW_BATT_LABEL_FONT);
 
   ui_ctx.current_noti_label = SYS_UI_NOTI_LABEL_MAX;
   sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_NONE);

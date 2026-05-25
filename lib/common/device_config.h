@@ -180,6 +180,7 @@
 #define NETWORK_NOTI_USERPAUSE_PAYLOAD    "NOTI_PAUSE"
 #define NETWORK_NOTI_HELP                 "NOTI_HELP"
 #define NETWORK_NOTI_DEVICE_STOLEN        "NOTI_STOLEN"
+#define NETWORK_NOTI_LOW_BATT             "NOTI_LOW_BATT"
 #define NETWORK_DEVICE_RESP_OK_PAYLOAD    "OK"
 
 /* Public enumerate/structure ----------------------------------------- */

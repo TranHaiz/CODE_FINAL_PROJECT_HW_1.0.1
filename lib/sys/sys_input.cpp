@@ -393,6 +393,17 @@ static status_function_t sys_input_process_active(void)
     input_ctx.batt_last_update_ms = current_time_ms;
     sys_input_read_battery_level(&input_ctx.data.battery_level);
     g_sys_ui_data_status.is_battery_data_ready_for_ui = true;
+
+    static bool low_batt_noti_sent = false;
+    if (input_ctx.data.battery_level <= 0.0f && !low_batt_noti_sent)
+    {
+      sys_manager_write_event(SYS_MANAGER_EVT_NOTI_LOW_BATT);
+      low_batt_noti_sent = true;
+    }
+    else if (input_ctx.data.battery_level > 5.0f && low_batt_noti_sent)
+    {
+      low_batt_noti_sent = false;
+    }
   }
 #else
 // Do nothing

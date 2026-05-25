@@ -94,6 +94,7 @@ static void sys_manager_rental_noti_limit_handler(void);
 static void sys_manager_warn_debt_handler(void);
 static void sys_manager_clear_debt_handler(void);
 static void sys_manager_warn_low_balance_handler(void);
+static void sys_manager_noti_low_batt_handler(void);
 static void sys_manager_low_balance_noti_timer_callback(TimerHandle_t xTimer);
 static void sys_manager_help_handler(void);
 
@@ -143,6 +144,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_FLUSH_LOG            ,   sys_manager_flush_log                   );
   INFO(SYS_MANAGER_RENTAL_NOTI_LIMIT        ,   sys_manager_rental_noti_limit_handler   );
   INFO(SYS_MANAGER_EVT_WARN_LOW_BALANCE     ,   sys_manager_warn_low_balance_handler    );
+  INFO(SYS_MANAGER_EVT_NOTI_LOW_BATT        ,   sys_manager_noti_low_batt_handler       );
   INFO(SYS_MANAGER_EVT_WARN_DEBT            ,   sys_manager_warn_debt_handler           );
   INFO(SYS_MANAGER_EVT_CLEAR_DEBT           ,   sys_manager_clear_debt_handler          );
   INFO(SYS_MANAGER_EVT_HELP                 ,   sys_manager_help_handler                );
@@ -550,6 +552,13 @@ static void sys_manager_low_balance_noti_timer_callback(TimerHandle_t xTimer)
 static void sys_manager_help_handler(void)
 {
   sys_network_publish_noti(NETWORK_NOTI_HELP, strlen(NETWORK_NOTI_HELP));
+}
+
+static void sys_manager_noti_low_batt_handler(void)
+{
+  sys_network_publish_noti(NETWORK_NOTI_LOW_BATT, strlen(NETWORK_NOTI_LOW_BATT));
+  bsp_buzzer_beep_long(500);
+  sys_ui_update_notification_label(SYS_UI_NOTI_LABEL_LOW_BATT);
 }
 
 /* End of file -------------------------------------------------------- */
