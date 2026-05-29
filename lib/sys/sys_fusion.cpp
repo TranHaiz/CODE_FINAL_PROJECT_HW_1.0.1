@@ -399,9 +399,17 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   }
 
   // 7. Finalize output
-  data->distance_m             = fusion_ctx.distance_m;
-  data->gps_position.latitude  = fusion_ctx.gps_data_buffer.latitude;
-  data->gps_position.longitude = fusion_ctx.gps_data_buffer.longitude;
+  data->distance_m = fusion_ctx.distance_m;
+  if (fusion_ctx.has_last_gps_position)
+  {
+    data->gps_position.latitude  = fusion_ctx.last_valid_lat;
+    data->gps_position.longitude = fusion_ctx.last_valid_lon;
+  }
+  else
+  {
+    data->gps_position.latitude  = 0.0;
+    data->gps_position.longitude = 0.0;
+  }
 
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
   data->debug.acc_raw_x          = fusion_ctx.debug_acc_raw_x;
@@ -821,8 +829,9 @@ static void sys_fusion_update_gps_data(void)
 
   if (is_gps_data_ok)
   {
-    float lat = (float) fusion_ctx.gps_data_buffer.latitude;
-    float lon = (float) fusion_ctx.gps_data_buffer.longitude;
+    float lat             = (float) fusion_ctx.gps_data_buffer.latitude;
+    float lon             = (float) fusion_ctx.gps_data_buffer.longitude;
+    bool  accept_position = false;
 
     if (fusion_ctx.has_last_gps_position)
     {
@@ -840,6 +849,7 @@ static void sys_fusion_update_gps_data(void)
       if (z_r < GPS_RELIABILITY_THRESHOLD_M)
       {
         fusion_ctx.gps_reliable = true;
+        accept_position         = true;
         if (distance_gps < GPS_MAX_STEP_M && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
           fusion_ctx.distance_m += distance_gps;
       }
@@ -853,14 +863,18 @@ static void sys_fusion_update_gps_data(void)
     {
       // First valid fix — no INS reference yet, trust GPS
       fusion_ctx.gps_reliable = true;
+      accept_position         = true;
     }
 
     // Reset INS distance accumulator for next GPS interval
     fusion_ctx.distance_ins = 0.0f;
 
-    fusion_ctx.last_valid_lat        = lat;
-    fusion_ctx.last_valid_lon        = lon;
-    fusion_ctx.has_last_gps_position = true;
+    if (accept_position)
+    {
+      fusion_ctx.last_valid_lat        = lat;
+      fusion_ctx.last_valid_lon        = lon;
+      fusion_ctx.has_last_gps_position = true;
+    }
   }
 }
 
