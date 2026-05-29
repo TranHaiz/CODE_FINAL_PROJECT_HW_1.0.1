@@ -50,6 +50,9 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define ACC_FORWARD_MAX_MS2         (3.0f)
 
 #define YAW_GYRO_WEIGHT             (0.98f)
+#define YAW_GYRO_WEIGHT_STATIONARY  (0.85f)
+#define YAW_ROTATING_TH_DEGPS       (10.0f)
+#define YAW_OFFSET_DEG              (25.0f)
 
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 // Higher = faster GPS tracking; lower = smoother INS-dominant output
@@ -212,7 +215,8 @@ typedef struct
   // Attitude — gyro+acc CF for roll/pitch, gyro_z+compass CF for yaw (heading_deg)
   float roll_rad;
   float pitch_rad;
-  bool  yaw_init;  // seeded by first valid compass sample; gates gyro_z integration
+  bool  yaw_init;
+  float latest_gyro_z_dps;
 
   float gyro_bias_x;  // rad/s
   float gyro_bias_y;  // rad/s
@@ -717,9 +721,10 @@ static void sys_fusion_update_ins_velocity(float dt)
     ATTITUDE_GYRO_WEIGHT * (fusion_ctx.pitch_rad + gyro_y_rads * dt) + (1.0f - ATTITUDE_GYRO_WEIGHT) * pitch_acc;
 
   // Yaw CF — high-rate gyro_z integration; compass low-rate correction in sys_fusion_read_compass
+  float gyro_z_rads            = (imu.gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z;
+  fusion_ctx.latest_gyro_z_dps = fabsf(gyro_z_rads) * (180.0f / (float) M_PI);
   if (fusion_ctx.yaw_init)
   {
-    float gyro_z_rads = (imu.gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z;
     fusion_ctx.heading_deg += gyro_z_rads * dt * (180.0f / (float) M_PI);
     if (fusion_ctx.heading_deg >= 360.0f)
       fusion_ctx.heading_deg -= 360.0f;
@@ -1118,6 +1123,12 @@ static void sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms)
   if (heading_deg < 0.0f)
     heading_deg += 360.0f;
 
+  heading_deg -= YAW_OFFSET_DEG;
+  if (heading_deg >= 360.0f)
+    heading_deg -= 360.0f;
+  else if (heading_deg < 0.0f)
+    heading_deg += 360.0f;
+
   if (!fusion_ctx.yaw_init)
   {
     fusion_ctx.heading_deg = heading_deg;
@@ -1126,7 +1137,9 @@ static void sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms)
   else
   {
     float err = sys_fusion_wrap_to_180(heading_deg - fusion_ctx.heading_deg);
-    fusion_ctx.heading_deg += (1.0f - YAW_GYRO_WEIGHT) * err;
+    float weight =
+      (fusion_ctx.latest_gyro_z_dps > YAW_ROTATING_TH_DEGPS) ? YAW_GYRO_WEIGHT : YAW_GYRO_WEIGHT_STATIONARY;
+    fusion_ctx.heading_deg += (1.0f - weight) * err;
     if (fusion_ctx.heading_deg >= 360.0f)
       fusion_ctx.heading_deg -= 360.0f;
     else if (fusion_ctx.heading_deg < 0.0f)
