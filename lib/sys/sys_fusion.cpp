@@ -56,7 +56,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 // Higher = faster GPS tracking; lower = smoother INS-dominant output
-#define CF_WC                       (2.0f)
+#define CF_WC                       (1.0f)
 #define CF_WC_TRANSIENT             (4.0f)
 #define CF_WC_TRANSIENT_TH_MS2      (1.5f)
 #define CF_TRANSIENT_AGREE_MS       (2.0f)
@@ -276,7 +276,7 @@ static void        sys_fusion_calibrate_gyro_bias(void);
 static void        sys_fusion_update_ins_velocity(float dt);
 static void        sys_fusion_update_gps_data(void);
 static void        sys_fusion_update_gps_state(size_t current_ms);
-static void        sys_fusion_detect_zupt(float accel_ms2, float dt);
+static bool        sys_fusion_detect_zupt(float accel_ms2, float dt);
 static void        sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt);
 static void        sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms);
 static const char *sys_fusion_deg_to_direction_str(float deg);
@@ -377,10 +377,18 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   sys_fusion_update_gps_state(current_time_ms);
 
   // 4. ZUPT
-  sys_fusion_detect_zupt(fusion_ctx.acc_raw * GRAVITY_MS2, dt);
+  bool zupt_locked = sys_fusion_detect_zupt(fusion_ctx.acc_raw * GRAVITY_MS2, dt);
 
-  // 5. Output velocity — complementary filter (INS + GPS)
-  sys_fusion_compute_output_velocity(data, dt);
+  // 5. Output velocity
+  if (zupt_locked)
+  {
+    data->velocity_ms  = 0.0f;
+    data->velocity_kmh = 0.0f;
+  }
+  else
+  {
+    sys_fusion_compute_output_velocity(data, dt);
+  }
 
   // 6. INS-only distance fallback when GPS isn't currently authoritative (FADING or INVALID)
   if (fusion_ctx.gps_state != GPS_STATE_ACTIVE && fusion_ctx.is_offset_mag_ready && dt > 0.0f
@@ -929,7 +937,7 @@ static void sys_fusion_update_gps_state(size_t current_ms)
   }
 }
 
-static void sys_fusion_detect_zupt(float accel_ms2, float dt)
+static bool sys_fusion_detect_zupt(float accel_ms2, float dt)
 {
   if (fabsf(accel_ms2) < ZUPT_ACC_THRESHOLD)
   {
@@ -945,10 +953,11 @@ static void sys_fusion_detect_zupt(float accel_ms2, float dt)
 
     if (fusion_ctx.stationary_time_ms >= ZUPT_TIME_THRESHOLD_MS)
     {
+      // Snap all velocities to zero — seeds CF cleanly for the next motion onset
       fusion_ctx.velocity_ins = 0.0f;
       fusion_ctx.velocity_gps = 0.0f;
-      // Snap CF output too — without this, vout would coast down via CF for ~3*tau
       fusion_ctx.velocity_out = 0.0f;
+      return true;
     }
   }
   else
@@ -956,6 +965,7 @@ static void sys_fusion_detect_zupt(float accel_ms2, float dt)
     fusion_ctx.is_stationary      = false;
     fusion_ctx.stationary_time_ms = 0;
   }
+  return false;
 }
 
 static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt)
