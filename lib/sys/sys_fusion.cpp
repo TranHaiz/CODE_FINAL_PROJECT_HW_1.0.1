@@ -143,6 +143,10 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define DANGER_VIBRATION_WINDOW_MS_HIGH    (2000)
 #define DANGER_VIBRATION_COUNT_THRESH_HIGH (2)
 
+// Include AFTER all compile-time #defines — sys_fusion_tune.h #undef's them and rebinds
+// the same names to live struct fields when DEVICE_FUSION_TUNING_MODE_ENABLED is set.
+#include "sys_fusion_tune.h"
+
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
 {
