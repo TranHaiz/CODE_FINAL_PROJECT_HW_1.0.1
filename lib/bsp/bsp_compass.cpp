@@ -111,10 +111,9 @@ status_function_t bsp_compass_read_raw(bsp_compass_raw_data_t *data)
     return STATUS_ERROR;
   }
 
-  // Parse raw data (HMC5883L order: X, Z, Y)
-  data->raw_x = (int16_t) ((buffer[0] << 8) | buffer[1]);
-  data->raw_z = (int16_t) ((buffer[2] << 8) | buffer[3]);
-  data->raw_y = (int16_t) ((buffer[4] << 8) | buffer[5]);
+  data->raw_x = (int16_t) (COMPASS_AXIS_SIGN_X * (int16_t) ((buffer[0] << 8) | buffer[1]));
+  data->raw_z = (int16_t) (COMPASS_AXIS_SIGN_Z * (int16_t) ((buffer[2] << 8) | buffer[3]));
+  data->raw_y = (int16_t) (COMPASS_AXIS_SIGN_Y * (int16_t) ((buffer[4] << 8) | buffer[5]));
 
   // Check for overflow
   if (data->raw_x == BSP_COMPASS_OVERFLOW_VALUE || data->raw_y == BSP_COMPASS_OVERFLOW_VALUE
