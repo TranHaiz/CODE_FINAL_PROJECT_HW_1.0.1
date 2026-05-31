@@ -52,7 +52,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define YAW_GYRO_WEIGHT             (0.98f)
 #define YAW_GYRO_WEIGHT_STATIONARY  (0.85f)
 #define YAW_ROTATING_TH_DEGPS       (10.0f)
-#define YAW_OFFSET_DEG              (25.0f)
+#define YAW_OFFSET_DEG              (15.0f)
 
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 // Higher = faster GPS tracking; lower = smoother INS-dominant output

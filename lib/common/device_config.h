@@ -144,11 +144,11 @@
 
 // ------------------------------ IMU axis sign / body frame remap ------------------------------
 #define ACC_AXIS_SIGN_X                   (+1)  // +1 mean back to front, -1 mean front to back
-#define ACC_AXIS_SIGN_Y                   (+1)  // +1 mean left to right, -1 mean right to left
-#define ACC_AXIS_SIGN_Z                   (+1)  // +1 mean down, -1 mean up
-#define GYRO_AXIS_SIGN_X                  (+1)  // +1 mean right side down 30 deg => roll = 30 deg
-#define GYRO_AXIS_SIGN_Y                  (+1)  // +1 mean nose up 30 deg => pitch = 30 deg
-#define GYRO_AXIS_SIGN_Z                  (+1)  // +1 mean frome topview, rotaion right => heading increasing
+#define ACC_AXIS_SIGN_Y                   (-1)  // +1 mean left to right, -1 mean right to left
+#define ACC_AXIS_SIGN_Z                   (-1)  // +1 mean down, -1 mean up
+#define GYRO_AXIS_SIGN_X                  (-1)  // +1 mean right side down 30 deg => roll = 30 deg
+#define GYRO_AXIS_SIGN_Y                  (-1)  // +1 mean nose up 30 deg => pitch = 30 deg
+#define GYRO_AXIS_SIGN_Z                  (-1)  // +1 mean frome topview, rotaion right => heading increasing
 
 // ------------------------------ HMC5883L Compass I2C configuration ------------------------------
 #define COMPASS_I2C_SDA_PIN               (4)
@@ -157,7 +157,7 @@
 #define COMPASS_I2C_CLOCK                 (100000)
 
 #define COMPASS_AXIS_SIGN_X               (+1)
-#define COMPASS_AXIS_SIGN_Y               (+1)
+#define COMPASS_AXIS_SIGN_Y               (-1)
 #define COMPASS_AXIS_SIGN_Z               (+1)
 
 // ------------------------------ SHT31 Temperature and Humidity Sensor I2C configuration ------------------------------
