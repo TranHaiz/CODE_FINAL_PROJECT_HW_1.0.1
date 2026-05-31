@@ -52,7 +52,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define YAW_GYRO_WEIGHT             (0.98f)
 #define YAW_GYRO_WEIGHT_STATIONARY  (0.85f)
 #define YAW_ROTATING_TH_DEGPS       (10.0f)
-#define YAW_OFFSET_DEG              (15.0f)
+#define YAW_OFFSET_DEG              (0.0f)
 
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 // Higher = faster GPS tracking; lower = smoother INS-dominant output
@@ -302,18 +302,7 @@ void sys_fusion_init(void)
   {
     fusion_ctx.acc_ready = true;
     LOG_DBG("ACC OK");
-
-    bsp_acc_raw_data_t init_acc = { 0 };
-    if (bsp_acc_get_raw_data(&init_acc) == STATUS_OK)
-    {
-      fusion_ctx.acc_ema_x    = init_acc.acc_x;
-      fusion_ctx.acc_ema_y    = init_acc.acc_y;
-      fusion_ctx.acc_ema_z    = init_acc.acc_z;
-      fusion_ctx.acc_ema_init = true;
-
-      fusion_ctx.roll_rad  = atan2f(init_acc.acc_y, init_acc.acc_z);
-      fusion_ctx.pitch_rad = atan2f(-init_acc.acc_x, hypotf(init_acc.acc_y, init_acc.acc_z));
-    }
+    // Initial roll/pitch seeded in sys_fusion_calculate_offset_mag() below
   }
   else
   {
@@ -599,13 +588,19 @@ static const biquad_coefs_t k_compass_bw = { COMPASS_BW_B0, COMPASS_BW_B1, COMPA
 
 static void sys_fusion_calculate_offset_mag(void)
 {
-  float sum = 0.0f;
+  float    sum = 0.0f;
+  float    sum_x = 0.0f, sum_y = 0.0f, sum_z = 0.0f;
+  uint16_t valid = 0;
   for (uint16_t i = 0; i < ACC_OFFSET_MAGNITUDE_SAMPLE; i++)
   {
     bsp_acc_raw_data_t d = { 0 };
     if (bsp_acc_get_raw_data(&d) == STATUS_OK)
     {
       sum += sys_fusion_calculate_magnitude((float) d.acc_x, (float) d.acc_y, (float) d.acc_z);
+      sum_x += d.acc_x;
+      sum_y += d.acc_y;
+      sum_z += d.acc_z;
+      valid++;
     }
     delay(5);  // CPU busy waiting
   }
@@ -613,6 +608,25 @@ static void sys_fusion_calculate_offset_mag(void)
   fusion_ctx.offset_magnitude    = sum / (float) ACC_OFFSET_MAGNITUDE_SAMPLE;
   fusion_ctx.is_offset_mag_ready = true;
   LOG_DBG("Offset calibrated: %.4f g", fusion_ctx.offset_magnitude);
+
+  // Seed initial tilt + acc EMA from the averaged stationary samples
+  if (valid > 0)
+  {
+    float avg_x = sum_x / (float) valid;
+    float avg_y = sum_y / (float) valid;
+    float avg_z = sum_z / (float) valid;
+
+    fusion_ctx.roll_rad  = atan2f(avg_y, avg_z);
+    fusion_ctx.pitch_rad = atan2f(-avg_x, hypotf(avg_y, avg_z));
+
+    fusion_ctx.acc_ema_x    = avg_x;
+    fusion_ctx.acc_ema_y    = avg_y;
+    fusion_ctx.acc_ema_z    = avg_z;
+    fusion_ctx.acc_ema_init = true;
+
+    LOG_DBG("Initial tilt: roll=%.2f pitch=%.2f deg", fusion_ctx.roll_rad * 180.0f / (float) M_PI,
+            fusion_ctx.pitch_rad * 180.0f / (float) M_PI);
+  }
   return;
 }
 
