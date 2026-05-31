@@ -194,6 +194,7 @@ typedef struct
   float  acc_forward;   // Forward acceleration after body→nav projection (m/s²)
   float  offset_magnitude;
   float  distance_m;
+  float  distance_gap_ins;    // INS distance counted while GPS not authoritative; netted out on GPS accept
   float  distance_ins_total;  // cumulative INS-only distance (never reset, debug)
   float  distance_gps_total;  // cumulative GPS haversine (never reset, debug)
 
@@ -383,11 +384,13 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
     sys_fusion_compute_output_velocity(data, dt);
   }
 
-  // 6. INS-only distance fallback when GPS isn't currently authoritative (FADING or INVALID)
-  if (fusion_ctx.gps_state != GPS_STATE_ACTIVE && fusion_ctx.is_offset_mag_ready && dt > 0.0f
-      && data->velocity_ms > GPS_SPEED_MIN_MS)
+  // 6. INS distance fallback when GPS not authoritative; tracked in distance_gap_ins to net out on accept
+  bool gps_authoritative = (fusion_ctx.gps_state == GPS_STATE_ACTIVE) && fusion_ctx.gps_reliable;
+  if (!gps_authoritative && fusion_ctx.is_offset_mag_ready && dt > 0.0f && data->velocity_ms > GPS_SPEED_MIN_MS)
   {
-    fusion_ctx.distance_m += data->velocity_ms * dt;
+    float d = data->velocity_ms * dt;
+    fusion_ctx.distance_m += d;
+    fusion_ctx.distance_gap_ins += d;
   }
 
   if (fusion_ctx.velocity_ins != 0.0f)
@@ -588,7 +591,7 @@ static const biquad_coefs_t k_compass_bw = { COMPASS_BW_B0, COMPASS_BW_B1, COMPA
 
 static void sys_fusion_calculate_offset_mag(void)
 {
-  float    sum = 0.0f;
+  float    sum   = 0.0f;
   float    sum_x = 0.0f, sum_y = 0.0f, sum_z = 0.0f;
   uint16_t valid = 0;
   for (uint16_t i = 0; i < ACC_OFFSET_MAGNITUDE_SAMPLE; i++)
@@ -882,7 +885,11 @@ static void sys_fusion_update_gps_data(void)
         fusion_ctx.gps_reliable = true;
         accept_position         = true;
         if (distance_gps < GPS_MAX_STEP_M && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
-          fusion_ctx.distance_m += distance_gps;
+        {
+          float inc = distance_gps - fusion_ctx.distance_gap_ins;
+          if (inc > 0.0f)
+            fusion_ctx.distance_m += inc;
+        }
       }
       else
       {
@@ -897,14 +904,13 @@ static void sys_fusion_update_gps_data(void)
       accept_position         = true;
     }
 
-    // Reset INS distance accumulator for next GPS interval
-    fusion_ctx.distance_ins = 0.0f;
-
     if (accept_position)
     {
       fusion_ctx.last_valid_lat        = lat;
       fusion_ctx.last_valid_lon        = lon;
       fusion_ctx.has_last_gps_position = true;
+      fusion_ctx.distance_ins          = 0.0f;
+      fusion_ctx.distance_gap_ins      = 0.0f;
     }
   }
 }
