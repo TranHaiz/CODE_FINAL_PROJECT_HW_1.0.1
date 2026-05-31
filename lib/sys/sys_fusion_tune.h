@@ -8,7 +8,7 @@
  *
  * @brief      Runtime tuning for sys_fusion parameters.
  *
- *   When DEVICE_FUSION_TUNING_MODE_ENABLED == 1:
+ *   When DEVICE_FUSION_TUNING_MODE_ENABLED:
  *     - g_fusion_params holds live values, seeded from the compile-time defaults
  *     - This header #undef's the compile-time #defines and rebinds them to struct fields
  *     - sys_fusion_tune_handle_command() parses text commands (LIST / GET / SET)
@@ -25,7 +25,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#if (DEVICE_FUSION_TUNING_MODE_ENABLED == 1)
+#if (DEVICE_FUSION_TUNING_MODE_ENABLED)
 
 #ifdef __cplusplus
 extern "C"

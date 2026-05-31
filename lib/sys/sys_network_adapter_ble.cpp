@@ -20,7 +20,7 @@
 #include "os_lib.h"
 #include "sys_cmd.h"
 
-#if (DEVICE_FUSION_TUNING_MODE_ENABLED == 1)
+#if (DEVICE_FUSION_TUNING_MODE_ENABLED)
 #include "sys_fusion_tune.h"
 #endif
 
@@ -70,7 +70,7 @@ void sys_network_adapter_ble_init(void)
     LOG_ERR("Failed to initialize BSP BLE");
     return;
   }
-#if (!DEVICE_BLE_FALLBACK_ENABLED) || (DEVICE_FUSION_TUNING_MODE_ENABLED == 1)
+#if (!DEVICE_BLE_FALLBACK_ENABLED) || (DEVICE_FUSION_TUNING_MODE_ENABLED)
   // Always-on advertising in tuning mode so the Flutter app can connect at any time.
   s_advertise_enabled = true;
   bsp_ble_advertise_start();
@@ -153,21 +153,20 @@ void sys_network_adapter_ble_process(void)
       sys_ble_buffer[len] = '\0';
       LOG_INF("sys_ble got %d bytes: %s", len, (char *) sys_ble_buffer);
 
-#if (DEVICE_FUSION_TUNING_MODE_ENABLED == 1)
+#if (DEVICE_FUSION_TUNING_MODE_ENABLED)
       // Strip trailing CR/LF so the parser sees a clean verb token
       while (len > 0 && (sys_ble_buffer[len - 1] == '\n' || sys_ble_buffer[len - 1] == '\r'))
         sys_ble_buffer[--len] = '\0';
 
       static char tune_resp[2560];  // sized for LIST (~35 params × ~60 chars/line + END)
-      size_t      resp_len = sys_fusion_tune_handle_command((const char *) sys_ble_buffer, tune_resp, sizeof(tune_resp));
+      size_t resp_len = sys_fusion_tune_handle_command((const char *) sys_ble_buffer, tune_resp, sizeof(tune_resp));
 
       // Send one line at a time so each notification stays well under MTU
       size_t i = 0;
       while (i < resp_len)
       {
         size_t j = i;
-        while (j < resp_len && tune_resp[j] != '\n')
-          j++;
+        while (j < resp_len && tune_resp[j] != '\n') j++;
         size_t line_len = j - i + (j < resp_len ? 1 : 0);  // include the newline
         if (line_len > 0)
           bsp_ble_send((const uint8_t *) (tune_resp + i), line_len);
@@ -323,9 +322,8 @@ static void ble_adapter_bsp_cb(bsp_ble_event_t event)
 {
   switch (event)
   {
-  case BSP_BLE_EVT_CONNECT:
-    ble_ctx.connected = true;
-#if (DEVICE_FUSION_TUNING_MODE_ENABLED == 1)
+  case BSP_BLE_EVT_CONNECT: ble_ctx.connected = true;
+#if (DEVICE_FUSION_TUNING_MODE_ENABLED)
     // Tuning mode: skip the magic-byte handshake so the tuner app (raw NUS or CMD) can talk immediately.
     ble_ctx.handshake_done = true;
     LOG_INF("BLE adapter: connected (handshake bypassed — tuning mode)");

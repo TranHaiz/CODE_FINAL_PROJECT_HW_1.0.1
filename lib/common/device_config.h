@@ -43,7 +43,7 @@
 #define DEVICE_FUSION_FILTER_BTW          (1)
 #define DEVICE_FUSION_ACC_FILTER          DEVICE_FUSION_FILTER_BTW
 #define DEVICE_FUSION_COMPASS_FILTER      DEVICE_FUSION_FILTER_BTW
-#define DEVICE_FUSION_TUNING_MODE_ENABLED (1)
+#define DEVICE_FUSION_TUNING_MODE_ENABLED (true)  // Enable live tuning of fusion parameters
 #define DEVICE_IDLE_MODE_ENABLED          (true)  // Return to idle mode after a period of inactivity
 #define DEVICE_NETWORK_ENABLED            (true)
 #define DEVICE_NETWORK_TOTAL_KM_ENABLED   (true)  // Enable total km in network messages
