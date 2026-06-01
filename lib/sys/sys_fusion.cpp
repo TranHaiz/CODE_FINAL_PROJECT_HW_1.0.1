@@ -278,12 +278,14 @@ static sys_fusion_context_t fusion_ctx = { 0 };
 static float       sys_fusion_calculate_magnitude(float x, float y, float z);
 static void        sys_fusion_calculate_offset_mag(void);
 static void        sys_fusion_calibrate_gyro_bias(void);
+static bool        sys_fusion_preprocess_data(size_t current_ms);
+static bool        sys_fusion_read_imu(bsp_acc_raw_data_t *imu);
+static void        sys_fusion_update_attitude(const bsp_acc_raw_data_t *imu, bool compass_fresh, float dt);
 static void        sys_fusion_update_ins_velocity(float dt);
 static void        sys_fusion_update_gps_data(void);
 static void        sys_fusion_update_gps_state(size_t current_ms);
 static bool        sys_fusion_detect_zupt(float accel_ms2, float dt);
 static void        sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt);
-static void        sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms);
 static const char *sys_fusion_deg_to_direction_str(float deg);
 static void        sys_fusion_gps_callback(bsp_gps_data_t *gps_data);
 static float       sys_fusion_haversine_m(float lat1, float lon1, float lat2, float lon2);
@@ -357,12 +359,21 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
 
   fusion_ctx.is_new_gps_fix_this_cycle = false;
 
-  // 1. Compass, sample rates: COMPASS_UPDATE_MS
-  sys_fusion_read_compass(data, current_time_ms);
+  // Carry over last known heading for cycles where the attitude step is skipped
+  data->heading_deg   = fusion_ctx.heading_deg;
+  data->direction_str = fusion_ctx.direction_str;
 
-  // 2. Caculate Vins from Acc
-  if (fusion_ctx.is_offset_mag_ready && fusion_ctx.acc_ready)
+  // 1. Read + preprocess sensors
+  bool               compass_fresh = sys_fusion_preprocess_data(current_time_ms);
+  bsp_acc_raw_data_t imu           = { 0 };
+  bool               imu_ok = (fusion_ctx.is_offset_mag_ready && fusion_ctx.acc_ready) && sys_fusion_read_imu(&imu);
+
+  // 2. Attitude CF, body to nav, Vins/Dins
+  if (imu_ok)
   {
+    sys_fusion_update_attitude(&imu, compass_fresh, dt);
+    data->heading_deg   = fusion_ctx.heading_deg;
+    data->direction_str = fusion_ctx.direction_str;
     sys_fusion_update_ins_velocity(dt);
   }
 
@@ -673,84 +684,83 @@ static float sys_fusion_wrap_to_180(float deg)
   return deg;
 }
 
-static void sys_fusion_update_ins_velocity(float dt)
+static bool sys_fusion_read_imu(bsp_acc_raw_data_t *imu)
 {
-  bsp_acc_raw_data_t imu = { 0 };
-  if (bsp_acc_get_raw_data(&imu) != STATUS_OK)
-    return;
+  if (bsp_acc_get_raw_data(imu) != STATUS_OK)
+    return false;
 
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
-  fusion_ctx.debug_acc_raw_x  = imu.acc_x;
-  fusion_ctx.debug_acc_raw_y  = imu.acc_y;
-  fusion_ctx.debug_acc_raw_z  = imu.acc_z;
-  fusion_ctx.debug_gyro_raw_x = imu.gyro_x;
-  fusion_ctx.debug_gyro_raw_y = imu.gyro_y;
-  fusion_ctx.debug_gyro_raw_z = imu.gyro_z;
+  fusion_ctx.debug_acc_raw_x  = imu->acc_x;
+  fusion_ctx.debug_acc_raw_y  = imu->acc_y;
+  fusion_ctx.debug_acc_raw_z  = imu->acc_z;
+  fusion_ctx.debug_gyro_raw_x = imu->gyro_x;
+  fusion_ctx.debug_gyro_raw_y = imu->gyro_y;
+  fusion_ctx.debug_gyro_raw_z = imu->gyro_z;
 
   if (!fusion_ctx.debug_gyro_ema_init)
   {
-    fusion_ctx.debug_gyro_ema_x    = imu.gyro_x;
-    fusion_ctx.debug_gyro_ema_y    = imu.gyro_y;
-    fusion_ctx.debug_gyro_ema_z    = imu.gyro_z;
+    fusion_ctx.debug_gyro_ema_x    = imu->gyro_x;
+    fusion_ctx.debug_gyro_ema_y    = imu->gyro_y;
+    fusion_ctx.debug_gyro_ema_z    = imu->gyro_z;
     fusion_ctx.debug_gyro_ema_init = true;
   }
   else
   {
     fusion_ctx.debug_gyro_ema_x =
-      DBG_GYRO_EMA_ALPHA * imu.gyro_x + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_x;
+      DBG_GYRO_EMA_ALPHA * imu->gyro_x + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_x;
     fusion_ctx.debug_gyro_ema_y =
-      DBG_GYRO_EMA_ALPHA * imu.gyro_y + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_y;
+      DBG_GYRO_EMA_ALPHA * imu->gyro_y + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_y;
     fusion_ctx.debug_gyro_ema_z =
-      DBG_GYRO_EMA_ALPHA * imu.gyro_z + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_z;
+      DBG_GYRO_EMA_ALPHA * imu->gyro_z + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_z;
   }
 #endif
 
-  // 1. Acc filter — per-axis body frame (EMA or Butterworth, see DEVICE_FUSION_ACC_FILTER)
+  // Acc filter — per-axis body frame (EMA or Butterworth, see DEVICE_FUSION_ACC_FILTER)
 #if (DEVICE_FUSION_ACC_FILTER == DEVICE_FUSION_FILTER_BTW)
   if (!fusion_ctx.bw_init)
   {
-    biquad_reset(&fusion_ctx.bw_x, imu.acc_x);
-    biquad_reset(&fusion_ctx.bw_y, imu.acc_y);
-    biquad_reset(&fusion_ctx.bw_z, imu.acc_z);
+    biquad_reset(&fusion_ctx.bw_x, imu->acc_x);
+    biquad_reset(&fusion_ctx.bw_y, imu->acc_y);
+    biquad_reset(&fusion_ctx.bw_z, imu->acc_z);
     fusion_ctx.bw_init = true;
   }
-  fusion_ctx.acc_ema_x = biquad_process(&fusion_ctx.bw_x, &k_acc_bw, imu.acc_x);
-  fusion_ctx.acc_ema_y = biquad_process(&fusion_ctx.bw_y, &k_acc_bw, imu.acc_y);
-  fusion_ctx.acc_ema_z = biquad_process(&fusion_ctx.bw_z, &k_acc_bw, imu.acc_z);
+  fusion_ctx.acc_ema_x = biquad_process(&fusion_ctx.bw_x, &k_acc_bw, imu->acc_x);
+  fusion_ctx.acc_ema_y = biquad_process(&fusion_ctx.bw_y, &k_acc_bw, imu->acc_y);
+  fusion_ctx.acc_ema_z = biquad_process(&fusion_ctx.bw_z, &k_acc_bw, imu->acc_z);
 #else
   if (!fusion_ctx.acc_ema_init)
   {
-    fusion_ctx.acc_ema_x    = imu.acc_x;
-    fusion_ctx.acc_ema_y    = imu.acc_y;
-    fusion_ctx.acc_ema_z    = imu.acc_z;
+    fusion_ctx.acc_ema_x    = imu->acc_x;
+    fusion_ctx.acc_ema_y    = imu->acc_y;
+    fusion_ctx.acc_ema_z    = imu->acc_z;
     fusion_ctx.acc_ema_init = true;
   }
   else
   {
-    fusion_ctx.acc_ema_x = ACC_EMA_ALPHA * imu.acc_x + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_x;
-    fusion_ctx.acc_ema_y = ACC_EMA_ALPHA * imu.acc_y + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_y;
-    fusion_ctx.acc_ema_z = ACC_EMA_ALPHA * imu.acc_z + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_z;
+    fusion_ctx.acc_ema_x = ACC_EMA_ALPHA * imu->acc_x + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_x;
+    fusion_ctx.acc_ema_y = ACC_EMA_ALPHA * imu->acc_y + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_y;
+    fusion_ctx.acc_ema_z = ACC_EMA_ALPHA * imu->acc_z + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_z;
   }
 #endif
+  return true;
+}
 
-  float acc_x = fusion_ctx.acc_ema_x;
-  float acc_y = fusion_ctx.acc_ema_y;
-  float acc_z = fusion_ctx.acc_ema_z;
+static void sys_fusion_update_attitude(const bsp_acc_raw_data_t *imu, bool compass_fresh, float dt)
+{
+  // Roll/pitch complementary filter (gyro predict + accel correct)
+  float roll_acc  = atan2f(imu->acc_y, imu->acc_z);
+  float pitch_acc = atan2f(-imu->acc_x, hypotf(imu->acc_y, imu->acc_z));
 
-  // 2. Update attitude: roll, pitch
-  float roll_acc  = atan2f(imu.acc_y, imu.acc_z);
-  float pitch_acc = atan2f(-imu.acc_x, hypotf(imu.acc_y, imu.acc_z));
-
-  float gyro_x_rads = (imu.gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x;
-  float gyro_y_rads = (imu.gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y;
+  float gyro_x_rads = (imu->gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x;
+  float gyro_y_rads = (imu->gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y;
 
   fusion_ctx.roll_rad =
     ATTITUDE_GYRO_WEIGHT * (fusion_ctx.roll_rad + gyro_x_rads * dt) + (1.0f - ATTITUDE_GYRO_WEIGHT) * roll_acc;
   fusion_ctx.pitch_rad =
     ATTITUDE_GYRO_WEIGHT * (fusion_ctx.pitch_rad + gyro_y_rads * dt) + (1.0f - ATTITUDE_GYRO_WEIGHT) * pitch_acc;
 
-  // Yaw CF — high-rate gyro_z integration; compass low-rate correction in sys_fusion_read_compass
-  float gyro_z_rads            = (imu.gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z;
+  // Yaw predict — high-rate gyro_z integration
+  float gyro_z_rads            = (imu->gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z;
   fusion_ctx.latest_gyro_z_dps = fabsf(gyro_z_rads) * (180.0f / (float) M_PI);
   if (fusion_ctx.yaw_init)
   {
@@ -763,12 +773,64 @@ static void sys_fusion_update_ins_velocity(float dt)
 
   if (fusion_ctx.is_stationary)
   {
-    fusion_ctx.gyro_bias_x += GYRO_BIAS_ALPHA * ((imu.gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x);
-    fusion_ctx.gyro_bias_y += GYRO_BIAS_ALPHA * ((imu.gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y);
-    fusion_ctx.gyro_bias_z += GYRO_BIAS_ALPHA * ((imu.gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z);
+    fusion_ctx.gyro_bias_x += GYRO_BIAS_ALPHA * ((imu->gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x);
+    fusion_ctx.gyro_bias_y += GYRO_BIAS_ALPHA * ((imu->gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y);
+    fusion_ctx.gyro_bias_z += GYRO_BIAS_ALPHA * ((imu->gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z);
   }
 
-  // 3. Body fram -> Navigation frame rotation (ZYX Euler, yaw from compass)
+  // Yaw correct — low-rate compass, tilt-compensated with this cycle's roll/pitch
+  if (compass_fresh)
+  {
+    float mag_x = fusion_ctx.compass_ema_x;
+    float mag_y = fusion_ctx.compass_ema_y;
+    float mag_z = fusion_ctx.compass_ema_z;
+
+    float cos_roll  = cosf(fusion_ctx.roll_rad);
+    float sin_roll  = sinf(fusion_ctx.roll_rad);
+    float cos_pitch = cosf(fusion_ctx.pitch_rad);
+    float sin_pitch = sinf(fusion_ctx.pitch_rad);
+
+    float Xh = mag_x * cos_pitch + mag_y * sin_roll * sin_pitch + mag_z * cos_roll * sin_pitch;
+    float Yh = mag_y * cos_roll - mag_z * sin_roll;
+
+    float heading_deg = atan2f(Yh, Xh) * 180.0f / (float) M_PI;
+    if (heading_deg < 0.0f)
+      heading_deg += 360.0f;
+
+    heading_deg -= YAW_OFFSET_DEG;
+    if (heading_deg >= 360.0f)
+      heading_deg -= 360.0f;
+    else if (heading_deg < 0.0f)
+      heading_deg += 360.0f;
+
+    if (!fusion_ctx.yaw_init)
+    {
+      fusion_ctx.heading_deg = heading_deg;
+      fusion_ctx.yaw_init    = true;
+    }
+    else
+    {
+      float err = sys_fusion_wrap_to_180(heading_deg - fusion_ctx.heading_deg);
+      float weight =
+        (fusion_ctx.latest_gyro_z_dps > YAW_ROTATING_TH_DEGPS) ? YAW_GYRO_WEIGHT : YAW_GYRO_WEIGHT_STATIONARY;
+      fusion_ctx.heading_deg += (1.0f - weight) * err;
+      if (fusion_ctx.heading_deg >= 360.0f)
+        fusion_ctx.heading_deg -= 360.0f;
+      else if (fusion_ctx.heading_deg < 0.0f)
+        fusion_ctx.heading_deg += 360.0f;
+    }
+  }
+
+  fusion_ctx.direction_str = sys_fusion_deg_to_direction_str(fusion_ctx.heading_deg);
+}
+
+static void sys_fusion_update_ins_velocity(float dt)
+{
+  float acc_x = fusion_ctx.acc_ema_x;
+  float acc_y = fusion_ctx.acc_ema_y;
+  float acc_z = fusion_ctx.acc_ema_z;
+
+  // Body frame -> Navigation frame rotation (ZYX Euler, yaw from compass)
   float roll  = fusion_ctx.roll_rad;
   float pitch = fusion_ctx.pitch_rad;
   float yaw   = fusion_ctx.heading_deg * DEG_TO_RAD;
@@ -790,7 +852,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   float acc_east = cos_pitch * sin_yaw * abx + (sin_roll * sin_pitch * sin_yaw + cos_roll * cos_yaw) * aby
                    + (cos_roll * sin_pitch * sin_yaw - sin_roll * cos_yaw) * abz;
 
-  // 4. Forward projection — per-axis Butterworth already cleans the input
+  // Forward projection — per-axis Butterworth already cleans the input
   float acc_forward_raw = acc_north * cos_yaw + acc_east * sin_yaw;
 
   float mag_g        = hypotf(hypotf(acc_x, acc_y), acc_z);
@@ -798,7 +860,7 @@ static void sys_fusion_update_ins_velocity(float dt)
 
   fusion_ctx.acc_forward = acc_forward_raw;
 
-  // 5. INS velocity integration
+  // INS velocity integration
   bool gravity_leak = (fabsf(acc_forward_raw) > ACC_FORWARD_MAX_MS2) && (fabsf(mag_g - 1.0f) < 0.25f);
   if (!gravity_leak && fabsf(fusion_ctx.acc_forward) > ACC_THRESHOLD_MS2)
   {
@@ -820,7 +882,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   if (fusion_ctx.velocity_ins < 0.0f)
     fusion_ctx.velocity_ins = 0.0f;
 
-  // 6. Accumulate INS distance
+  // Accumulate INS distance
   if (fusion_ctx.velocity_ins > GPS_SPEED_MIN_MS)
   {
     fusion_ctx.distance_ins += fusion_ctx.velocity_ins * dt;
@@ -1085,23 +1147,19 @@ static const char *sys_fusion_deg_to_direction_str(float deg)
   return s_direction_strings[index];
 }
 
-static void sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms)
+static bool sys_fusion_preprocess_data(size_t current_ms)
 {
-  // Always return the latest known heading, even when skipping this cycle
-  data->heading_deg   = fusion_ctx.heading_deg;
-  data->direction_str = fusion_ctx.direction_str;
-
   if (!fusion_ctx.compass_ready)
-    return;
+    return false;
   if ((current_ms - fusion_ctx.compass_last_ms) < COMPASS_UPDATE_MS)
-    return;
+    return false;
   fusion_ctx.compass_last_ms = current_ms;
 
   bsp_compass_raw_data_t raw_data;
   if (bsp_compass_read_raw(&raw_data) != STATUS_OK)
   {
     LOG_ERR("Read compass fail");
-    return;
+    return false;
   }
 
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
@@ -1139,50 +1197,7 @@ static void sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms)
       COMPASS_EMA_ALPHA * (float) raw_data.raw_z + (1.0f - COMPASS_EMA_ALPHA) * fusion_ctx.compass_ema_z;
   }
 #endif
-
-  float mag_x = fusion_ctx.compass_ema_x;
-  float mag_y = fusion_ctx.compass_ema_y;
-  float mag_z = fusion_ctx.compass_ema_z;
-
-  float cos_roll  = cosf(fusion_ctx.roll_rad);
-  float sin_roll  = sinf(fusion_ctx.roll_rad);
-  float cos_pitch = cosf(fusion_ctx.pitch_rad);
-  float sin_pitch = sinf(fusion_ctx.pitch_rad);
-
-  float Xh = mag_x * cos_pitch + mag_y * sin_roll * sin_pitch + mag_z * cos_roll * sin_pitch;
-  float Yh = mag_y * cos_roll - mag_z * sin_roll;
-
-  float heading_rad = atan2f(Yh, Xh);
-  float heading_deg = heading_rad * 180.0f / (float) M_PI;
-  if (heading_deg < 0.0f)
-    heading_deg += 360.0f;
-
-  heading_deg -= YAW_OFFSET_DEG;
-  if (heading_deg >= 360.0f)
-    heading_deg -= 360.0f;
-  else if (heading_deg < 0.0f)
-    heading_deg += 360.0f;
-
-  if (!fusion_ctx.yaw_init)
-  {
-    fusion_ctx.heading_deg = heading_deg;
-    fusion_ctx.yaw_init    = true;
-  }
-  else
-  {
-    float err = sys_fusion_wrap_to_180(heading_deg - fusion_ctx.heading_deg);
-    float weight =
-      (fusion_ctx.latest_gyro_z_dps > YAW_ROTATING_TH_DEGPS) ? YAW_GYRO_WEIGHT : YAW_GYRO_WEIGHT_STATIONARY;
-    fusion_ctx.heading_deg += (1.0f - weight) * err;
-    if (fusion_ctx.heading_deg >= 360.0f)
-      fusion_ctx.heading_deg -= 360.0f;
-    else if (fusion_ctx.heading_deg < 0.0f)
-      fusion_ctx.heading_deg += 360.0f;
-  }
-  fusion_ctx.direction_str = sys_fusion_deg_to_direction_str(fusion_ctx.heading_deg);
-
-  data->heading_deg   = fusion_ctx.heading_deg;
-  data->direction_str = fusion_ctx.direction_str;
+  return true;
 }
 
 static void sys_fusion_gps_callback(bsp_gps_data_t *gps_data)
