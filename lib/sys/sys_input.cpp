@@ -50,7 +50,7 @@ typedef struct
   uint32_t last_dust_update_ms;
   uint32_t last_temp_hum_update_ms;
 
-  int32_t  batt_remaining_mah;
+  float    batt_remaining_mah;
   uint32_t batt_last_update_ms;
   float    prev_distance_m;
 
@@ -246,52 +246,64 @@ static void sys_input_read_dust_sensor(void)
 
 static void sys_input_read_battery_level(float *battery_level)
 {
-  static uint8_t err_cnt = 0;
-  uint32_t       now     = OS_GET_TICK();
-  size_t         dt_ms   = now - input_ctx.batt_last_update_ms;
+  static uint8_t  err_cnt         = 0;
+  static float    smoothed_ma     = 0.0f;
+  static uint32_t last_coulomb_ms = 0;
 
-  float raw_ma   = bsp_batt_read_current_ma();
-  *battery_level = (SYS_INPUT_BATT_EMA_ALPHA * raw_ma) + ((1.0f - SYS_INPUT_BATT_EMA_ALPHA) * (*battery_level));
-
-  float delta_mah = (*battery_level) * (dt_ms / 3600000.0f);
-  input_ctx.batt_remaining_mah -= delta_mah;
-  input_ctx.batt_remaining_mah = input_ctx.batt_remaining_mah < 0.0f ? 0.0f
-                                 : input_ctx.batt_remaining_mah > BSP_BATTERY_CAPACITY_MAH
-                                   ? BSP_BATTERY_CAPACITY_MAH
-                                   : input_ctx.batt_remaining_mah;
-
-  float   voltage_mv      = 0.0f;
+  // 1. Average voltage, dropping 0V error reads so they don't bias the mean
   float   sum_voltage_mv  = 0.0f;
+  uint8_t valid_count     = 0;
   uint8_t check_err_count = 0;
   for (int i = 0; i < SYS_INPUT_BATT_READ_VOLT_TIMES; i++)
   {
-    voltage_mv = bsp_batt_read_voltage_mv();
+    float v = bsp_batt_read_voltage_mv();
 
-    if (voltage_mv <= 0.0f)
+    if (v <= 0.0f)
     {
       LOG_ERR("Battery voltage read 0 volt");
       check_err_count++;
     }
     else
     {
-      sum_voltage_mv += voltage_mv;
+      sum_voltage_mv += v;
+      valid_count++;
     }
 
     if (check_err_count > SYS_INPUT_BATT_DEBOUNCE)
     {
-      // Not update battery level if too many read errors
-      err_cnt++;
-      if (err_cnt > SYS_INPUT_BATT_MAX_ERROR)
+      // Too many bad reads: keep the previous battery level untouched
+      if (++err_cnt > SYS_INPUT_BATT_MAX_ERROR)
       {
         err_cnt = 0;
-        LOG_ERR("Too many consecutive battery read errors, resetting remaining capacity to 0");
-        // Handle error battery level if too many consecutive errors
+        LOG_ERR("Too many consecutive battery read errors, keeping last battery level");
       }
       return;
     }
     OS_YIELD();
   }
-  voltage_mv = sum_voltage_mv / ((float) SYS_INPUT_BATT_READ_VOLT_TIMES);
+
+  if (valid_count == 0)
+    return;
+
+  err_cnt          = 0;
+  float voltage_mv = sum_voltage_mv / (float) valid_count;
+
+  // 2. Coulomb counting over the real elapsed interval
+  uint32_t now   = OS_GET_TICK();
+  bool     first = (last_coulomb_ms == 0);
+  uint32_t dt_ms = first ? 0 : (now - last_coulomb_ms);
+  last_coulomb_ms = now;
+
+  float raw_ma = (float) bsp_batt_read_current_ma();
+  smoothed_ma  = first ? raw_ma
+                       : (SYS_INPUT_BATT_EMA_ALPHA * raw_ma) + ((1.0f - SYS_INPUT_BATT_EMA_ALPHA) * smoothed_ma);
+
+  float delta_mah = smoothed_ma * (dt_ms / 3600000.0f);
+  input_ctx.batt_remaining_mah -= delta_mah;
+  input_ctx.batt_remaining_mah = input_ctx.batt_remaining_mah < 0.0f ? 0.0f
+                                 : input_ctx.batt_remaining_mah > BSP_BATTERY_CAPACITY_MAH
+                                   ? BSP_BATTERY_CAPACITY_MAH
+                                   : input_ctx.batt_remaining_mah;
 
   if (voltage_mv >= BSP_BATT_VOLTAGE_FULL_MV)
   {
