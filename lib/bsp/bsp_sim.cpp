@@ -671,6 +671,8 @@ status_function_t bsp_sim_mqtt_unsub(const char *topic)
 /* Private definitions ----------------------------------------------- */
 static bool bsp_sim_send_and_wait_response(const char *cmd, const char *resp, size_t timeout)
 {
+  is_sim_rsp       = false;
+  sim_rx_buffer[0] = '\0';
   if (cmd && cmd[0] != '\0')
     SIM_SEND(cmd);
 
