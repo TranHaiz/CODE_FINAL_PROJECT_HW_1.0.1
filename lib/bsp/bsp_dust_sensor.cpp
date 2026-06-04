@@ -28,7 +28,7 @@ LOG_MODULE_REGISTER(bsp_dust_sensor, LOG_LEVEL_BSP_DUST_SENSOR);
 #define BSP_DUST_SENSOR_SAMPLES        (10)
 #define BSP_DUST_SENSOR_BASELINE_SAMPS (50)
 #define BSP_DUST_SENSOR_WARMUP_MS      (5000u)
-#define BSP_DUST_SENSOR_T_ON_US        (280u)  // LED on → wait → sample (datasheet)
+#define BSP_DUST_SENSOR_T_ON_US        (280u)  // LED on to wait to sample (datasheet)
 #define BSP_DUST_SENSOR_T_HOLD_US      (40u)
 #define BSP_DUST_SENSOR_T_CYCLE_MS     (10u)
 #define BSP_DUST_SENSOR_MAX_UGM3       (600.0f)

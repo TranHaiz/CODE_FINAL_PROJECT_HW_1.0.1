@@ -67,7 +67,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 // Output velocity safety anchor — bounds vout drift when vins is suspect
 #define VOUT_ANCHOR_NONE            (0)  // no extra anchor (baseline)
-#define VOUT_ANCHOR_SOFT            (1)  // continuous slow pull vout → vgps (TC ~2.5s)
+#define VOUT_ANCHOR_SOFT            (1)  // continuous slow pull vout => vgps (TC ~2.5s)
 #define VOUT_ANCHOR_SNAP            (2)  // hard snap when |vout-vgps| exceeds threshold
 #define VOUT_ANCHOR_MODE            (VOUT_ANCHOR_SOFT)
 #define VOUT_ANCHOR_SOFT_RATE       (0.002f)  // per-cycle pull rate (TC ~2.5s @ 200Hz)

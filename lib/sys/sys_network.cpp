@@ -237,7 +237,7 @@ void sys_network_task(void *param)
 #if (DEVICE_BLE_FALLBACK_ENABLED)
       sys_network_adapter_ble_set_advertise(false);
 #endif
-      LOG_INF("Network: BLE → LTE");
+      LOG_INF("Network: BLE => LTE");
     }
     else if (active == &g_net_adapter_lte)
     {
@@ -263,7 +263,7 @@ void sys_network_task(void *param)
           {
             active           = &g_net_adapter_ble;
             s_pub_slot_valid = false;
-            LOG_INF("Network: LTE → BLE (lost=%d)", lte_lost_count);
+            LOG_INF("Network: LTE => BLE (lost=%d)", lte_lost_count);
           }
         }
       }

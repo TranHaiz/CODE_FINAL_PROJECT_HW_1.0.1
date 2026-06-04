@@ -94,9 +94,9 @@ extern "C"
    * @brief Parse one command line and produce a response.
    *
    *   Accepted commands (case-insensitive verb):
-   *     LIST              → multi-line output, each line "NAME TYPE MIN MAX CURRENT", ended by "END"
-   *     GET <name>        → "NAME=value" or "ERR ..."
-   *     SET <name> <val>  → "OK" or "ERR ..."
+   *     LIST              => multi-line output, each line "NAME TYPE MIN MAX CURRENT", ended by "END"
+   *     GET <name>        => "NAME=value" or "ERR ..."
+   *     SET <name> <val>  => "OK" or "ERR ..."
    *
    * @param  cmd          NUL-terminated command (newline stripped)
    * @param  out_resp     destination buffer for response (NUL-terminated)

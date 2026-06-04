@@ -264,7 +264,7 @@ static void lte_process_active(void)
 
 static void lte_change_state(net_state_t new_state)
 {
-  LOG_DBG("LTE: %d → %d  (retry=%d)", lte_ctx.state, new_state, lte_ctx.retry_count);
+  LOG_DBG("LTE: %d => %d  (retry=%d)", lte_ctx.state, new_state, lte_ctx.retry_count);
   lte_ctx.prev_state     = lte_ctx.state;
   lte_ctx.state          = new_state;
   lte_ctx.state_enter_ms = OS_GET_TICK();

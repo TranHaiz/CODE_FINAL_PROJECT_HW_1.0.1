@@ -21,8 +21,8 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_button, LOG_LEVEL_SYS_BUTTON)
 #define SYS_BUTTON_MAX_EVENTS    10
-#define SYS_BUTTON_SVC_COMMIT_MS (1000)  // gap after last press → commit cmd
-#define SYS_BUTTON_SVC_ENTRY_MS  (3000)  // gap with no press → abort
+#define SYS_BUTTON_SVC_COMMIT_MS (1000)  // gap after last press => commit cmd
+#define SYS_BUTTON_SVC_ENTRY_MS  (3000)  // gap with no press => abort
 #define SYS_BUTTON_SVC_MAX_MS    (30000)
 #define SYS_BUTTON_SVC_CMD_MAX   (5)
 

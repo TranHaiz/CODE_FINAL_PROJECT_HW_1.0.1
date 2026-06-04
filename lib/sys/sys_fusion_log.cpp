@@ -29,7 +29,7 @@
 LOG_MODULE_REGISTER(sys_fusion_log, LOG_LEVEL_INFO)
 
 #define FUSION_LOG_BUFFER_SIZE       (8192)  // 8KB ring buffer (DRAM)
-#define FUSION_LOG_FLUSH_THRESHOLD   (50)    // % full → trigger flush
+#define FUSION_LOG_FLUSH_THRESHOLD   (50)    // % full => trigger flush
 #define FUSION_LOG_FLUSH_INTERVAL_MS (2000)  // Fallback flush interval
 #define FUSION_LOG_LINE_MAX          (512)
 #define FUSION_LOG_PATH_MAX          (64)

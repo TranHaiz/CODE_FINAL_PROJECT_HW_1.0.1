@@ -30,7 +30,7 @@
 #define DEVICE_SERIAL_NUMBER_MAX_LEN    (33)  // 32 chars + 1 null terminator
 #define DEVICE_MAGIC_NUMBER             (0xDEADBEEF)
 
-#define DEVICE_NORMAL_MODE              (true)
+#define DEVICE_NORMAL_MODE              (false)
 #define DEVICE_FUSION_DEBUG_MODE        (false)
 #define DEVICE_FUSION_DEBUG_VIA_NETWORK (false)
 #define DEVICE_FUSION_DEBUG_LOG_ENABLED (false)
@@ -43,12 +43,12 @@
 #define DEVICE_FUSION_FILTER_BTW          (1)
 #define DEVICE_FUSION_ACC_FILTER          DEVICE_FUSION_FILTER_BTW
 #define DEVICE_FUSION_COMPASS_FILTER      DEVICE_FUSION_FILTER_BTW
-#define DEVICE_FUSION_TUNING_MODE_ENABLED (true)  // Enable live tuning of fusion parameters
-#define DEVICE_IDLE_MODE_ENABLED          (true)  // Return to idle mode after a period of inactivity
-#define DEVICE_NETWORK_ENABLED            (true)
-#define DEVICE_NETWORK_TOTAL_KM_ENABLED   (true)  // Enable total km in network messages
-#define DEVICE_INPUT_ENABLED              (true)
-#define DEVICE_UI_ENABLED                 (true)
+#define DEVICE_FUSION_TUNING_MODE_ENABLED (false)  // Enable live tuning of fusion parameters
+#define DEVICE_IDLE_MODE_ENABLED          (true)   // Return to idle mode after a period of inactivity
+#define DEVICE_NETWORK_ENABLED            (true)   // Enable network communication (MQTT, Firebase, etc.)
+#define DEVICE_NETWORK_TOTAL_KM_ENABLED   (true)   // Enable total km in network messages
+#define DEVICE_INPUT_ENABLED              (true)   // Enable input handling (buttons, touch, etc.)
+#define DEVICE_UI_ENABLED                 (true)   // Enable UI rendering on the screen
 #define DEVICE_LOCK_DEBUG_MODE_ENABLED    (false)  // Use stop and pause button to simulate lock and pause in debug mode
 
 #define DEVICE_SIM_EG800K                 (true)

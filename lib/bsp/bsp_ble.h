@@ -92,7 +92,7 @@ bool bsp_ble_is_connected(void);
 /* --- Tracker Network Service sends (NET_CH_DATA / NOTI / CMD_RESP) --- */
 
 /**
- * @brief Notify DATA characteristic (telemetry → app)
+ * @brief Notify DATA characteristic (telemetry to app)
  * @param[in] data Pointer to data to send
  * @param[in] size Size of data
  * @return status_function_t STATUS_OK if successful, STATUS_ERROR if no connection
@@ -100,7 +100,7 @@ bool bsp_ble_is_connected(void);
 status_function_t bsp_ble_send_data(const uint8_t *data, size_t size);
 
 /**
- * @brief Notify NOTI characteristic (alarm/event → app)
+ * @brief Notify NOTI characteristic (alarm/event to app)
  * @param[in] data Pointer to data to send
  * @param[in] size Size of data
  * @return status_function_t STATUS_OK if successful, STATUS_ERROR if no connection
@@ -108,7 +108,7 @@ status_function_t bsp_ble_send_data(const uint8_t *data, size_t size);
 status_function_t bsp_ble_send_noti(const uint8_t *data, size_t size);
 
 /**
- * @brief Notify CMD characteristic (command response → app)
+ * @brief Notify CMD characteristic (command response to app)
  * @param[in] data Pointer to data to send
  * @param[in] size Size of data
  * @return status_function_t STATUS_OK if successful, STATUS_ERROR if no connection
@@ -116,7 +116,7 @@ status_function_t bsp_ble_send_noti(const uint8_t *data, size_t size);
 status_function_t bsp_ble_send_cmd_resp(const uint8_t *data, size_t size);
 
 /**
- * @brief Get payload of the last CMD characteristic write (app → device)
+ * @brief Get payload of the last CMD characteristic write (app to device)
  * @param[out] out_buffer Destination buffer
  * @param[in]  max_size   Maximum bytes to copy
  * @return size_t Bytes copied; 0 if no new write available
