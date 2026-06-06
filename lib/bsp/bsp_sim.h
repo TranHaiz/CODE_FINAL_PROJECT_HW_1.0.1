@@ -69,6 +69,12 @@ status_function_t bsp_sim_reset_http(void);
  */
 status_function_t bsp_sim_hard_reset(void);
 
+/**
+ * @brief  Check which LTE band the SIM module is currently using
+ * @return LTE band number, or 0 if unknown/error
+ */
+uint32_t bsp_sim_check_lte_band(void);
+
 #if (CONFIG_FIREBASE_SERVER == true)
 /**
  * @brief  Send data to firebase

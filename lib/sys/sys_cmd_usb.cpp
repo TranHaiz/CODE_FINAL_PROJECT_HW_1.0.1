@@ -53,6 +53,7 @@ static void sys_cmd_usb_sleep_handler(void);
 static void sys_cmd_usb_flush_fusion_log_handler(void);
 #endif
 static void sys_cmd_usb_device_info_handler(void);
+static void sys_cmd_usb_check_lte_band_handler(void);
 
 /* Private variables -------------------------------------------------- */
 // clang-format off
@@ -72,7 +73,8 @@ static sys_cmd_usb_t CMD_USB_INFO[SYS_CMD_USB_CMD_MAX] = {
   #if (DEVICE_FUSION_DEBUG_LOG_ENABLED)
   INFO("FLUSH_FUSION_LOG",  sys_cmd_usb_flush_fusion_log_handler),
   #endif
-  INFO("DEVICE_INFO",       sys_cmd_usb_device_info_handler)
+  INFO("DEVICE_INFO",       sys_cmd_usb_device_info_handler),
+  INFO("CHECK_LTE_BAND",    sys_cmd_usb_check_lte_band_handler)
 };
 #undef INFO
 // clang-format on
@@ -386,13 +388,17 @@ static void sys_cmd_usb_device_info_handler(void)
   LOG_INF("Total km    : %.2f", g_device_info.nvs_info.total_km);
   LOG_INF("Err count   : %u", g_device_info.nvs_info.err_count);
   LOG_INF("Reset reason: %d", g_device_info.last_reset_reason);
-  LOG_INF("Danger noti : %s (level %d)", g_device_info.danger_noti_enabled ? "ON" : "OFF",
-          g_device_info.danger_level);
+  LOG_INF("Danger noti : %s (level %d)", g_device_info.danger_noti_enabled ? "ON" : "OFF", g_device_info.danger_level);
   LOG_INF("CMD topic   : %s", g_device_info.mqtt_cmd_topic);
   LOG_INF("Data topic  : %s", g_device_info.mqtt_data_topic);
   LOG_INF("Noti topic  : %s", g_device_info.mqtt_noti_topic);
   LOG_INF("Log SD path : %s", g_device_info.log_sd_path);
   LOG_INF("=======================");
+}
+
+static void sys_cmd_usb_check_lte_band_handler(void)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_CHECK_LTE_BAND);
 }
 
 /* End of file -------------------------------------------------------- */

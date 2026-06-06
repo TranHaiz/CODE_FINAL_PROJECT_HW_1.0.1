@@ -14,7 +14,6 @@
 #include "sys_manager.h"
 
 #include "bsp_acc.h"
-#include "sys_buzzer.h"
 #include "bsp_device.h"
 #include "bsp_led.h"
 #include "bsp_sdcard.h"
@@ -22,6 +21,7 @@
 #include "bsp_timer.h"
 #include "cbuffer.h"
 #include "device_info.h"
+#include "sys_buzzer.h"
 #include "sys_input.h"
 #include "sys_led.h"
 #include "sys_log.h"
@@ -97,6 +97,7 @@ static void sys_manager_warn_low_balance_handler(void);
 static void sys_manager_noti_low_batt_handler(void);
 static void sys_manager_low_balance_noti_timer_callback(TimerHandle_t xTimer);
 static void sys_manager_help_handler(void);
+static void sys_manager_check_lte_band_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -148,6 +149,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_WARN_DEBT            ,   sys_manager_warn_debt_handler           );
   INFO(SYS_MANAGER_EVT_CLEAR_DEBT           ,   sys_manager_clear_debt_handler          );
   INFO(SYS_MANAGER_EVT_HELP                 ,   sys_manager_help_handler                );
+  INFO(SYS_MANAGER_EVT_CHECK_LTE_BAND       ,   sys_manager_check_lte_band_handler      );
   // clang-format on
 }
 #undef INFO
@@ -558,6 +560,12 @@ static void sys_manager_noti_low_batt_handler(void)
   sys_network_publish_noti(NETWORK_NOTI_LOW_BATT, strlen(NETWORK_NOTI_LOW_BATT));
   sys_buzzer_write_event(SYS_BUZZER_EVT_LOW_BATT);
   sys_ui_noti_set(SYS_UI_NOTI_LABEL_LOW_BATT);
+}
+
+static void sys_manager_check_lte_band_handler(void)
+{
+  uint32_t lte_band = bsp_sim_check_lte_band();
+  LOG_INF("Current LTE band: %u", lte_band);
 }
 
 /* End of file -------------------------------------------------------- */

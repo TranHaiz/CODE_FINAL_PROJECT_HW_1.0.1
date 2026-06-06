@@ -20,9 +20,11 @@
 #include "log_service.h"
 #include "os_lib.h"
 #include "sys_cmd.h"
+#include "sys_input.h"
 #include "sys_led.h"
 #include "sys_manager.h"
 
+#include <stdio.h>
 #include <string.h>
 
 /* Private defines ---------------------------------------------------- */
@@ -45,8 +47,6 @@ LOG_MODULE_REGISTER(net_lte, LOG_LEVEL_SYS_NETWORK)
 #define BACKOFF_MAX_MS              (32000)
 #define RETRY_MAX_BEFORE_RESET      (3)
 #define NETWORK_LOST_MAX_COUNT      (10)
-
-#define NETWORK_KEEPALIVE_MES       "KEEPALIVE"
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
@@ -87,6 +87,7 @@ OS_MUTEX_DEFINE_STATIC(lte_publish_mutex);
 static void              lte_change_state(net_state_t new_state);
 static const char       *lte_state_str(net_state_t state);
 static size_t            lte_backoff(uint8_t retry);
+static void              lte_make_keepalive(char *buf, size_t len);
 static void              lte_run_sim_init(void);
 static void              lte_run_sim_wait_ready(void);
 static void              lte_run_mqtt_init(void);
@@ -323,6 +324,15 @@ static void lte_run_sim_wait_ready(void)
   }
 }
 
+static void lte_make_keepalive(char *buf, size_t len)
+{
+  sys_input_data_t input;
+  float            batt = 0.0f;
+  if (sys_input_get_data(&input) == STATUS_OK)
+    batt = input.battery_level;
+  snprintf(buf, len, "%s=%.0f%%", NETWORK_KEEPALIVE_MES, batt);
+}
+
 static void lte_run_mqtt_init(void)
 {
   if (COUNT_MS(lte_ctx.state_enter_ms) >= MQTT_INIT_TIMEOUT_MS)
@@ -346,9 +356,11 @@ static void lte_run_mqtt_init(void)
     return;
   }
 
+  char keepalive_msg[NETWORK_KEEPALIVE_MSG_MAX_LEN];
+  lte_make_keepalive(keepalive_msg, sizeof(keepalive_msg));
   mqtt_message_t verify = {
     .topic   = g_device_info.mqtt_noti_topic,
-    .payload = NETWORK_KEEPALIVE_MES,
+    .payload = keepalive_msg,
   };
   if (bsp_sim_mqtt_pub(&verify) != STATUS_OK)
   {
@@ -378,9 +390,11 @@ static void lte_run_online(void)
         return;
       }
 
+      char keepalive_msg[NETWORK_KEEPALIVE_MSG_MAX_LEN];
+      lte_make_keepalive(keepalive_msg, sizeof(keepalive_msg));
       mqtt_message_t mes = {
         .topic   = g_device_info.mqtt_noti_topic,
-        .payload = NETWORK_KEEPALIVE_MES,
+        .payload = keepalive_msg,
       };
 
       bool ok = false;

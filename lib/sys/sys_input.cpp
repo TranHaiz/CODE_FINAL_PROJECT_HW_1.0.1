@@ -289,14 +289,14 @@ static void sys_input_read_battery_level(float *battery_level)
   float voltage_mv = sum_voltage_mv / (float) valid_count;
 
   // 2. Coulomb counting over the real elapsed interval
-  uint32_t now   = OS_GET_TICK();
-  bool     first = (last_coulomb_ms == 0);
-  uint32_t dt_ms = first ? 0 : (now - last_coulomb_ms);
+  uint32_t now    = OS_GET_TICK();
+  bool     first  = (last_coulomb_ms == 0);
+  uint32_t dt_ms  = first ? 0 : (now - last_coulomb_ms);
   last_coulomb_ms = now;
 
   float raw_ma = (float) bsp_batt_read_current_ma();
-  smoothed_ma  = first ? raw_ma
-                       : (SYS_INPUT_BATT_EMA_ALPHA * raw_ma) + ((1.0f - SYS_INPUT_BATT_EMA_ALPHA) * smoothed_ma);
+  smoothed_ma =
+    first ? raw_ma : (SYS_INPUT_BATT_EMA_ALPHA * raw_ma) + ((1.0f - SYS_INPUT_BATT_EMA_ALPHA) * smoothed_ma);
 
   float delta_mah = smoothed_ma * (dt_ms / 3600000.0f);
   input_ctx.batt_remaining_mah -= delta_mah;
@@ -407,12 +407,12 @@ static status_function_t sys_input_process_active(void)
     g_sys_ui_data_status.is_battery_data_ready_for_ui = true;
 
     static bool low_batt_noti_sent = false;
-    if (input_ctx.data.battery_level <= 0.0f && !low_batt_noti_sent)
+    if (input_ctx.data.battery_level <= BATT_LEVEL_THRESHOLD_LOW && !low_batt_noti_sent)
     {
       sys_manager_write_event(SYS_MANAGER_EVT_NOTI_LOW_BATT);
       low_batt_noti_sent = true;
     }
-    else if (input_ctx.data.battery_level > 5.0f && low_batt_noti_sent)
+    else if (input_ctx.data.battery_level > BATT_LEVEL_THRESHOLD_LOW && low_batt_noti_sent)
     {
       low_batt_noti_sent = false;
     }

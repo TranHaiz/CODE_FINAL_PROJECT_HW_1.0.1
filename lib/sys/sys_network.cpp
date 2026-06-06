@@ -234,8 +234,14 @@ void sys_network_task(void *param)
 
     if (active == &g_net_adapter_ble && lte_ready)
     {
-      if (g_net_adapter_lte.publish(NET_CH_NOTI, (const uint8_t *) NETWORK_PROBE_MES, strlen(NETWORK_PROBE_MES))
-          == STATUS_OK)
+      char             probe_msg[NETWORK_KEEPALIVE_MSG_MAX_LEN];
+      sys_input_data_t probe_input;
+      float            probe_batt = 0.0f;
+      if (sys_input_get_data(&probe_input) == STATUS_OK)
+        probe_batt = probe_input.battery_level;
+      snprintf(probe_msg, sizeof(probe_msg), "%s=%.0f%%", NETWORK_PROBE_MES, probe_batt);
+
+      if (g_net_adapter_lte.publish(NET_CH_NOTI, (const uint8_t *) probe_msg, strlen(probe_msg)) == STATUS_OK)
         lte_ready_streak++;
       else
         lte_ready_streak = 0;

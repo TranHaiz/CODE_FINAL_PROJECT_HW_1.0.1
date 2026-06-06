@@ -196,7 +196,12 @@
 #define NETWORK_NOTI_HELP                 "NOTI_HELP"
 #define NETWORK_NOTI_DEVICE_STOLEN        "NOTI_STOLEN"
 #define NETWORK_NOTI_LOW_BATT             "NOTI_LOW_BATT"
+#define NETWORK_KEEPALIVE_MES             "KEEPALIVE"  // sent as "KEEPALIVE=n%" (n = battery %)
+#define NETWORK_KEEPALIVE_MSG_MAX_LEN     (24)         // fits "KEEPALIVE=100%" + null
 #define NETWORK_DEVICE_RESP_OK_PAYLOAD    "OK"
+
+// ------------------------------ Battery ------------------------------
+#define BATT_LEVEL_THRESHOLD_LOW          (10.0f)
 
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */

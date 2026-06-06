@@ -148,6 +148,51 @@ status_function_t bsp_sim_hard_reset(void)
 #endif
 }
 
+uint32_t bsp_sim_check_lte_band(void)
+{
+#if (DEVICE_SIM_EG800K == true)
+  if (!bsp_sim_send_and_wait_response("AT+QNWINFO\r\n", "+QNWINFO:", 3000))
+  {
+    LOG_WRN("Failed to query network info: %s", sim_rx_buffer);
+    return 0;
+  }
+
+  // +QNWINFO: "FDD LTE","45204","LTE BAND 3",1850
+  uint32_t    band = 0;
+  const char *p    = strstr((const char *) sim_rx_buffer, "LTE BAND ");
+  if (p == NULL || sscanf(p, "LTE BAND %u", &band) != 1)
+  {
+    LOG_WRN("Not on LTE or unknown band: %s", sim_rx_buffer);
+    return 0;
+  }
+
+  LOG_INF("LTE band: %u (%s)", band, sim_rx_buffer);
+  return band;
+
+#elif (DEVICE_SIM_A7680C == true)
+  if (!bsp_sim_send_and_wait_response("AT+CPSI?\r\n", "+CPSI:", 3000))
+  {
+    LOG_WRN("Failed to query serving cell: %s", sim_rx_buffer);
+    return 0;
+  }
+
+  // +CPSI: LTE,Online,460-11,0x5A1E,...,EUTRAN-BAND3,1850,...
+  unsigned int band = 0;
+  const char  *p    = strstr((const char *) sim_rx_buffer, "EUTRAN-BAND");
+  if (p == NULL || sscanf(p, "EUTRAN-BAND%u", &band) != 1)
+  {
+    LOG_WRN("Not on LTE or unknown band: %s", sim_rx_buffer);
+    return 0;
+  }
+
+  LOG_INF("LTE band: %u (%s)", band, sim_rx_buffer);
+  return (uint8_t) band;
+
+#else
+  return 0;
+#endif
+}
+
 status_function_t bsp_sim_init(void)
 {
   if (!bsp_sim_detect_baudrate())
