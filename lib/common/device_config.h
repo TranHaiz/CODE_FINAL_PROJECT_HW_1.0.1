@@ -19,7 +19,7 @@
 // ------------------------------ Device configuration ------------------------------
 #define FIRRMWARE_MAJOR_VERSION         (1)
 #define FIRRMWARE_MINOR_VERSION         (1)
-#define FIRRMWARE_PATCH_VERSION         (2)
+#define FIRRMWARE_PATCH_VERSION         (3)
 
 #define DEFAULT_DEVICE_NAME             "haq-trk-000"
 #define DEVICE_NAME_MAX_LEN             (32)
@@ -30,7 +30,7 @@
 #define DEVICE_SERIAL_NUMBER_MAX_LEN    (33)  // 32 chars + 1 null terminator
 #define DEVICE_MAGIC_NUMBER             (0xDEADBEEF)
 
-#define DEVICE_NORMAL_MODE              (true)
+#define DEVICE_NORMAL_MODE              (false)
 #define DEVICE_FUSION_DEBUG_MODE        (false)
 #define DEVICE_FUSION_DEBUG_VIA_NETWORK (false)
 #define DEVICE_FUSION_DEBUG_LOG_ENABLED (false)
@@ -39,19 +39,20 @@
 #error "DEVICE_FUSION_DEBUG_LOG_ENABLED requires DEVICE_FUSION_DEBUG_MODE to also be true"
 #endif
 
-#define DEVICE_FUSION_FILTER_EMA        (0)
-#define DEVICE_FUSION_FILTER_BTW        (1)
-#define DEVICE_FUSION_ACC_FILTER        DEVICE_FUSION_FILTER_BTW
-#define DEVICE_FUSION_COMPASS_FILTER    DEVICE_FUSION_FILTER_BTW
-#define DEVICE_IDLE_MODE_ENABLED        (true)  // Return to idle mode after a period of inactivity
-#define DEVICE_NETWORK_ENABLED          (true)
-#define DEVICE_NETWORK_TOTAL_KM_ENABLED (true)  // Enable total km in network messages
-#define DEVICE_INPUT_ENABLED            (true)
-#define DEVICE_UI_ENABLED               (true)
-#define DEVICE_LOCK_DEBUG_MODE_ENABLED  (false)  // Use stop and pause button to simulate lock and pause in debug mode
+#define DEVICE_FUSION_FILTER_EMA          (0)
+#define DEVICE_FUSION_FILTER_BTW          (1)
+#define DEVICE_FUSION_ACC_FILTER          DEVICE_FUSION_FILTER_BTW
+#define DEVICE_FUSION_COMPASS_FILTER      DEVICE_FUSION_FILTER_BTW
+#define DEVICE_FUSION_TUNING_MODE_ENABLED (false)  // Enable live tuning of fusion parameters
+#define DEVICE_IDLE_MODE_ENABLED          (true)   // Return to idle mode after a period of inactivity
+#define DEVICE_NETWORK_ENABLED            (true)   // Enable network communication (MQTT, Firebase, etc.)
+#define DEVICE_NETWORK_TOTAL_KM_ENABLED   (true)   // Enable total km in network messages
+#define DEVICE_INPUT_ENABLED              (true)   // Enable input handling (buttons, touch, etc.)
+#define DEVICE_UI_ENABLED                 (true)   // Enable UI rendering on the screen
+#define DEVICE_LOCK_DEBUG_MODE_ENABLED    (false)  // Use stop and pause button to simulate lock and pause in debug mode
 
-#define DEVICE_SIM_EG800K               (true)
-#define DEVICE_SIM_A7680C               (false)
+#define DEVICE_SIM_EG800K                 (true)
+#define DEVICE_SIM_A7680C                 (false)
 
 #if (DEVICE_SIM_EG800K && DEVICE_SIM_A7680C)
 #error \
@@ -141,11 +142,23 @@
 #define ACC_I2C_ADDR_ALT                  (0x6A)
 #define ACC_MOTION_DETECT_THRESHOLD_LEVEL (3)  // 1: low, 2: medium, 3: high
 
+// ------------------------------ IMU axis sign / body frame remap ------------------------------
+#define ACC_AXIS_SIGN_X                   (+1)  // +1 mean back to front, -1 mean front to back
+#define ACC_AXIS_SIGN_Y                   (-1)  // +1 mean left to right, -1 mean right to left
+#define ACC_AXIS_SIGN_Z                   (-1)  // +1 mean down, -1 mean up
+#define GYRO_AXIS_SIGN_X                  (-1)  // +1 mean right side down 30 deg => roll = 30 deg
+#define GYRO_AXIS_SIGN_Y                  (-1)  // +1 mean nose up 30 deg => pitch = 30 deg
+#define GYRO_AXIS_SIGN_Z                  (-1)  // +1 mean frome topview, rotaion right => heading increasing
+
 // ------------------------------ HMC5883L Compass I2C configuration ------------------------------
 #define COMPASS_I2C_SDA_PIN               (4)
 #define COMPASS_I2C_SCL_PIN               (5)
 #define COMPASS_I2C_ADDR                  (0x1E)
 #define COMPASS_I2C_CLOCK                 (100000)
+
+#define COMPASS_AXIS_SIGN_X               (+1)
+#define COMPASS_AXIS_SIGN_Y               (-1)
+#define COMPASS_AXIS_SIGN_Z               (+1)
 
 // ------------------------------ SHT31 Temperature and Humidity Sensor I2C configuration ------------------------------
 #define TEMP_HUM_I2C_SDA_PIN              (4)

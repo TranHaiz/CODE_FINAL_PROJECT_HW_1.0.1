@@ -35,21 +35,23 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_SYS_NETWORK)
 
-#define NETWORK_DATA_TASK_POLL_MS   (700)
-#define NETWORK_CBUFF_SLOT_SIZE     (1024)
-#define NETWORK_CBUFF_COUNT         (100)
-#define NETWORK_BYTES               (NETWORK_CBUFF_COUNT * NETWORK_CBUFF_SLOT_SIZE)
-#define NETWORK_CBUFF_FLUSH_THRESH  (80)
-#define MQTT_REQUEST_PUBLISH_MAX    (10)
-#define SD_OFFLINE_DIR              "/offline"
-#define SD_TRIP_PREFIX              "/offline/trip_"
-#define SD_JSON_LINE_MAX_LEN        (NETWORK_CBUFF_SLOT_SIZE + 2)
-#define SD_CARD_RETRY_COUNT         (3)
-#define SD_CARD_RETRY_DELAY_MS      (100)
-#define MQTT_PUBLISH_RETRY_DELAY_MS (100)
-#define MAX_UPLOAD_TRIPS            (100)
-#define MAX_OFFLINE_TRIP_PATH_LEN   (128)
-#define MAX_OFFLINE_TRIP_NAME_LEN   (64)
+#define NETWORK_DATA_TASK_POLL_MS    (700)
+#define NETWORK_SWITCH_READY_CONFIRM (3)
+#define NETWORK_PROBE_MES            "KEEPALIVE"
+#define NETWORK_CBUFF_SLOT_SIZE      (1024)
+#define NETWORK_CBUFF_COUNT          (100)
+#define NETWORK_BYTES                (NETWORK_CBUFF_COUNT * NETWORK_CBUFF_SLOT_SIZE)
+#define NETWORK_CBUFF_FLUSH_THRESH   (80)
+#define MQTT_REQUEST_PUBLISH_MAX     (10)
+#define SD_OFFLINE_DIR               "/offline"
+#define SD_TRIP_PREFIX               "/offline/trip_"
+#define SD_JSON_LINE_MAX_LEN         (NETWORK_CBUFF_SLOT_SIZE + 2)
+#define SD_CARD_RETRY_COUNT          (3)
+#define SD_CARD_RETRY_DELAY_MS       (100)
+#define MQTT_PUBLISH_RETRY_DELAY_MS  (100)
+#define MAX_UPLOAD_TRIPS             (100)
+#define MAX_OFFLINE_TRIP_PATH_LEN    (128)
+#define MAX_OFFLINE_TRIP_NAME_LEN    (64)
 
 /* Private variables -------------------------------------------------- */
 static bool s_is_init = false;
@@ -197,8 +199,9 @@ void sys_network_publish_noti(const char *payload, size_t payload_len)
 
 void sys_network_task(void *param)
 {
-  net_adapter_t *active         = &g_net_adapter_lte;
-  uint8_t        lte_lost_count = 0;
+  net_adapter_t *active           = &g_net_adapter_lte;
+  uint8_t        lte_lost_count   = 0;
+  uint8_t        lte_ready_streak = 0;
 
   while (1)
   {
@@ -231,13 +234,28 @@ void sys_network_task(void *param)
 
     if (active == &g_net_adapter_ble && lte_ready)
     {
-      active           = &g_net_adapter_lte;
-      lte_lost_count   = 0;
-      s_pub_slot_valid = false;
+      if (g_net_adapter_lte.publish(NET_CH_NOTI, (const uint8_t *) NETWORK_PROBE_MES, strlen(NETWORK_PROBE_MES))
+          == STATUS_OK)
+        lte_ready_streak++;
+      else
+        lte_ready_streak = 0;
+
+      if (lte_ready_streak >= NETWORK_SWITCH_READY_CONFIRM)
+      {
+        active           = &g_net_adapter_lte;
+        lte_lost_count   = 0;
+        lte_ready_streak = 0;
+        s_pub_slot_valid = false;
 #if (DEVICE_BLE_FALLBACK_ENABLED)
-      sys_network_adapter_ble_set_advertise(false);
+        sys_network_adapter_ble_set_advertise(false);
 #endif
-      LOG_INF("Network: BLE → LTE");
+        sys_led_clear_event(SYS_LED_EVT_ERROR_NETWORK_LOST);
+        LOG_INF("Network: BLE => LTE");
+      }
+    }
+    else if (active == &g_net_adapter_ble)
+    {
+      lte_ready_streak = 0;
     }
     else if (active == &g_net_adapter_lte)
     {
@@ -263,7 +281,7 @@ void sys_network_task(void *param)
           {
             active           = &g_net_adapter_ble;
             s_pub_slot_valid = false;
-            LOG_INF("Network: LTE → BLE (lost=%d)", lte_lost_count);
+            LOG_INF("Network: LTE => BLE (lost=%d)", lte_lost_count);
           }
         }
       }

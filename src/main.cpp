@@ -120,7 +120,7 @@ void setup()
   OS_THREAD_CREATE(sys_input_thread, sys_input_thread_func);
 #endif
 
-#if (DEVICE_NETWORK_ENABLED)
+#if (DEVICE_NETWORK_ENABLED && (DEVICE_FUSION_TUNING_MODE_ENABLED != 1))
   OS_THREAD_CREATE(sys_network_thread, sys_network_task);
   OS_THREAD_CREATE(sys_network_lte_thread, sys_network_adapter_lte_task);
 #endif
@@ -282,7 +282,7 @@ void kill_all_threads(void)
 #if (DEVICE_INPUT_ENABLED)
   OS_THREAD_DELETE(sys_input_thread);
 #endif
-#if (DEVICE_NETWORK_ENABLED)
+#if (DEVICE_NETWORK_ENABLED && (DEVICE_FUSION_TUNING_MODE_ENABLED != 1))
   OS_THREAD_DELETE(sys_network_thread);
   OS_THREAD_DELETE(sys_network_lte_thread);
 #endif

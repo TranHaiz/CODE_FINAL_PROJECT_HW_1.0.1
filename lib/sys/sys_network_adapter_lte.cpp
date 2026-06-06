@@ -78,13 +78,14 @@ typedef struct
 #define COUNT_MS(since_ms) ((size_t) (OS_GET_TICK() - (since_ms)))
 
 /* Private variables -------------------------------------------------- */
-static lte_ctx_t             lte_ctx;
-static net_incoming_cb_t     lte_incoming_cb = NULL;
+static lte_ctx_t         lte_ctx;
+static net_incoming_cb_t lte_incoming_cb = NULL;
 
 OS_MUTEX_DEFINE_STATIC(lte_publish_mutex);
 
 /* Private function prototypes ---------------------------------------- */
 static void              lte_change_state(net_state_t new_state);
+static const char       *lte_state_str(net_state_t state);
 static size_t            lte_backoff(uint8_t retry);
 static void              lte_run_sim_init(void);
 static void              lte_run_sim_wait_ready(void);
@@ -157,10 +158,10 @@ static status_function_t lte_adapter_publish(net_channel_t ch, const uint8_t *da
   const char *topic;
   switch (ch)
   {
-  case NET_CH_DATA:     topic = g_device_info.mqtt_data_topic; break;
+  case NET_CH_DATA: topic = g_device_info.mqtt_data_topic; break;
   case NET_CH_NOTI:
   case NET_CH_CMD_RESP: topic = g_device_info.mqtt_noti_topic; break;
-  default:              return STATUS_ERROR;
+  default: return STATUS_ERROR;
   }
 
   char payload_str[MQTT_MESSAGE_MAX_LEN];
@@ -207,7 +208,7 @@ static void lte_adapter_poll(void)
   case DEVICE_STATE_LOCKED:
   case DEVICE_STATE_ACTIVE:
   case DEVICE_STATE_IDLE: lte_process_active(); break;
-  default:                OS_DELAY_MS(OFFLINE_POLL_MS); break;
+  default: OS_DELAY_MS(OFFLINE_POLL_MS); break;
   }
 }
 
@@ -215,14 +216,13 @@ static void lte_process_active(void)
 {
   switch (lte_ctx.state)
   {
-  case NETWORK_STATE_SIM_INIT:       lte_run_sim_init(); break;
+  case NETWORK_STATE_SIM_INIT: lte_run_sim_init(); break;
   case NETWORK_STATE_SIM_WAIT_READY: lte_run_sim_wait_ready(); break;
-  case NETWORK_STATE_MQTT_INIT:      lte_run_mqtt_init(); break;
+  case NETWORK_STATE_MQTT_INIT: lte_run_mqtt_init(); break;
   case NETWORK_STATE_ONLINE:
     if (lte_ctx.network_lost_count)
     {
       lte_ctx.network_lost_count = 0;
-      sys_led_clear_event(SYS_LED_EVT_ERROR_NETWORK_LOST);
       LOG_DBG("LTE: network_lost_count reset");
     }
     lte_run_online();
@@ -264,7 +264,7 @@ static void lte_process_active(void)
 
 static void lte_change_state(net_state_t new_state)
 {
-  LOG_DBG("LTE: %d → %d  (retry=%d)", lte_ctx.state, new_state, lte_ctx.retry_count);
+  LOG_DBG("LTE: %d => %d  (retry=%d)", lte_ctx.state, new_state, lte_ctx.retry_count);
   lte_ctx.prev_state     = lte_ctx.state;
   lte_ctx.state          = new_state;
   lte_ctx.state_enter_ms = OS_GET_TICK();
@@ -342,6 +342,17 @@ static void lte_run_mqtt_init(void)
   if (bsp_sim_mqtt_sub(g_device_info.mqtt_cmd_topic, sys_network_adapter_lte_mqtt_cb) != STATUS_OK)
   {
     LOG_WRN("MQTT subscribe failed");
+    lte_change_state(NETWORK_STATE_ERROR);
+    return;
+  }
+
+  mqtt_message_t verify = {
+    .topic   = g_device_info.mqtt_noti_topic,
+    .payload = NETWORK_KEEPALIVE_MES,
+  };
+  if (bsp_sim_mqtt_pub(&verify) != STATUS_OK)
+  {
+    LOG_WRN("MQTT verify publish failed — no real data path");
     lte_change_state(NETWORK_STATE_ERROR);
     return;
   }

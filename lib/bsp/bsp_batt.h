@@ -20,9 +20,9 @@
 #define BATT_MONITOR_INA226
 // #define BATT_MONITOR_INA219
 
-#define BSP_BATTERY_CAPACITY_MAH  (2000.0f)
+#define BSP_BATTERY_CAPACITY_MAH  (4000.0f)
 #define BSP_BATT_VOLTAGE_FULL_MV  (4200)
-#define BSP_BATT_VOLTAGE_EMPTY_MV (3200)
+#define BSP_BATT_VOLTAGE_EMPTY_MV (3000)
 
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */

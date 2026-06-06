@@ -69,7 +69,6 @@ void sys_led_init(void)
   INFO(SYS_LED_EVT_SERVICE_DONE,           BSP_LED_COLOR_GREEN,  BSP_LED_MODE_BLINK_ONCE,   100           );
   INFO(SYS_LED_EVT_SERVICE_ABORT,          BSP_LED_COLOR_RED,    BSP_LED_MODE_BLINK_ONCE,   100           );
   INFO(SYS_LED_EVT_NOTI_DANGER,            BSP_LED_COLOR_RED,    BSP_LED_MODE_FLASH_FAST,   100           );
-  INFO(SYS_LED_EVT_NOTI_USER_HELP,         BSP_LED_COLOR_RED,    BSP_LED_MODE_FLASH_SLOW,   100           );
   INFO(SYS_LED_EVT_NOTI_LOW_BALANCE,       BSP_LED_COLOR_YELLOW, BSP_LED_MODE_FLASH_SLOW,   50            );
   INFO(SYS_LED_EVT_NOTI_WARNING_DEBT,      BSP_LED_COLOR_YELLOW, BSP_LED_MODE_PULSE,        50            );
   INFO(SYS_LED_EVT_NOTI_RENTAL_LIMIT,      BSP_LED_COLOR_ORANGE, BSP_LED_MODE_FLASH_FAST,   50            );
@@ -141,7 +140,6 @@ static void sys_led_get_current_event(sys_led_evt_t *event)
       {
         // If OFF event is active, it takes precedence and clears some low priority events
         CLEAR_LED_EVENT(SYS_LED_EVT_NOTI_DANGER);
-        CLEAR_LED_EVENT(SYS_LED_EVT_NOTI_USER_HELP);
         CLEAR_LED_EVENT(SYS_LED_EVT_NOTI_LOW_BALANCE);
         CLEAR_LED_EVENT(SYS_LED_EVT_NOTI_WARNING_DEBT);
         CLEAR_LED_EVENT(SYS_LED_EVT_NOTI_RENTAL_LIMIT);

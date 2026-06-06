@@ -38,7 +38,7 @@ LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_SYS_MANAGER)
 
 #define DEVICE_DANGER_NOTI_INTERVAL_MS     (15000)
 #define DEVICE_LOW_BALANCE_NOTI_TIMEOUT_MS (5000)
-#define DEVICE_STOLEN_TIMEOUT_MS           (30000)  // no motion in STOLEN → auto exit to LOCKED
+#define DEVICE_STOLEN_TIMEOUT_MS           (30000)  // no motion in STOLEN => auto exit to LOCKED
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef void (*sys_manager_process_handler_t)(void);
@@ -334,13 +334,12 @@ static void sys_manager_device_stolen_handler(void)
   }
   case DEVICE_STATE_STOLEN:
   {
-    bsp_timer_reset(&manager_handler.stolen_timeout_timer);  // motion still happening → extend window
+    bsp_timer_reset(&manager_handler.stolen_timeout_timer);  // motion still happening => extend window
     break;
   }
   case DEVICE_STATE_ACTIVE:
   {
     // TODO: Noti to server
-    sys_led_write_event(SYS_LED_EVT_NOTI_USER_HELP);
     break;
   }
   default: break;
@@ -488,7 +487,7 @@ static void sys_manager_stolen_timeout_handler(void)
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_STOLEN)
     return;
 
-  LOG_DBG("Stolen timeout: no motion → back to LOCKED");
+  LOG_DBG("Stolen timeout: no motion => back to LOCKED");
   bsp_timer_stop(&manager_handler.danger_noti_timer);
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_led_write_event(SYS_LED_EVT_OFF);

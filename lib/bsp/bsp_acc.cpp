@@ -161,15 +161,13 @@ status_function_t bsp_acc_get_raw_data(bsp_acc_raw_data_t *data)
     return STATUS_ERROR;
   }
 
-  // Read accelerometer data
-  data->acc_x = acc_handler.sensor->readFloatAccelX();
-  data->acc_y = acc_handler.sensor->readFloatAccelY();
-  data->acc_z = acc_handler.sensor->readFloatAccelZ();
+  data->acc_x = ACC_AXIS_SIGN_X * acc_handler.sensor->readFloatAccelX();
+  data->acc_y = ACC_AXIS_SIGN_Y * acc_handler.sensor->readFloatAccelY();
+  data->acc_z = ACC_AXIS_SIGN_Z * acc_handler.sensor->readFloatAccelZ();
 
-  // Read gyroscope data
-  data->gyro_x = acc_handler.sensor->readFloatGyroX();
-  data->gyro_y = acc_handler.sensor->readFloatGyroY();
-  data->gyro_z = acc_handler.sensor->readFloatGyroZ();
+  data->gyro_x = GYRO_AXIS_SIGN_X * acc_handler.sensor->readFloatGyroX();
+  data->gyro_y = GYRO_AXIS_SIGN_Y * acc_handler.sensor->readFloatGyroY();
+  data->gyro_z = GYRO_AXIS_SIGN_Z * acc_handler.sensor->readFloatGyroZ();
 
   // Read temperature
   data->temp_c = acc_handler.sensor->readTempC();

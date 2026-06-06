@@ -110,8 +110,8 @@ int32_t bsp_batt_read_current_ma(void)
   int32_t current_ma = 0;
 
 #ifdef BATT_MONITOR_INA226
-  float current_ua = ina226.getCurrent();
-  current_ma       = (int32_t) (current_ua * 1000.0f);
+  float current_a = ina226.getCurrent();
+  current_ma      = (int32_t) (-current_a * 1000.0f);
 #elif defined(BATT_MONITOR_INA219)
   current_ma = (int32_t) (ina219.getCurrent_mA());
 #endif
