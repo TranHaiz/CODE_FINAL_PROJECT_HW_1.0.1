@@ -412,7 +412,7 @@ static status_function_t sys_input_process_active(void)
       sys_manager_write_event(SYS_MANAGER_EVT_NOTI_LOW_BATT);
       low_batt_noti_sent = true;
     }
-    else if (input_ctx.data.battery_level > BATT_LEVEL_THRESHOLD_LOW && low_batt_noti_sent)
+    else if (input_ctx.data.battery_level > BATT_LEVEL_THRESHOLD_CLEAR_LOW && low_batt_noti_sent)
     {
       low_batt_noti_sent = false;
     }
