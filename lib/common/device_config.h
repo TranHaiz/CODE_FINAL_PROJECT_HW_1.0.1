@@ -19,7 +19,7 @@
 // ------------------------------ Device configuration ------------------------------
 #define FIRRMWARE_MAJOR_VERSION         (1)
 #define FIRRMWARE_MINOR_VERSION         (1)
-#define FIRRMWARE_PATCH_VERSION         (2)
+#define FIRRMWARE_PATCH_VERSION         (3)
 
 #define DEFAULT_DEVICE_NAME             "haq-trk-000"
 #define DEVICE_NAME_MAX_LEN             (32)
