@@ -52,6 +52,7 @@ static void sys_cmd_usb_sleep_handler(void);
 #if (DEVICE_FUSION_DEBUG_LOG_ENABLED)
 static void sys_cmd_usb_flush_fusion_log_handler(void);
 #endif
+static void sys_cmd_usb_device_info_handler(void);
 
 /* Private variables -------------------------------------------------- */
 // clang-format off
@@ -69,8 +70,9 @@ static sys_cmd_usb_t CMD_USB_INFO[SYS_CMD_USB_CMD_MAX] = {
   INFO("SET_DANGER_NOTI",   sys_cmd_usb_set_danger_noti_handler),
   INFO("SLEEP",             sys_cmd_usb_sleep_handler),
   #if (DEVICE_FUSION_DEBUG_LOG_ENABLED)
-  INFO("FLUSH_FUSION_LOG",  sys_cmd_usb_flush_fusion_log_handler)
+  INFO("FLUSH_FUSION_LOG",  sys_cmd_usb_flush_fusion_log_handler),
   #endif
+  INFO("DEVICE_INFO",       sys_cmd_usb_device_info_handler)
 };
 #undef INFO
 // clang-format on
@@ -356,5 +358,41 @@ static void sys_cmd_usb_flush_fusion_log_handler(void)
   sys_fusion_log_flush();
 }
 #endif
+
+static const char *sys_cmd_usb_state_str(device_state_t state)
+{
+  switch (state)
+  {
+  case DEVICE_STATE_IDLE: return "IDLE";
+  case DEVICE_STATE_LOCKED: return "LOCKED";
+  case DEVICE_STATE_ACTIVE: return "ACTIVE";
+  case DEVICE_STATE_ERROR: return "ERROR";
+  case DEVICE_STATE_PAUSED: return "PAUSED";
+  case DEVICE_STATE_NOTI: return "NOTI";
+  case DEVICE_STATE_STOLEN: return "STOLEN";
+  default: return "UNKNOWN";
+  }
+}
+
+static void sys_cmd_usb_device_info_handler(void)
+{
+  LOG_INF("===== DEVICE INFO =====");
+  LOG_INF("Name        : %s", g_device_info.device_name);
+  LOG_INF("Version     : %s", g_device_info.device_version);
+  LOG_INF("Device ID   : %u", g_device_info.nvs_info.device_id);
+  LOG_INF("Serial      : %s", g_device_info.nvs_info.serial_number);
+  LOG_INF("State       : %s (prev %s)", sys_cmd_usb_state_str(g_device_info.nvs_info.curr_state),
+          sys_cmd_usb_state_str(g_device_info.nvs_info.prev_state));
+  LOG_INF("Total km    : %.2f", g_device_info.nvs_info.total_km);
+  LOG_INF("Err count   : %u", g_device_info.nvs_info.err_count);
+  LOG_INF("Reset reason: %d", g_device_info.last_reset_reason);
+  LOG_INF("Danger noti : %s (level %d)", g_device_info.danger_noti_enabled ? "ON" : "OFF",
+          g_device_info.danger_level);
+  LOG_INF("CMD topic   : %s", g_device_info.mqtt_cmd_topic);
+  LOG_INF("Data topic  : %s", g_device_info.mqtt_data_topic);
+  LOG_INF("Noti topic  : %s", g_device_info.mqtt_noti_topic);
+  LOG_INF("Log SD path : %s", g_device_info.log_sd_path);
+  LOG_INF("=======================");
+}
 
 /* End of file -------------------------------------------------------- */
