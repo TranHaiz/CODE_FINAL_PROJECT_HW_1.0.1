@@ -70,6 +70,13 @@ void sys_led_clear_event(sys_led_evt_t event);
  */
 void sys_led_process(void);
 
+/**
+ * @brief Check if a specific LED event is currently active
+ * @param[in] event The event to check
+ * @return true if the event is active, false otherwise
+ */
+bool sys_led_is_event_active(sys_led_evt_t event);
+
 #endif /*End file _SYS_LED_H_*/
 
 /* End of file -------------------------------------------------------- */

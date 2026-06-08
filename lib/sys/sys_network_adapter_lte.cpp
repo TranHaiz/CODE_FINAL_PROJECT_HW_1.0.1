@@ -193,6 +193,12 @@ static status_function_t lte_adapter_publish(net_channel_t ch, const uint8_t *da
     lte_change_state(NETWORK_STATE_ERROR);
     return STATUS_ERROR;
   }
+
+  if (sys_led_is_event_active(SYS_LED_EVT_ERROR_NETWORK_LOST))
+  {
+    sys_led_clear_event(SYS_LED_EVT_ERROR_NETWORK_LOST);
+  }
+
   return STATUS_OK;
 }
 

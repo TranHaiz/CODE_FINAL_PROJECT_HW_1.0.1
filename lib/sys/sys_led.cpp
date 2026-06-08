@@ -127,6 +127,17 @@ void sys_led_process(void)
   bsp_led_task();
 }
 
+bool sys_led_is_event_active(sys_led_evt_t event)
+{
+  if (event >= SYS_LED_EVT_MAX)
+    return false;
+
+  OS_MUTEX_LOCK(sys_led_event_mutex);
+  bool is_active = sys_led_handler.is_active[event];
+  OS_MUTEX_UNLOCK(sys_led_event_mutex);
+  return is_active;
+}
+
 /* Private definitions ----------------------------------------------- */
 static void sys_led_get_current_event(sys_led_evt_t *event)
 {
