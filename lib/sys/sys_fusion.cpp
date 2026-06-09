@@ -766,6 +766,7 @@ static void sys_fusion_update_attitude(const bsp_acc_raw_data_t *imu, bool compa
   // Yaw predict — high-rate gyro_z integration
   float gyro_z_rads            = (imu->gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z;
   fusion_ctx.latest_gyro_z_dps = fabsf(gyro_z_rads) * (180.0f / (float) M_PI);
+#if (DEVICE_FUSION_YAW_CF_ENABLED)
   if (fusion_ctx.yaw_init)
   {
     fusion_ctx.heading_deg += gyro_z_rads * dt * (180.0f / (float) M_PI);
@@ -774,6 +775,7 @@ static void sys_fusion_update_attitude(const bsp_acc_raw_data_t *imu, bool compa
     else if (fusion_ctx.heading_deg < 0.0f)
       fusion_ctx.heading_deg += 360.0f;
   }
+#endif
 
   if (fusion_ctx.is_stationary)
   {
@@ -814,6 +816,7 @@ static void sys_fusion_update_attitude(const bsp_acc_raw_data_t *imu, bool compa
     }
     else
     {
+#if (DEVICE_FUSION_YAW_CF_ENABLED)
       float err = sys_fusion_wrap_to_180(heading_deg - fusion_ctx.heading_deg);
       float weight =
         (fusion_ctx.latest_gyro_z_dps > YAW_ROTATING_TH_DEGPS) ? YAW_GYRO_WEIGHT : YAW_GYRO_WEIGHT_STATIONARY;
@@ -822,6 +825,9 @@ static void sys_fusion_update_attitude(const bsp_acc_raw_data_t *imu, bool compa
         fusion_ctx.heading_deg -= 360.0f;
       else if (fusion_ctx.heading_deg < 0.0f)
         fusion_ctx.heading_deg += 360.0f;
+#else
+      fusion_ctx.heading_deg = heading_deg;  // direct compass heading
+#endif
     }
   }
 

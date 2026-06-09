@@ -49,6 +49,9 @@
 #define DEVICE_FUSION_ALGO_LEGACY         (0)  // v1.1.2: direct compass yaw, CF_WC=2.0
 #define DEVICE_FUSION_ALGO_V2             (1)  // yaw CF + compass Butterworth + fix distance + tuning BLE
 #define DEVICE_FUSION_ALGO                DEVICE_FUSION_ALGO_LEGACY
+
+// Yaw heading source (V2 algo only)
+#define DEVICE_FUSION_YAW_CF_ENABLED      (true)  // true = gyro_z + compass CF; false = direct compass heading
 #define DEVICE_IDLE_MODE_ENABLED          (true)   // Return to idle mode after a period of inactivity
 #define DEVICE_NETWORK_ENABLED            (true)   // Enable network communication (MQTT, Firebase, etc.)
 #define DEVICE_NETWORK_TOTAL_KM_ENABLED   (true)   // Enable total km in network messages
