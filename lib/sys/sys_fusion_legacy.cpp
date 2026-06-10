@@ -479,7 +479,8 @@ void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
       }
       else if ((now - tilt_start_ms) >= tilt_conf_ms)
       {
-        flags = SYS_FUSION_DANGER_MOTION_TILT;
+        if (out_flags != NULL)
+          *out_flags = SYS_FUSION_DANGER_MOTION_TILT;
         return;
       }
     }

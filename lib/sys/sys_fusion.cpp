@@ -40,7 +40,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define ACC_THRESHOLD_MS2           (0.02f)   // Dead-band to gate INS integration (m/s²)
 #define ACC_OFFSET_MAGNITUDE_SAMPLE (200)
 #define ACC_SAMPLING_INTERVAL_MS    (50.0f)
-#define ACC_DENTA_SEC               (ACC_SAMPLING_INTERVAL_MS / 1000.0f)
+#define ACC_DELTA_SEC               (ACC_SAMPLING_INTERVAL_MS / 1000.0f)
 
 // Active-motion threshold — used to suppress GPS anchoring during transients,
 // because GPS speed lags real motion by ~1s during fast accel/decel.
@@ -131,11 +131,11 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define DEG_TO_RAD                         (0.01745329252f)
 
 // Avoid stolen
-#define DANGER_TILT_THRESHOLD_DEG          (45.0f)  // If device tilted >30° for certain time
-#define DANGER_TILT_CONFIRM_MS             (1500)   // Must be tilted for at least 800ms to confirm
-#define DANGER_MOTION_THRESHOLD_G          (0.3f)   // If strong motion >0.18g for certain time
-#define DANGER_MOTION_CONFIRM_MS           (2000)   // Must have strong motion for at least 1200ms to confirm
-#define DANGER_VIBRATION_THRESHOLD_G       (0.5f)   // If vibration magnitude >0.35g for certain time
+#define DANGER_TILT_THRESHOLD_DEG          (45.0f)  // If device tilted >45° for certain time
+#define DANGER_TILT_CONFIRM_MS             (1500)   // Must be tilted for at least 1500ms to confirm
+#define DANGER_MOTION_THRESHOLD_G          (0.3f)   // If strong motion >0.3g for certain time
+#define DANGER_MOTION_CONFIRM_MS           (2000)   // Must have strong motion for at least 2000ms to confirm
+#define DANGER_VIBRATION_THRESHOLD_G       (0.5f)   // If vibration magnitude >0.5g for certain time
 #define DANGER_VIBRATION_WINDOW_MS         (3000)   // Count how many strong vibration events in this rolling window
 #define DANGER_VIBRATION_COUNT_THRESH      (6)  // If strong vibration events exceed this count in the window, confirm danger
 
@@ -189,6 +189,8 @@ typedef struct
   float distance_ins;  // INS-accumulated distance between GPS updates
   bool  gps_reliable;
   bool  is_new_gps_fix_this_cycle;
+  size_t prev_velocity_fix_ms;   // timestamp of previous velocity fix (for dt_gps)
+  float  gps_fix_interval_s;     // interval between the last two velocity fixes
 
   // INS
   size_t last_update_us;
@@ -358,8 +360,8 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   size_t current_time_us = micros();
   size_t current_time_ms = OS_GET_TICK();
   float  dt = (fusion_ctx.last_update_us == 0) ? 0.02f : (current_time_us - fusion_ctx.last_update_us) / US_TO_S;
-  if (dt > ACC_DENTA_SEC)
-    dt = ACC_DENTA_SEC;
+  if (dt > ACC_DELTA_SEC)
+    dt = ACC_DELTA_SEC;
 
   fusion_ctx.is_new_gps_fix_this_cycle = false;
 
@@ -532,7 +534,8 @@ void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
       }
       else if ((now - tilt_start_ms) >= tilt_conf_ms)
       {
-        flags = SYS_FUSION_DANGER_MOTION_TILT;
+        if (out_flags != NULL)
+          *out_flags = SYS_FUSION_DANGER_MOTION_TILT;
         return;
       }
     }
@@ -935,6 +938,11 @@ static void sys_fusion_update_gps_data(void)
 
     fusion_ctx.velocity_ins              = (1.0f - anchor) * fusion_ctx.velocity_ins + anchor * fusion_ctx.velocity_gps;
     fusion_ctx.is_new_gps_fix_this_cycle = true;  // FIX: mark fresh GPS fix for CF
+
+    size_t now_fix_ms = OS_GET_TICK();
+    if (fusion_ctx.prev_velocity_fix_ms > 0)
+      fusion_ctx.gps_fix_interval_s = (now_fix_ms - fusion_ctx.prev_velocity_fix_ms) / 1000.0f;
+    fusion_ctx.prev_velocity_fix_ms = now_fix_ms;
   }
 
   fusion_ctx.last_gps_ms = OS_GET_TICK();
@@ -1091,15 +1099,15 @@ static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt
   else
     cf_wc_effect = CF_WC;
 
-  // dt_gps: time since last GPS fix (used to scale GPS weight correctly)
+  // dt_gps: interval between the last two GPS velocity fixes (scales GPS weight)
   // Falls back to dt when no GPS so the expression stays well-formed.
   float dt_gps = dt;
-  if (use_gps && fusion_ctx.last_gps_ms > 0)
+  if (use_gps && fusion_ctx.gps_fix_interval_s > 0.0f)
   {
-    size_t now_ms  = OS_GET_TICK();
-    float  elapsed = (now_ms - fusion_ctx.last_gps_ms) / 1000.0f;
-    // Clamp to [dt, 1.0s] — reject absurd values
-    if (elapsed > dt && elapsed < 1.0f)
+    float elapsed = fusion_ctx.gps_fix_interval_s;
+    if (elapsed > 1.0f)
+      elapsed = 1.0f;  // clamp absurd gaps
+    if (elapsed > dt)
       dt_gps = elapsed;
   }
 
