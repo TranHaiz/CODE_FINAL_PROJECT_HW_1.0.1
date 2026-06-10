@@ -487,6 +487,12 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   return STATUS_OK;
 }
 
+void sys_fusion_reset_distance(void)
+{
+  fusion_ctx.distance_m       = 0.0f;
+  fusion_ctx.distance_gap_ins = 0.0f;
+}
+
 void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
 {
   static size_t  tilt_start_ms   = 0;

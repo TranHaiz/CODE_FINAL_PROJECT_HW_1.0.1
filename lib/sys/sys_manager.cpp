@@ -420,6 +420,7 @@ static void sys_manager_start_rental_handler(void)
       sys_ui_wakeup();
       sys_input_wakeup();
     }
+    sys_input_reset_data_for_new_rental();
     sys_ui_unlock();
     LOG_DBG("Device unlocked and active from network");
   }

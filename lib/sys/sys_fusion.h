@@ -126,6 +126,12 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data);
  */
 void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags);
 
+/**
+ * @brief Reset distance accumulator (e.g. when starting new rental)
+ * @return none
+ */
+void sys_fusion_reset_distance(void);
+
 #endif /*End file _SYS_FUSION_H_*/
 
 /* End of file -------------------------------------------------------- */

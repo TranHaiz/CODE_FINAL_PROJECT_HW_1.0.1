@@ -109,6 +109,12 @@ status_function_t sys_input_get_fusion_data(sys_fusion_data_t *data);
 status_function_t sys_input_get_env_data(sys_input_data_t *data);
 
 /**
+ * @brief Reset input data when starting new rental session
+ * @return none
+ */
+void sys_input_reset_data_for_new_rental(void);
+
+/**
  * @brief Wake up the device from sleep mode (for rental start)
  */
 void sys_input_wakeup(void);
