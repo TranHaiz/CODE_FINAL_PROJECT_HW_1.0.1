@@ -212,6 +212,13 @@ status_function_t sys_input_get_env_data(sys_input_data_t *data)
   return STATUS_OK;
 }
 
+void sys_input_reset_data_for_new_rental(void)
+{
+  input_ctx.prev_distance_m = 0.0f;
+  input_ctx.data.distance_m = 0.0f;
+  sys_fusion_reset_distance();
+}
+
 status_function_t sys_input_enter_sleep_mode(void)
 {
   status_function_t status = STATUS_OK;

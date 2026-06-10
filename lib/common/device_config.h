@@ -19,7 +19,7 @@
 // ------------------------------ Device configuration ------------------------------
 #define FIRRMWARE_MAJOR_VERSION         (1)
 #define FIRRMWARE_MINOR_VERSION         (1)
-#define FIRRMWARE_PATCH_VERSION         (3)
+#define FIRRMWARE_PATCH_VERSION         (4)
 
 #define DEFAULT_DEVICE_NAME             "haq-trk-000"
 #define DEVICE_NAME_MAX_LEN             (32)
@@ -44,6 +44,15 @@
 #define DEVICE_FUSION_ACC_FILTER          DEVICE_FUSION_FILTER_BTW
 #define DEVICE_FUSION_COMPASS_FILTER      DEVICE_FUSION_FILTER_BTW
 #define DEVICE_FUSION_TUNING_MODE_ENABLED (false)  // Enable live tuning of fusion parameters
+
+// Fusion algorithm version (see sys_fusion.cpp vs sys_fusion_legacy.cpp)
+#define DEVICE_FUSION_ALGO_LEGACY         (0)  // v1.1.2: direct compass yaw, CF_WC=2.0
+#define DEVICE_FUSION_ALGO_V2             (1)  // yaw CF + compass Butterworth + fix distance + tuning BLE
+#define DEVICE_FUSION_ALGO                DEVICE_FUSION_ALGO_V2
+
+// Yaw heading source (V2 algo only)
+#define DEVICE_FUSION_YAW_CF_ENABLED      (false)  // true = gyro_z + compass CF; false = direct compass heading
+
 #define DEVICE_IDLE_MODE_ENABLED          (true)   // Return to idle mode after a period of inactivity
 #define DEVICE_NETWORK_ENABLED            (true)   // Enable network communication (MQTT, Firebase, etc.)
 #define DEVICE_NETWORK_TOTAL_KM_ENABLED   (true)   // Enable total km in network messages
@@ -144,11 +153,11 @@
 
 // ------------------------------ IMU axis sign / body frame remap ------------------------------
 #define ACC_AXIS_SIGN_X                   (+1)  // +1 mean back to front, -1 mean front to back
-#define ACC_AXIS_SIGN_Y                   (-1)  // +1 mean left to right, -1 mean right to left
-#define ACC_AXIS_SIGN_Z                   (-1)  // +1 mean down, -1 mean up
-#define GYRO_AXIS_SIGN_X                  (-1)  // +1 mean right side down 30 deg => roll = 30 deg
-#define GYRO_AXIS_SIGN_Y                  (-1)  // +1 mean nose up 30 deg => pitch = 30 deg
-#define GYRO_AXIS_SIGN_Z                  (-1)  // +1 mean frome topview, rotaion right => heading increasing
+#define ACC_AXIS_SIGN_Y                   (+1)  // +1 mean left to right, -1 mean right to left
+#define ACC_AXIS_SIGN_Z                   (+1)  // +1 mean down, -1 mean up
+#define GYRO_AXIS_SIGN_X                  (+1)  // +1 mean right side down 30 deg => roll = 30 deg
+#define GYRO_AXIS_SIGN_Y                  (+1)  // +1 mean nose up 30 deg => pitch = 30 deg
+#define GYRO_AXIS_SIGN_Z                  (+1)  // +1 mean frome topview, rotaion right => heading increasing
 
 // ------------------------------ HMC5883L Compass I2C configuration ------------------------------
 #define COMPASS_I2C_SDA_PIN               (4)
@@ -157,7 +166,7 @@
 #define COMPASS_I2C_CLOCK                 (100000)
 
 #define COMPASS_AXIS_SIGN_X               (+1)
-#define COMPASS_AXIS_SIGN_Y               (-1)
+#define COMPASS_AXIS_SIGN_Y               (+1)
 #define COMPASS_AXIS_SIGN_Z               (+1)
 
 // ------------------------------ SHT31 Temperature and Humidity Sensor I2C configuration ------------------------------

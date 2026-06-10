@@ -1,5 +1,5 @@
 /**
- * @file       sys_fusion.cpp
+ * @file       sys_fusion_legacy.cpp
  * @copyright  Copyright (C) 2019 ITRVN. All rights reserved.
  * @license    This project is released under the Fiot License.
  * @version    1.0.0
@@ -26,7 +26,7 @@
 
 #include "device_config.h"
 
-#if (DEVICE_FUSION_ALGO == DEVICE_FUSION_ALGO_V2)
+#if (DEVICE_FUSION_ALGO == DEVICE_FUSION_ALGO_LEGACY)
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
@@ -53,14 +53,9 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define GYRO_BIAS_ALPHA             (0.01f)
 #define ACC_FORWARD_MAX_MS2         (3.0f)
 
-#define YAW_GYRO_WEIGHT             (0.98f)
-#define YAW_GYRO_WEIGHT_STATIONARY  (0.85f)
-#define YAW_ROTATING_TH_DEGPS       (10.0f)
-#define YAW_OFFSET_DEG              (0.0f)
-
 // Velocity complementary filter crossover frequency (rad/s)  [Zhao 2020]
 // Higher = faster GPS tracking; lower = smoother INS-dominant output
-#define CF_WC                       (1.0f)
+#define CF_WC                       (2.0f)
 #define CF_WC_TRANSIENT             (4.0f)
 #define CF_WC_TRANSIENT_TH_MS2      (1.5f)
 #define CF_TRANSIENT_AGREE_MS       (2.0f)
@@ -71,7 +66,7 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 
 // Output velocity safety anchor — bounds vout drift when vins is suspect
 #define VOUT_ANCHOR_NONE            (0)  // no extra anchor (baseline)
-#define VOUT_ANCHOR_SOFT            (1)  // continuous slow pull vout => vgps (TC ~2.5s)
+#define VOUT_ANCHOR_SOFT            (1)  // continuous slow pull vout → vgps (TC ~2.5s)
 #define VOUT_ANCHOR_SNAP            (2)  // hard snap when |vout-vgps| exceeds threshold
 #define VOUT_ANCHOR_MODE            (VOUT_ANCHOR_SOFT)
 #define VOUT_ANCHOR_SOFT_RATE       (0.002f)  // per-cycle pull rate (TC ~2.5s @ 200Hz)
@@ -110,19 +105,13 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define COMPASS_EMA_ALPHA                  (0.15f)
 #define COMPASS_UPDATE_MS                  (100)
 
-// Butterworth 2nd-order lowpass for ACC: fc=8 Hz, fs=200 Hz
+// Butterworth 2nd-order lowpass: fc=8 Hz, fs=200 Hz
 // wn=tan(pi*8/200)=0.12683, D=1+sqrt(2)*wn+wn^2
 #define BW_B0                              (0.013450f)
 #define BW_B1                              (0.026899f)
 #define BW_B2                              (0.013450f)
 #define BW_A1                              (-1.646225f)
 #define BW_A2                              (0.699928f)
-
-#define COMPASS_BW_B0                      (0.067455f)
-#define COMPASS_BW_B1                      (0.134911f)
-#define COMPASS_BW_B2                      (0.067455f)
-#define COMPASS_BW_A1                      (-1.142981f)
-#define COMPASS_BW_A2                      (0.412776f)
 
 #define GRAVITY_MS2                        (9.806f)
 #define KMH_TO_MS                          (1.0f / 3.6f)
@@ -147,10 +136,6 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define DANGER_VIBRATION_WINDOW_MS_HIGH    (2000)
 #define DANGER_VIBRATION_COUNT_THRESH_HIGH (2)
 
-// Include AFTER all compile-time #defines — sys_fusion_tune.h #undef's them and rebinds
-// the same names to live struct fields when DEVICE_FUSION_TUNING_MODE_ENABLED is set.
-#include "sys_fusion_tune.h"
-
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
 {
@@ -159,17 +144,12 @@ typedef enum
   GPS_STATE_FADING,
 } gps_state_t;
 
-#if (DEVICE_FUSION_ACC_FILTER == DEVICE_FUSION_FILTER_BTW) || (DEVICE_FUSION_COMPASS_FILTER == DEVICE_FUSION_FILTER_BTW)
+#if (DEVICE_FUSION_ACC_FILTER == DEVICE_FUSION_FILTER_BTW)
 typedef struct
 {
   float x1, x2;
   float y1, y2;
 } biquad_state_t;
-typedef struct
-{
-  float b0, b1, b2;
-  float a1, a2;
-} biquad_coefs_t;
 #endif
 
 typedef struct
@@ -198,7 +178,6 @@ typedef struct
   float  acc_forward;   // Forward acceleration after body→nav projection (m/s²)
   float  offset_magnitude;
   float  distance_m;
-  float  distance_gap_ins;    // INS distance counted while GPS not authoritative; netted out on GPS accept
   float  distance_ins_total;  // cumulative INS-only distance (never reset, debug)
   float  distance_gps_total;  // cumulative GPS haversine (never reset, debug)
 
@@ -215,17 +194,10 @@ typedef struct
   bool           bw_init;
 #endif
 
-#if (DEVICE_FUSION_COMPASS_FILTER == DEVICE_FUSION_FILTER_BTW)
-  biquad_state_t compass_bw_x;
-  biquad_state_t compass_bw_y;
-  biquad_state_t compass_bw_z;
-#endif
-
-  // Attitude — gyro+acc CF for roll/pitch, gyro_z+compass CF for yaw (heading_deg)
+  // Attitude — continuously updated via gyro + acc complementary filter
   float roll_rad;
   float pitch_rad;
-  bool  yaw_init;
-  float latest_gyro_z_dps;
+  // yaw is fusion_ctx.heading_deg (from compass, updated in sys_fusion_read_compass)
 
   float gyro_bias_x;  // rad/s
   float gyro_bias_y;  // rad/s
@@ -282,18 +254,15 @@ static sys_fusion_context_t fusion_ctx = { 0 };
 static float       sys_fusion_calculate_magnitude(float x, float y, float z);
 static void        sys_fusion_calculate_offset_mag(void);
 static void        sys_fusion_calibrate_gyro_bias(void);
-static bool        sys_fusion_preprocess_data(size_t current_ms);
-static bool        sys_fusion_read_imu(bsp_acc_raw_data_t *imu);
-static void        sys_fusion_update_attitude(const bsp_acc_raw_data_t *imu, bool compass_fresh, float dt);
 static void        sys_fusion_update_ins_velocity(float dt);
 static void        sys_fusion_update_gps_data(void);
 static void        sys_fusion_update_gps_state(size_t current_ms);
-static bool        sys_fusion_detect_zupt(float accel_ms2, float dt);
+static void        sys_fusion_detect_zupt(float accel_ms2, float dt);
 static void        sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt);
+static void        sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms);
 static const char *sys_fusion_deg_to_direction_str(float deg);
 static void        sys_fusion_gps_callback(bsp_gps_data_t *gps_data);
 static float       sys_fusion_haversine_m(float lat1, float lon1, float lat2, float lon2);
-static float       sys_fusion_wrap_to_180(float deg);
 
 /* Function definitions ----------------------------------------------- */
 void sys_fusion_init(void)
@@ -309,7 +278,18 @@ void sys_fusion_init(void)
   {
     fusion_ctx.acc_ready = true;
     LOG_DBG("ACC OK");
-    // Initial roll/pitch seeded in sys_fusion_calculate_offset_mag() below
+
+    bsp_acc_raw_data_t init_acc = { 0 };
+    if (bsp_acc_get_raw_data(&init_acc) == STATUS_OK)
+    {
+      fusion_ctx.acc_ema_x    = init_acc.acc_x;
+      fusion_ctx.acc_ema_y    = init_acc.acc_y;
+      fusion_ctx.acc_ema_z    = init_acc.acc_z;
+      fusion_ctx.acc_ema_init = true;
+
+      fusion_ctx.roll_rad  = atan2f(init_acc.acc_y, init_acc.acc_z);
+      fusion_ctx.pitch_rad = atan2f(-init_acc.acc_x, hypotf(init_acc.acc_y, init_acc.acc_z));
+    }
   }
   else
   {
@@ -363,21 +343,12 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
 
   fusion_ctx.is_new_gps_fix_this_cycle = false;
 
-  // Carry over last known heading for cycles where the attitude step is skipped
-  data->heading_deg   = fusion_ctx.heading_deg;
-  data->direction_str = fusion_ctx.direction_str;
+  // 1. Compass, sample rates: COMPASS_UPDATE_MS
+  sys_fusion_read_compass(data, current_time_ms);
 
-  // 1. Read + preprocess sensors
-  bool               compass_fresh = sys_fusion_preprocess_data(current_time_ms);
-  bsp_acc_raw_data_t imu           = { 0 };
-  bool               imu_ok = (fusion_ctx.is_offset_mag_ready && fusion_ctx.acc_ready) && sys_fusion_read_imu(&imu);
-
-  // 2. Attitude CF, body to nav, Vins/Dins
-  if (imu_ok)
+  // 2. Caculate Vins from Acc
+  if (fusion_ctx.is_offset_mag_ready && fusion_ctx.acc_ready)
   {
-    sys_fusion_update_attitude(&imu, compass_fresh, dt);
-    data->heading_deg   = fusion_ctx.heading_deg;
-    data->direction_str = fusion_ctx.direction_str;
     sys_fusion_update_ins_velocity(dt);
   }
 
@@ -386,26 +357,16 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   sys_fusion_update_gps_state(current_time_ms);
 
   // 4. ZUPT
-  bool zupt_locked = sys_fusion_detect_zupt(fusion_ctx.acc_raw * GRAVITY_MS2, dt);
+  sys_fusion_detect_zupt(fusion_ctx.acc_raw * GRAVITY_MS2, dt);
 
-  // 5. Output velocity
-  if (zupt_locked)
-  {
-    data->velocity_ms  = 0.0f;
-    data->velocity_kmh = 0.0f;
-  }
-  else
-  {
-    sys_fusion_compute_output_velocity(data, dt);
-  }
+  // 5. Output velocity — complementary filter (INS + GPS)
+  sys_fusion_compute_output_velocity(data, dt);
 
-  // 6. INS distance fallback when GPS not authoritative; tracked in distance_gap_ins to net out on accept
-  bool gps_authoritative = (fusion_ctx.gps_state == GPS_STATE_ACTIVE) && fusion_ctx.gps_reliable;
-  if (!gps_authoritative && fusion_ctx.is_offset_mag_ready && dt > 0.0f && data->velocity_ms > GPS_SPEED_MIN_MS)
+  // 6. INS-only distance fallback when GPS isn't currently authoritative (FADING or INVALID)
+  if (fusion_ctx.gps_state != GPS_STATE_ACTIVE && fusion_ctx.is_offset_mag_ready && dt > 0.0f
+      && data->velocity_ms > GPS_SPEED_MIN_MS)
   {
-    float d = data->velocity_ms * dt;
-    fusion_ctx.distance_m += d;
-    fusion_ctx.distance_gap_ins += d;
+    fusion_ctx.distance_m += data->velocity_ms * dt;
   }
 
   if (fusion_ctx.velocity_ins != 0.0f)
@@ -422,17 +383,9 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
   }
 
   // 7. Finalize output
-  data->distance_m = fusion_ctx.distance_m;
-  if (fusion_ctx.has_last_gps_position)
-  {
-    data->gps_position.latitude  = fusion_ctx.last_valid_lat;
-    data->gps_position.longitude = fusion_ctx.last_valid_lon;
-  }
-  else
-  {
-    data->gps_position.latitude  = 0.0;
-    data->gps_position.longitude = 0.0;
-  }
+  data->distance_m             = fusion_ctx.distance_m;
+  data->gps_position.latitude  = fusion_ctx.gps_data_buffer.latitude;
+  data->gps_position.longitude = fusion_ctx.gps_data_buffer.longitude;
 
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
   data->debug.acc_raw_x          = fusion_ctx.debug_acc_raw_x;
@@ -485,12 +438,6 @@ status_function_t sys_fusion_process(sys_fusion_data_t *data)
 #endif
 
   return STATUS_OK;
-}
-
-void sys_fusion_reset_distance(void)
-{
-  fusion_ctx.distance_m       = 0.0f;
-  fusion_ctx.distance_gap_ins = 0.0f;
 }
 
 void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
@@ -584,47 +531,32 @@ void sys_fusion_detect_danger_motion(sys_fusion_danger_motion_flag_t *out_flags)
 }
 
 /* Private definitions ----------------------------------------------- */
-#if (DEVICE_FUSION_ACC_FILTER == DEVICE_FUSION_FILTER_BTW) || (DEVICE_FUSION_COMPASS_FILTER == DEVICE_FUSION_FILTER_BTW)
+#if (DEVICE_FUSION_ACC_FILTER == DEVICE_FUSION_FILTER_BTW)
 static void biquad_reset(biquad_state_t *s, float v)
 {
   s->x1 = s->x2 = s->y1 = s->y2 = v;
 }
 
-static float biquad_process(biquad_state_t *s, const biquad_coefs_t *c, float x)
+static float biquad_process(biquad_state_t *s, float x)
 {
-  float y = c->b0 * x + c->b1 * s->x1 + c->b2 * s->x2 - c->a1 * s->y1 - c->a2 * s->y2;
+  float y = BW_B0 * x + BW_B1 * s->x1 + BW_B2 * s->x2 - BW_A1 * s->y1 - BW_A2 * s->y2;
   s->x2   = s->x1;
   s->x1   = x;
   s->y2   = s->y1;
   s->y1   = y;
   return y;
 }
-
-#if (DEVICE_FUSION_ACC_FILTER == DEVICE_FUSION_FILTER_BTW)
-static const biquad_coefs_t k_acc_bw = { BW_B0, BW_B1, BW_B2, BW_A1, BW_A2 };
-#endif
-
-#if (DEVICE_FUSION_COMPASS_FILTER == DEVICE_FUSION_FILTER_BTW)
-static const biquad_coefs_t k_compass_bw = { COMPASS_BW_B0, COMPASS_BW_B1, COMPASS_BW_B2, COMPASS_BW_A1,
-                                             COMPASS_BW_A2 };
-#endif
 #endif
 
 static void sys_fusion_calculate_offset_mag(void)
 {
-  float    sum   = 0.0f;
-  float    sum_x = 0.0f, sum_y = 0.0f, sum_z = 0.0f;
-  uint16_t valid = 0;
+  float sum = 0.0f;
   for (uint16_t i = 0; i < ACC_OFFSET_MAGNITUDE_SAMPLE; i++)
   {
     bsp_acc_raw_data_t d = { 0 };
     if (bsp_acc_get_raw_data(&d) == STATUS_OK)
     {
       sum += sys_fusion_calculate_magnitude((float) d.acc_x, (float) d.acc_y, (float) d.acc_z);
-      sum_x += d.acc_x;
-      sum_y += d.acc_y;
-      sum_z += d.acc_z;
-      valid++;
     }
     delay(5);  // CPU busy waiting
   }
@@ -632,25 +564,6 @@ static void sys_fusion_calculate_offset_mag(void)
   fusion_ctx.offset_magnitude    = sum / (float) ACC_OFFSET_MAGNITUDE_SAMPLE;
   fusion_ctx.is_offset_mag_ready = true;
   LOG_DBG("Offset calibrated: %.4f g", fusion_ctx.offset_magnitude);
-
-  // Seed initial tilt + acc EMA from the averaged stationary samples
-  if (valid > 0)
-  {
-    float avg_x = sum_x / (float) valid;
-    float avg_y = sum_y / (float) valid;
-    float avg_z = sum_z / (float) valid;
-
-    fusion_ctx.roll_rad  = atan2f(avg_y, avg_z);
-    fusion_ctx.pitch_rad = atan2f(-avg_x, hypotf(avg_y, avg_z));
-
-    fusion_ctx.acc_ema_x    = avg_x;
-    fusion_ctx.acc_ema_y    = avg_y;
-    fusion_ctx.acc_ema_z    = avg_z;
-    fusion_ctx.acc_ema_init = true;
-
-    LOG_DBG("Initial tilt: roll=%.2f pitch=%.2f deg", fusion_ctx.roll_rad * 180.0f / (float) M_PI,
-            fusion_ctx.pitch_rad * 180.0f / (float) M_PI);
-  }
   return;
 }
 
@@ -687,166 +600,90 @@ static float sys_fusion_calculate_magnitude(float x, float y, float z)
   return sqrtf(x * x + y * y + z * z);
 }
 
-static float sys_fusion_wrap_to_180(float deg)
+static void sys_fusion_update_ins_velocity(float dt)
 {
-  while (deg > 180.0f) deg -= 360.0f;
-  while (deg < -180.0f) deg += 360.0f;
-  return deg;
-}
-
-static bool sys_fusion_read_imu(bsp_acc_raw_data_t *imu)
-{
-  if (bsp_acc_get_raw_data(imu) != STATUS_OK)
-    return false;
+  bsp_acc_raw_data_t imu = { 0 };
+  if (bsp_acc_get_raw_data(&imu) != STATUS_OK)
+    return;
 
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
-  fusion_ctx.debug_acc_raw_x  = imu->acc_x;
-  fusion_ctx.debug_acc_raw_y  = imu->acc_y;
-  fusion_ctx.debug_acc_raw_z  = imu->acc_z;
-  fusion_ctx.debug_gyro_raw_x = imu->gyro_x;
-  fusion_ctx.debug_gyro_raw_y = imu->gyro_y;
-  fusion_ctx.debug_gyro_raw_z = imu->gyro_z;
+  fusion_ctx.debug_acc_raw_x  = imu.acc_x;
+  fusion_ctx.debug_acc_raw_y  = imu.acc_y;
+  fusion_ctx.debug_acc_raw_z  = imu.acc_z;
+  fusion_ctx.debug_gyro_raw_x = imu.gyro_x;
+  fusion_ctx.debug_gyro_raw_y = imu.gyro_y;
+  fusion_ctx.debug_gyro_raw_z = imu.gyro_z;
 
   if (!fusion_ctx.debug_gyro_ema_init)
   {
-    fusion_ctx.debug_gyro_ema_x    = imu->gyro_x;
-    fusion_ctx.debug_gyro_ema_y    = imu->gyro_y;
-    fusion_ctx.debug_gyro_ema_z    = imu->gyro_z;
+    fusion_ctx.debug_gyro_ema_x    = imu.gyro_x;
+    fusion_ctx.debug_gyro_ema_y    = imu.gyro_y;
+    fusion_ctx.debug_gyro_ema_z    = imu.gyro_z;
     fusion_ctx.debug_gyro_ema_init = true;
   }
   else
   {
     fusion_ctx.debug_gyro_ema_x =
-      DBG_GYRO_EMA_ALPHA * imu->gyro_x + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_x;
+      DBG_GYRO_EMA_ALPHA * imu.gyro_x + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_x;
     fusion_ctx.debug_gyro_ema_y =
-      DBG_GYRO_EMA_ALPHA * imu->gyro_y + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_y;
+      DBG_GYRO_EMA_ALPHA * imu.gyro_y + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_y;
     fusion_ctx.debug_gyro_ema_z =
-      DBG_GYRO_EMA_ALPHA * imu->gyro_z + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_z;
+      DBG_GYRO_EMA_ALPHA * imu.gyro_z + (1.0f - DBG_GYRO_EMA_ALPHA) * fusion_ctx.debug_gyro_ema_z;
   }
 #endif
 
-  // Acc filter — per-axis body frame (EMA or Butterworth, see DEVICE_FUSION_ACC_FILTER)
+  // 1. Acc filter — per-axis body frame (EMA or Butterworth, see DEVICE_FUSION_ACC_FILTER)
 #if (DEVICE_FUSION_ACC_FILTER == DEVICE_FUSION_FILTER_BTW)
   if (!fusion_ctx.bw_init)
   {
-    biquad_reset(&fusion_ctx.bw_x, imu->acc_x);
-    biquad_reset(&fusion_ctx.bw_y, imu->acc_y);
-    biquad_reset(&fusion_ctx.bw_z, imu->acc_z);
+    biquad_reset(&fusion_ctx.bw_x, imu.acc_x);
+    biquad_reset(&fusion_ctx.bw_y, imu.acc_y);
+    biquad_reset(&fusion_ctx.bw_z, imu.acc_z);
     fusion_ctx.bw_init = true;
   }
-  fusion_ctx.acc_ema_x = biquad_process(&fusion_ctx.bw_x, &k_acc_bw, imu->acc_x);
-  fusion_ctx.acc_ema_y = biquad_process(&fusion_ctx.bw_y, &k_acc_bw, imu->acc_y);
-  fusion_ctx.acc_ema_z = biquad_process(&fusion_ctx.bw_z, &k_acc_bw, imu->acc_z);
+  fusion_ctx.acc_ema_x = biquad_process(&fusion_ctx.bw_x, imu.acc_x);
+  fusion_ctx.acc_ema_y = biquad_process(&fusion_ctx.bw_y, imu.acc_y);
+  fusion_ctx.acc_ema_z = biquad_process(&fusion_ctx.bw_z, imu.acc_z);
 #else
   if (!fusion_ctx.acc_ema_init)
   {
-    fusion_ctx.acc_ema_x    = imu->acc_x;
-    fusion_ctx.acc_ema_y    = imu->acc_y;
-    fusion_ctx.acc_ema_z    = imu->acc_z;
+    fusion_ctx.acc_ema_x    = imu.acc_x;
+    fusion_ctx.acc_ema_y    = imu.acc_y;
+    fusion_ctx.acc_ema_z    = imu.acc_z;
     fusion_ctx.acc_ema_init = true;
   }
   else
   {
-    fusion_ctx.acc_ema_x = ACC_EMA_ALPHA * imu->acc_x + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_x;
-    fusion_ctx.acc_ema_y = ACC_EMA_ALPHA * imu->acc_y + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_y;
-    fusion_ctx.acc_ema_z = ACC_EMA_ALPHA * imu->acc_z + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_z;
+    fusion_ctx.acc_ema_x = ACC_EMA_ALPHA * imu.acc_x + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_x;
+    fusion_ctx.acc_ema_y = ACC_EMA_ALPHA * imu.acc_y + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_y;
+    fusion_ctx.acc_ema_z = ACC_EMA_ALPHA * imu.acc_z + (1.0f - ACC_EMA_ALPHA) * fusion_ctx.acc_ema_z;
   }
 #endif
-  return true;
-}
 
-static void sys_fusion_update_attitude(const bsp_acc_raw_data_t *imu, bool compass_fresh, float dt)
-{
-  // Roll/pitch complementary filter (gyro predict + accel correct)
-  float roll_acc  = atan2f(imu->acc_y, imu->acc_z);
-  float pitch_acc = atan2f(-imu->acc_x, hypotf(imu->acc_y, imu->acc_z));
+  float acc_x = fusion_ctx.acc_ema_x;
+  float acc_y = fusion_ctx.acc_ema_y;
+  float acc_z = fusion_ctx.acc_ema_z;
 
-  float gyro_x_rads = (imu->gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x;
-  float gyro_y_rads = (imu->gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y;
+  // 2. Update attitude: roll, pitch
+  float roll_acc  = atan2f(imu.acc_y, imu.acc_z);
+  float pitch_acc = atan2f(-imu.acc_x, hypotf(imu.acc_y, imu.acc_z));
+
+  float gyro_x_rads = (imu.gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x;
+  float gyro_y_rads = (imu.gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y;
 
   fusion_ctx.roll_rad =
     ATTITUDE_GYRO_WEIGHT * (fusion_ctx.roll_rad + gyro_x_rads * dt) + (1.0f - ATTITUDE_GYRO_WEIGHT) * roll_acc;
   fusion_ctx.pitch_rad =
     ATTITUDE_GYRO_WEIGHT * (fusion_ctx.pitch_rad + gyro_y_rads * dt) + (1.0f - ATTITUDE_GYRO_WEIGHT) * pitch_acc;
 
-  // Yaw predict — high-rate gyro_z integration
-  float gyro_z_rads            = (imu->gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z;
-  fusion_ctx.latest_gyro_z_dps = fabsf(gyro_z_rads) * (180.0f / (float) M_PI);
-#if (DEVICE_FUSION_YAW_CF_ENABLED)
-  if (fusion_ctx.yaw_init)
-  {
-    fusion_ctx.heading_deg += gyro_z_rads * dt * (180.0f / (float) M_PI);
-    if (fusion_ctx.heading_deg >= 360.0f)
-      fusion_ctx.heading_deg -= 360.0f;
-    else if (fusion_ctx.heading_deg < 0.0f)
-      fusion_ctx.heading_deg += 360.0f;
-  }
-#endif
-
   if (fusion_ctx.is_stationary)
   {
-    fusion_ctx.gyro_bias_x += GYRO_BIAS_ALPHA * ((imu->gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x);
-    fusion_ctx.gyro_bias_y += GYRO_BIAS_ALPHA * ((imu->gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y);
-    fusion_ctx.gyro_bias_z += GYRO_BIAS_ALPHA * ((imu->gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z);
+    fusion_ctx.gyro_bias_x += GYRO_BIAS_ALPHA * ((imu.gyro_x * DEG_TO_RAD) - fusion_ctx.gyro_bias_x);
+    fusion_ctx.gyro_bias_y += GYRO_BIAS_ALPHA * ((imu.gyro_y * DEG_TO_RAD) - fusion_ctx.gyro_bias_y);
+    fusion_ctx.gyro_bias_z += GYRO_BIAS_ALPHA * ((imu.gyro_z * DEG_TO_RAD) - fusion_ctx.gyro_bias_z);
   }
 
-  // Yaw correct — low-rate compass, tilt-compensated with this cycle's roll/pitch
-  if (compass_fresh)
-  {
-    float mag_x = fusion_ctx.compass_ema_x;
-    float mag_y = fusion_ctx.compass_ema_y;
-    float mag_z = fusion_ctx.compass_ema_z;
-
-    float cos_roll  = cosf(fusion_ctx.roll_rad);
-    float sin_roll  = sinf(fusion_ctx.roll_rad);
-    float cos_pitch = cosf(fusion_ctx.pitch_rad);
-    float sin_pitch = sinf(fusion_ctx.pitch_rad);
-
-    float Xh = mag_x * cos_pitch + mag_y * sin_roll * sin_pitch + mag_z * cos_roll * sin_pitch;
-    float Yh = mag_y * cos_roll - mag_z * sin_roll;
-
-    float heading_deg = atan2f(Yh, Xh) * 180.0f / (float) M_PI;
-    if (heading_deg < 0.0f)
-      heading_deg += 360.0f;
-
-    heading_deg -= YAW_OFFSET_DEG;
-    if (heading_deg >= 360.0f)
-      heading_deg -= 360.0f;
-    else if (heading_deg < 0.0f)
-      heading_deg += 360.0f;
-
-    if (!fusion_ctx.yaw_init)
-    {
-      fusion_ctx.heading_deg = heading_deg;
-      fusion_ctx.yaw_init    = true;
-    }
-    else
-    {
-#if (DEVICE_FUSION_YAW_CF_ENABLED)
-      float err = sys_fusion_wrap_to_180(heading_deg - fusion_ctx.heading_deg);
-      float weight =
-        (fusion_ctx.latest_gyro_z_dps > YAW_ROTATING_TH_DEGPS) ? YAW_GYRO_WEIGHT : YAW_GYRO_WEIGHT_STATIONARY;
-      fusion_ctx.heading_deg += (1.0f - weight) * err;
-      if (fusion_ctx.heading_deg >= 360.0f)
-        fusion_ctx.heading_deg -= 360.0f;
-      else if (fusion_ctx.heading_deg < 0.0f)
-        fusion_ctx.heading_deg += 360.0f;
-#else
-      fusion_ctx.heading_deg = heading_deg;  // direct compass heading
-#endif
-    }
-  }
-
-  fusion_ctx.direction_str = sys_fusion_deg_to_direction_str(fusion_ctx.heading_deg);
-}
-
-static void sys_fusion_update_ins_velocity(float dt)
-{
-  float acc_x = fusion_ctx.acc_ema_x;
-  float acc_y = fusion_ctx.acc_ema_y;
-  float acc_z = fusion_ctx.acc_ema_z;
-
-  // Body frame -> Navigation frame rotation (ZYX Euler, yaw from compass)
+  // 3. Body fram -> Navigation frame rotation (ZYX Euler, yaw from compass)
   float roll  = fusion_ctx.roll_rad;
   float pitch = fusion_ctx.pitch_rad;
   float yaw   = fusion_ctx.heading_deg * DEG_TO_RAD;
@@ -868,7 +705,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   float acc_east = cos_pitch * sin_yaw * abx + (sin_roll * sin_pitch * sin_yaw + cos_roll * cos_yaw) * aby
                    + (cos_roll * sin_pitch * sin_yaw - sin_roll * cos_yaw) * abz;
 
-  // Forward projection — per-axis Butterworth already cleans the input
+  // 4. Forward projection — per-axis Butterworth already cleans the input
   float acc_forward_raw = acc_north * cos_yaw + acc_east * sin_yaw;
 
   float mag_g        = hypotf(hypotf(acc_x, acc_y), acc_z);
@@ -876,7 +713,7 @@ static void sys_fusion_update_ins_velocity(float dt)
 
   fusion_ctx.acc_forward = acc_forward_raw;
 
-  // INS velocity integration
+  // 5. INS velocity integration
   bool gravity_leak = (fabsf(acc_forward_raw) > ACC_FORWARD_MAX_MS2) && (fabsf(mag_g - 1.0f) < 0.25f);
   if (!gravity_leak && fabsf(fusion_ctx.acc_forward) > ACC_THRESHOLD_MS2)
   {
@@ -898,7 +735,7 @@ static void sys_fusion_update_ins_velocity(float dt)
   if (fusion_ctx.velocity_ins < 0.0f)
     fusion_ctx.velocity_ins = 0.0f;
 
-  // Accumulate INS distance
+  // 6. Accumulate INS distance
   if (fusion_ctx.velocity_ins > GPS_SPEED_MIN_MS)
   {
     fusion_ctx.distance_ins += fusion_ctx.velocity_ins * dt;
@@ -941,9 +778,8 @@ static void sys_fusion_update_gps_data(void)
 
   if (is_gps_data_ok)
   {
-    float lat             = (float) fusion_ctx.gps_data_buffer.latitude;
-    float lon             = (float) fusion_ctx.gps_data_buffer.longitude;
-    bool  accept_position = false;
+    float lat = (float) fusion_ctx.gps_data_buffer.latitude;
+    float lon = (float) fusion_ctx.gps_data_buffer.longitude;
 
     if (fusion_ctx.has_last_gps_position)
     {
@@ -961,13 +797,8 @@ static void sys_fusion_update_gps_data(void)
       if (z_r < GPS_RELIABILITY_THRESHOLD_M)
       {
         fusion_ctx.gps_reliable = true;
-        accept_position         = true;
         if (distance_gps < GPS_MAX_STEP_M && fusion_ctx.velocity_gps > GPS_SPEED_MIN_MS)
-        {
-          float inc = distance_gps - fusion_ctx.distance_gap_ins;
-          if (inc > 0.0f)
-            fusion_ctx.distance_m += inc;
-        }
+          fusion_ctx.distance_m += distance_gps;
       }
       else
       {
@@ -979,17 +810,14 @@ static void sys_fusion_update_gps_data(void)
     {
       // First valid fix — no INS reference yet, trust GPS
       fusion_ctx.gps_reliable = true;
-      accept_position         = true;
     }
 
-    if (accept_position)
-    {
-      fusion_ctx.last_valid_lat        = lat;
-      fusion_ctx.last_valid_lon        = lon;
-      fusion_ctx.has_last_gps_position = true;
-      fusion_ctx.distance_ins          = 0.0f;
-      fusion_ctx.distance_gap_ins      = 0.0f;
-    }
+    // Reset INS distance accumulator for next GPS interval
+    fusion_ctx.distance_ins = 0.0f;
+
+    fusion_ctx.last_valid_lat        = lat;
+    fusion_ctx.last_valid_lon        = lon;
+    fusion_ctx.has_last_gps_position = true;
   }
 }
 
@@ -1039,7 +867,7 @@ static void sys_fusion_update_gps_state(size_t current_ms)
   }
 }
 
-static bool sys_fusion_detect_zupt(float accel_ms2, float dt)
+static void sys_fusion_detect_zupt(float accel_ms2, float dt)
 {
   if (fabsf(accel_ms2) < ZUPT_ACC_THRESHOLD)
   {
@@ -1055,11 +883,10 @@ static bool sys_fusion_detect_zupt(float accel_ms2, float dt)
 
     if (fusion_ctx.stationary_time_ms >= ZUPT_TIME_THRESHOLD_MS)
     {
-      // Snap all velocities to zero — seeds CF cleanly for the next motion onset
       fusion_ctx.velocity_ins = 0.0f;
       fusion_ctx.velocity_gps = 0.0f;
+      // Snap CF output too — without this, vout would coast down via CF for ~3*tau
       fusion_ctx.velocity_out = 0.0f;
-      return true;
     }
   }
   else
@@ -1067,7 +894,6 @@ static bool sys_fusion_detect_zupt(float accel_ms2, float dt)
     fusion_ctx.is_stationary      = false;
     fusion_ctx.stationary_time_ms = 0;
   }
-  return false;
 }
 
 static void sys_fusion_compute_output_velocity(sys_fusion_data_t *data, float dt)
@@ -1163,19 +989,23 @@ static const char *sys_fusion_deg_to_direction_str(float deg)
   return s_direction_strings[index];
 }
 
-static bool sys_fusion_preprocess_data(size_t current_ms)
+static void sys_fusion_read_compass(sys_fusion_data_t *data, size_t current_ms)
 {
+  // Always return the latest known heading, even when skipping this cycle
+  data->heading_deg   = fusion_ctx.heading_deg;
+  data->direction_str = fusion_ctx.direction_str;
+
   if (!fusion_ctx.compass_ready)
-    return false;
+    return;
   if ((current_ms - fusion_ctx.compass_last_ms) < COMPASS_UPDATE_MS)
-    return false;
+    return;
   fusion_ctx.compass_last_ms = current_ms;
 
   bsp_compass_raw_data_t raw_data;
   if (bsp_compass_read_raw(&raw_data) != STATUS_OK)
   {
     LOG_ERR("Read compass fail");
-    return false;
+    return;
   }
 
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
@@ -1184,18 +1014,6 @@ static bool sys_fusion_preprocess_data(size_t current_ms)
   fusion_ctx.debug_compass_raw_z = (float) raw_data.raw_z;
 #endif
 
-#if (DEVICE_FUSION_COMPASS_FILTER == DEVICE_FUSION_FILTER_BTW)
-  if (!fusion_ctx.compass_filter_init)
-  {
-    biquad_reset(&fusion_ctx.compass_bw_x, (float) raw_data.raw_x);
-    biquad_reset(&fusion_ctx.compass_bw_y, (float) raw_data.raw_y);
-    biquad_reset(&fusion_ctx.compass_bw_z, (float) raw_data.raw_z);
-    fusion_ctx.compass_filter_init = true;
-  }
-  fusion_ctx.compass_ema_x = biquad_process(&fusion_ctx.compass_bw_x, &k_compass_bw, (float) raw_data.raw_x);
-  fusion_ctx.compass_ema_y = biquad_process(&fusion_ctx.compass_bw_y, &k_compass_bw, (float) raw_data.raw_y);
-  fusion_ctx.compass_ema_z = biquad_process(&fusion_ctx.compass_bw_z, &k_compass_bw, (float) raw_data.raw_z);
-#else
   if (!fusion_ctx.compass_filter_init)
   {
     fusion_ctx.compass_ema_x       = (float) raw_data.raw_x;
@@ -1212,8 +1030,29 @@ static bool sys_fusion_preprocess_data(size_t current_ms)
     fusion_ctx.compass_ema_z =
       COMPASS_EMA_ALPHA * (float) raw_data.raw_z + (1.0f - COMPASS_EMA_ALPHA) * fusion_ctx.compass_ema_z;
   }
-#endif
-  return true;
+
+  float mag_x = fusion_ctx.compass_ema_x;
+  float mag_y = fusion_ctx.compass_ema_y;
+  float mag_z = fusion_ctx.compass_ema_z;
+
+  float cos_roll  = cosf(fusion_ctx.roll_rad);
+  float sin_roll  = sinf(fusion_ctx.roll_rad);
+  float cos_pitch = cosf(fusion_ctx.pitch_rad);
+  float sin_pitch = sinf(fusion_ctx.pitch_rad);
+
+  float Xh = mag_x * cos_pitch + mag_y * sin_roll * sin_pitch + mag_z * cos_roll * sin_pitch;
+  float Yh = mag_y * cos_roll - mag_z * sin_roll;
+
+  float heading_rad = atan2f(Yh, Xh);
+  float heading_deg = heading_rad * 180.0f / (float) M_PI;
+  if (heading_deg < 0.0f)
+    heading_deg += 360.0f;
+
+  fusion_ctx.heading_deg   = heading_deg;
+  fusion_ctx.direction_str = sys_fusion_deg_to_direction_str(heading_deg);
+
+  data->heading_deg   = fusion_ctx.heading_deg;
+  data->direction_str = fusion_ctx.direction_str;
 }
 
 static void sys_fusion_gps_callback(bsp_gps_data_t *gps_data)
@@ -1236,6 +1075,6 @@ static float sys_fusion_haversine_m(float lat1, float lon1, float lat2, float lo
   return R * 2.0f * atan2f(sqrtf(a), sqrtf(1.0f - a));
 }
 
-#endif  // DEVICE_FUSION_ALGO == DEVICE_FUSION_ALGO_V2
+#endif  // DEVICE_FUSION_ALGO == DEVICE_FUSION_ALGO_LEGACY
 
 /* End of file -------------------------------------------------------- */
