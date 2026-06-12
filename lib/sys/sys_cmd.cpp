@@ -57,6 +57,7 @@ static void sys_cmd_warn_debt_handler(void);
 static void sys_cmd_clear_debt_handler(void);
 static void sys_cmd_warn_low_balance_handler(void);
 static void sys_cmd_start_rental_handler(void);
+static void sys_cmd_pause_ok_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -81,7 +82,8 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("WARN_DEBT", sys_cmd_warn_debt_handler),
   INFO("DEBT_CLEAR", sys_cmd_clear_debt_handler),
   INFO("WARN_LOW_BALANCE", sys_cmd_warn_low_balance_handler),
-  INFO("START_RENTAL", sys_cmd_start_rental_handler)
+  INFO("START_RENTAL", sys_cmd_start_rental_handler),
+  INFO("OK", sys_cmd_pause_ok_handler)
 };
 #undef INFO
 // clang-format on
@@ -115,6 +117,7 @@ static status_function_t sys_cmd_parse_and_execute(const char *input)
       if (CMD_INFO[i].handler)
       {
         CMD_INFO[i].handler();
+        LOG_DBG("Command '%s' executed successfully", CMD_INFO[i].command);
         return STATUS_OK;
       }
       else
@@ -300,6 +303,11 @@ static void sys_cmd_stop_rental_fail_handler(void)
 static void sys_cmd_stop_rental_success_handler(void)
 {
   sys_cmd_request_evt(SYS_MANAGER_EVT_STOP_RENTAL_SUCCESS);
+}
+
+static void sys_cmd_pause_ok_handler(void)
+{
+  sys_cmd_request_evt(SYS_MANAGER_EVT_PAUSE_CONFIRM);
 }
 
 static void sys_cmd_set_danger_noti_handler(void)

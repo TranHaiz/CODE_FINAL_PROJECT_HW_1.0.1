@@ -39,6 +39,7 @@ LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_SYS_MANAGER)
 #define DEVICE_DANGER_NOTI_INTERVAL_MS     (15000)
 #define DEVICE_LOW_BALANCE_NOTI_TIMEOUT_MS (5000)
 #define DEVICE_STOLEN_TIMEOUT_MS           (30000)  // no motion in STOLEN => auto exit to LOCKED
+#define DEVICE_PAUSE_CONFIRM_TIMEOUT_MS    (20000)  // wait for server "OK" after pause, else abort
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef void (*sys_manager_process_handler_t)(void);
@@ -53,8 +54,10 @@ typedef struct
   bsp_timer_t                   danger_noti_timer;
   bsp_timer_t                   low_balance_noti_timer;
   bsp_timer_t                   stolen_timeout_timer;
+  bsp_timer_t                   pause_timeout_timer;
   bool                          is_noti_limited_active;
   bool                          is_warning_debt_active;
+  bool                          is_pause_pending;
 } sys_manager_handler_t;
 
 /* Private macros ----------------------------------------------------- */
@@ -76,6 +79,9 @@ static void sys_manager_change_topic_sub_handler(void);
 static void sys_manager_reboot_handler(void);
 static void sys_manager_user_lock_handler(void);
 static void sys_manager_user_pause_handler(void);
+static void sys_manager_pause_confirm_handler(void);
+static void sys_manager_pause_timeout_handler(void);
+static void sys_manager_pause_timeout_timer_callback(TimerHandle_t xTimer);
 static void sys_manager_shutdown_timer_callback(TimerHandle_t xTimer);
 static void sys_manager_shutdown_handler(void);
 static void sys_manager_device_stolen_handler(void);
@@ -118,6 +124,9 @@ void sys_manager_init(void)
   bsp_timer_init(&manager_handler.stolen_timeout_timer, DEVICE_STOLEN_TIMEOUT_MS, false,
                  sys_manager_stolen_timeout_timer_callback);
 
+  bsp_timer_init(&manager_handler.pause_timeout_timer, DEVICE_PAUSE_CONFIRM_TIMEOUT_MS, false,
+                 sys_manager_pause_timeout_timer_callback);
+
   OS_SEM_CREATE(sys_manager_event_sem);
   OS_MUTEX_CREATE(sys_manager_event_mutex);
   cb_init(&manager_handler.event_cb, s_event_buffer, sizeof(s_event_buffer));
@@ -132,6 +141,8 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_REBOOT               ,   sys_manager_reboot_handler              );
   INFO(SYS_MANAGER_EVT_USER_LOCK            ,   sys_manager_user_lock_handler           );
   INFO(SYS_MANAGER_EVT_USER_PAUSE           ,   sys_manager_user_pause_handler          );
+  INFO(SYS_MANAGER_EVT_PAUSE_CONFIRM        ,   sys_manager_pause_confirm_handler       );
+  INFO(SYS_MANAGER_EVT_PAUSE_TIMEOUT        ,   sys_manager_pause_timeout_handler       );
   INFO(SYS_MANAGER_EVT_SHUTDOWN             ,   sys_manager_shutdown_handler            );
   INFO(SYS_MANAGER_EVT_DEVICE_STOLEN        ,   sys_manager_device_stolen_handler       );
   INFO(SYS_MANAGER_EVT_UNLOCK_FROM_NETWORK  ,   sys_manager_unlock_from_network_handler );
@@ -179,15 +190,24 @@ void sys_manager_process(void)
 
   sys_manager_event_t event_to_process = SYS_MANAGER_EVT_MAX;
 
-  OS_MUTEX_LOCK(sys_manager_event_mutex);
-  size_t read = cb_read(&manager_handler.event_cb, &event_to_process, sizeof(sys_manager_event_t));
-  OS_MUTEX_UNLOCK(sys_manager_event_mutex);
-
-  if (read == sizeof(sys_manager_event_t) && event_to_process < SYS_MANAGER_EVT_MAX
-      && manager_handler.handler[event_to_process] != nullptr)
+  // Drain the whole queue: the event semaphore is binary, so rapid gives coalesce
+  // and a single take must not leave queued events stuck until the next give.
+  while (true)
   {
-    LOG_DBG("Processed event: %d", event_to_process);
-    manager_handler.handler[event_to_process]();
+    OS_MUTEX_LOCK(sys_manager_event_mutex);
+    size_t read = cb_read(&manager_handler.event_cb, &event_to_process, sizeof(sys_manager_event_t));
+    OS_MUTEX_UNLOCK(sys_manager_event_mutex);
+
+    if (read != sizeof(sys_manager_event_t))
+    {
+      break;
+    }
+
+    if (event_to_process < SYS_MANAGER_EVT_MAX && manager_handler.handler[event_to_process] != nullptr)
+    {
+      LOG_DBG("Processed event: %d", event_to_process);
+      manager_handler.handler[event_to_process]();
+    }
   }
 }
 
@@ -284,6 +304,10 @@ static void sys_manager_user_lock_handler(void)
 
 static void sys_manager_user_pause_handler(void)
 {
+  if (manager_handler.is_pause_pending)
+  {
+    return;  // already waiting for server OK, ignore repeated presses
+  }
   LOG_DBG("Handling user pause event");
   sys_network_publish_noti(NETWORK_NOTI_USERPAUSE_PAYLOAD, strlen(NETWORK_NOTI_USERPAUSE_PAYLOAD));
 #if (DEVICE_LOCK_DEBUG_MODE_ENABLED)
@@ -293,7 +317,43 @@ static void sys_manager_user_pause_handler(void)
 #if (DEVICE_IDLE_MODE_ENABLED)
   bsp_timer_start(&manager_handler.shutdown_timer);
 #endif  // DEVICE_IDLE_MODE_ENABLED
+#else
+  // Lock the screen only once the server confirms "OK" within the timeout window
+  manager_handler.is_pause_pending = true;
+  bsp_timer_start(&manager_handler.pause_timeout_timer);
 #endif  // DEVICE_LOCK_DEBUG_MODE_ENABLED
+}
+
+static void sys_manager_pause_timeout_timer_callback(TimerHandle_t xTimer)
+{
+  sys_manager_write_event(SYS_MANAGER_EVT_PAUSE_TIMEOUT);
+}
+
+static void sys_manager_pause_confirm_handler(void)
+{
+  if (!manager_handler.is_pause_pending)
+  {
+    return;  // stray OK outside the pause window
+  }
+  manager_handler.is_pause_pending = false;
+  bsp_timer_stop(&manager_handler.pause_timeout_timer);
+
+  device_info_update_state(DEVICE_STATE_LOCKED);
+  sys_ui_lock();
+#if (DEVICE_IDLE_MODE_ENABLED)
+  bsp_timer_start(&manager_handler.shutdown_timer);
+#endif  // DEVICE_IDLE_MODE_ENABLED
+  LOG_DBG("Pause confirmed by server, screen locked");
+}
+
+static void sys_manager_pause_timeout_handler(void)
+{
+  if (!manager_handler.is_pause_pending)
+  {
+    return;
+  }
+  manager_handler.is_pause_pending = false;
+  LOG_DBG("Pause confirm timeout, no server OK");
 }
 
 static void sys_manager_shutdown_timer_callback(TimerHandle_t xTimer)

@@ -147,6 +147,7 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 // Timing
 #define SYS_UI_COUNTDOWN_MS                  (1000)
 #define SYS_UI_ENVIRONMENT_MS                (3000)
+#define SYS_UI_TOUCH_DEBOUNCE_MS             (40)
 
 // Data limits
 #define SYS_UI_MAX_RENTAL_HISTORY            (4)
@@ -2439,6 +2440,11 @@ static void sys_ui_log_dust_sample(float value, size_t timestamp)
 
 static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 {
+  static bool     touch_held    = false;
+  static uint16_t touch_last_x  = 0;
+  static uint16_t touch_last_y  = 0;
+  static uint32_t touch_last_ms = 0;
+
   sys_ui_context_t *ctx = (sys_ui_context_t *) lv_indev_get_user_data(indev);
   if (ctx == nullptr)
   {
@@ -2449,14 +2455,27 @@ static void sys_ui_lvgl_touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
   bsp_touch_point_t point = { 0 };
   bsp_touch_read(&point);
 
+  uint32_t now = OS_GET_TICK();
+
   if (point.touched)
   {
+    touch_held    = true;
+    touch_last_x  = point.x;
+    touch_last_y  = point.y;
+    touch_last_ms = now;
     data->point.x = point.x;
     data->point.y = point.y;
     data->state   = LV_INDEV_STATE_PRESSED;
   }
+  else if (touch_held && (now - touch_last_ms) < SYS_UI_TOUCH_DEBOUNCE_MS)
+  {
+    data->point.x = touch_last_x;
+    data->point.y = touch_last_y;
+    data->state   = LV_INDEV_STATE_PRESSED;
+  }
   else
   {
+    touch_held  = false;
     data->state = LV_INDEV_STATE_RELEASED;
   }
 
