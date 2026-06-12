@@ -63,6 +63,7 @@ static volatile bool        s_find_beep_pending = false;
 /* Private function prototypes ---------------------------------------- */
 static void sys_buzzer_get_current_event(sys_buzzer_evt_t *event);
 static void sys_buzzer_dispatch(sys_buzzer_evt_t event);
+static bool sys_buzzer_event_is_finite(sys_buzzer_evt_t event);
 
 /* Function definitions ----------------------------------------------- */
 void sys_buzzer_init(void)
@@ -120,8 +121,12 @@ void sys_buzzer_process(void)
     LOG_DBG("Buzzer event changed from %d to %d", sys_buzzer_handler.prev_event, sys_buzzer_handler.curr_event);
     sys_buzzer_handler.prev_event = sys_buzzer_handler.curr_event;
   }
+  else if (sys_buzzer_handler.curr_event != SYS_BUZZER_EVT_OFF
+           && sys_buzzer_event_is_finite(sys_buzzer_handler.curr_event) && !bsp_buzzer_is_busy())
+  {
+    sys_buzzer_clear_event(sys_buzzer_handler.curr_event);
+  }
 
-  // One-shot find-me beep — only when no priority buzzer event is sounding
   if (s_find_beep_pending)
   {
     s_find_beep_pending = false;
@@ -175,6 +180,16 @@ static void sys_buzzer_dispatch(sys_buzzer_evt_t event)
   case SYS_BUZZER_PATTERN_NONE:
   default: bsp_buzzer_enable(false); break;
   }
+}
+
+static bool sys_buzzer_event_is_finite(sys_buzzer_evt_t event)
+{
+  const sys_buzzer_evt_info_t *info = &SYS_BUZZER_EVT_INFO[event];
+  if (info->pattern == SYS_BUZZER_PATTERN_BEEP_LONG)
+    return true;
+  if (info->pattern == SYS_BUZZER_PATTERN_BEEP_CYCLE && info->cycles != UINT8_MAX)
+    return true;
+  return false;
 }
 
 /* End of file -------------------------------------------------------- */

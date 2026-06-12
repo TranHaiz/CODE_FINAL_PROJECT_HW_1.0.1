@@ -66,6 +66,12 @@ void bsp_buzzer_enable(bool enable);
  */
 status_function_t bsp_buzzer_beep_cycle(uint8_t cycles, uint32_t beep_ms, uint32_t period_ms);
 
+/**
+ * @brief Whether a timed pattern (beep_long / beep_cycle) is still playing
+ * @return true if a finite pattern is in progress, false when idle
+ */
+bool bsp_buzzer_is_busy(void);
+
 #endif /*End file _BSP_BUZZER_H_*/
 
 /* End of file -------------------------------------------------------- */

@@ -205,6 +205,11 @@ status_function_t bsp_buzzer_beep_cycle(uint8_t cycles, uint32_t beep_ms, uint32
   return STATUS_OK;
 }
 
+bool bsp_buzzer_is_busy(void)
+{
+  return (buzzer_handler.state != BSP_BUZZER_STATE_IDLE);
+}
+
 /* Private definitions ----------------------------------------------- */
 static void bsp_buzzer_set(bool on)
 {
