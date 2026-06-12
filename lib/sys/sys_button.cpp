@@ -33,15 +33,21 @@ typedef enum
   SERVICE_COUNTING,
 } sys_button_svc_state_t;
 
+typedef struct
+{
+  bsp_button_press_type_t type;
+  uint8_t                 count;
+} sys_button_event_t;
+
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
 /* Private variables -------------------------------------------------- */
 OS_SEM_DEFINE_STATIC(sys_button);
 OS_SEM_DEFINE_STATIC(sys_button_wakeup_sem);
 
-static cbuffer_t               s_sys_button_cb;
-static bsp_button_press_type_t s_sys_button_cb_buf[SYS_BUTTON_MAX_EVENTS + 1];
-static sys_manager_event_t     SERVICE_CMD_MAP[SYS_BUTTON_SVC_CMD_MAX + 1];
+static cbuffer_t           s_sys_button_cb;
+static sys_button_event_t  s_sys_button_cb_buf[SYS_BUTTON_MAX_EVENTS + 1];
+static sys_manager_event_t SERVICE_CMD_MAP[SYS_BUTTON_SVC_CMD_MAX + 1];
 
 static sys_button_svc_state_t service_state         = SVC_IDLE;
 static uint8_t                service_press_accum   = 0;
@@ -51,9 +57,9 @@ static sys_led_evt_t          service_led_evt       = SYS_LED_EVT_MAX;  // raise
 static uint32_t               service_led_raised_ms = 0;
 
 /* Private function prototypes ---------------------------------------- */
-static void sys_button_callback(bsp_button_press_type_t press_type);
+static void sys_button_callback(bsp_button_press_type_t press_type, uint8_t count);
 static void sys_button_isr_callback(void);
-static void sys_button_handle_event(bsp_button_press_type_t event);
+static void sys_button_handle_event(sys_button_event_t event);
 static void sys_button_service_tick(void);
 static void sys_button_led_oneshot(sys_led_evt_t evt);
 static void sys_button_service_reset(void);
@@ -95,7 +101,7 @@ void sys_button_process(void)
     return;
   }
 
-  bsp_button_press_type_t event;
+  sys_button_event_t event;
 
   bsp_button_process();
 
@@ -119,21 +125,22 @@ static void sys_button_isr_callback(void)
   }
 }
 
-static void sys_button_callback(bsp_button_press_type_t press_type)
+static void sys_button_callback(bsp_button_press_type_t press_type, uint8_t count)
 {
-  if (cb_space_count(&s_sys_button_cb) >= sizeof(press_type))
+  sys_button_event_t evt = { press_type, count };
+  if (cb_space_count(&s_sys_button_cb) >= sizeof(evt))
   {
-    cb_write(&s_sys_button_cb, &press_type, sizeof(press_type));
+    cb_write(&s_sys_button_cb, &evt, sizeof(evt));
   }
 
   OS_SEM_GIVE(sys_button);
 }
 
-static void sys_button_handle_event(bsp_button_press_type_t event)
+static void sys_button_handle_event(sys_button_event_t event)
 {
   if (service_state == SERVICE_COUNTING)
   {
-    switch (event)
+    switch (event.type)
     {
     case BUTTON_PRESS_SHORT:
     {
@@ -144,7 +151,7 @@ static void sys_button_handle_event(bsp_button_press_type_t event)
     }
     case BUTTON_PRESS_COUNT:
     {
-      service_press_accum += bsp_button_get_count(BUTTON_EVT);
+      service_press_accum += event.count;
       service_last_press_ms = OS_GET_TICK();
       LOG_DBG("Service count: %d", service_press_accum);
       break;
@@ -154,7 +161,7 @@ static void sys_button_handle_event(bsp_button_press_type_t event)
     return;
   }
 
-  switch (event)
+  switch (event.type)
   {
   case BUTTON_PRESS_SHORT:
   {
@@ -180,8 +187,7 @@ static void sys_button_handle_event(bsp_button_press_type_t event)
   }
   case BUTTON_PRESS_COUNT:
   {
-    uint8_t count = bsp_button_get_count(BUTTON_EVT);
-    LOG_DBG("Button press detected: %d times", count);
+    LOG_DBG("Button press detected: %d times", event.count);
     break;
   }
   default: break;

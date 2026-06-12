@@ -38,7 +38,7 @@ typedef enum
   BUTTON_PRESS_SERVICE,
 } bsp_button_press_type_t;
 
-typedef void (*bsp_button_callback_t)(bsp_button_press_type_t press_type);
+typedef void (*bsp_button_callback_t)(bsp_button_press_type_t press_type, uint8_t count);
 typedef void (*bsp_button_isr_callback_t)(void);
 
 /* Public macros ------------------------------------------------------ */
@@ -65,13 +65,6 @@ void bsp_button_set_isr_callback(bsp_button_type_t button, bsp_button_isr_callba
  * @return none
  */
 void bsp_button_process(void);
-
-/**
- * @brief  Get the last reported click count
- * @param[in]  button: button type
- * @return Number of clicks
- */
-uint8_t bsp_button_get_count(bsp_button_type_t button);
 
 /**
  * @brief  Check if service mode is pending (long press detected but not yet serviced)
