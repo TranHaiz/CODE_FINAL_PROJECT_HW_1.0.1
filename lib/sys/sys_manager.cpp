@@ -40,6 +40,7 @@ LOG_MODULE_REGISTER(sys_manager, LOG_LEVEL_SYS_MANAGER)
 #define DEVICE_LOW_BALANCE_NOTI_TIMEOUT_MS (5000)
 #define DEVICE_STOLEN_TIMEOUT_MS           (30000)  // no motion in STOLEN => auto exit to LOCKED
 #define DEVICE_PAUSE_CONFIRM_TIMEOUT_MS    (20000)  // wait for server "OK" after pause, else abort
+#define USER_ACTION_COOLDOWN_MS            (3000)   // anti-spam for stop/pause buttons
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef void (*sys_manager_process_handler_t)(void);
@@ -58,6 +59,7 @@ typedef struct
   bool                          is_noti_limited_active;
   bool                          is_warning_debt_active;
   bool                          is_pause_pending;
+  uint32_t                      last_user_action_ms;
 } sys_manager_handler_t;
 
 /* Private macros ----------------------------------------------------- */
@@ -290,6 +292,19 @@ static void sys_manager_reboot_handler(void)
 
 static void sys_manager_user_lock_handler(void)
 {
+  if (!sys_network_is_trip_active())
+  {
+    LOG_DBG("User lock ignored: no active trip");
+    return;
+  }
+  uint32_t now = OS_GET_TICK();
+  if ((now - manager_handler.last_user_action_ms) < USER_ACTION_COOLDOWN_MS)
+  {
+    LOG_DBG("User lock ignored: cooldown");
+    return;
+  }
+  manager_handler.last_user_action_ms = now;
+
   LOG_DBG("Handling user lock event");
   sys_network_publish_noti(NETWORK_NOTI_USERLOCK_PAYLOAD, strlen(NETWORK_NOTI_USERLOCK_PAYLOAD));
 #if (DEVICE_LOCK_DEBUG_MODE_ENABLED)
@@ -304,10 +319,23 @@ static void sys_manager_user_lock_handler(void)
 
 static void sys_manager_user_pause_handler(void)
 {
+  if (!sys_network_is_trip_active())
+  {
+    LOG_DBG("User pause ignored: no active trip");
+    return;
+  }
   if (manager_handler.is_pause_pending)
   {
     return;  // already waiting for server OK, ignore repeated presses
   }
+  uint32_t now = OS_GET_TICK();
+  if ((now - manager_handler.last_user_action_ms) < USER_ACTION_COOLDOWN_MS)
+  {
+    LOG_DBG("User pause ignored: cooldown");
+    return;
+  }
+  manager_handler.last_user_action_ms = now;
+
   LOG_DBG("Handling user pause event");
   sys_network_publish_noti(NETWORK_NOTI_USERPAUSE_PAYLOAD, strlen(NETWORK_NOTI_USERPAUSE_PAYLOAD));
 #if (DEVICE_LOCK_DEBUG_MODE_ENABLED)

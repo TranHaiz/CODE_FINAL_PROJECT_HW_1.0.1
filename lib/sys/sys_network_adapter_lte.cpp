@@ -79,7 +79,8 @@ typedef struct
 
 /* Private variables -------------------------------------------------- */
 static lte_ctx_t         lte_ctx;
-static net_incoming_cb_t lte_incoming_cb = NULL;
+static net_incoming_cb_t lte_incoming_cb     = NULL;
+static volatile bool     lte_reset_requested = false;
 
 OS_MUTEX_DEFINE_STATIC(lte_publish_mutex);
 
@@ -130,6 +131,11 @@ void sys_network_adapter_lte_mqtt_cb(const char *topic, const uint8_t *data, siz
   {
     lte_incoming_cb(data, len);
   }
+}
+
+void sys_network_adapter_lte_request_reset(void)
+{
+  lte_reset_requested = true;
 }
 
 /* Private definitions ----------------------------------------------- */
@@ -210,6 +216,13 @@ static void lte_adapter_poll(void)
     return;
   }
 
+  if (lte_reset_requested)
+  {
+    lte_reset_requested = false;
+    LOG_INF("LTE: modem reset requested");
+    lte_change_state(NETWORK_STATE_SIM_RESET);
+  }
+
   switch (g_device_info.nvs_info.curr_state)
   {
   case DEVICE_STATE_LOCKED:
@@ -230,6 +243,7 @@ static void lte_process_active(void)
     if (lte_ctx.network_lost_count)
     {
       lte_ctx.network_lost_count = 0;
+      sys_led_clear_event(SYS_LED_EVT_ERROR_NETWORK_LOST);
       LOG_DBG("LTE: network_lost_count reset");
     }
     lte_run_online();

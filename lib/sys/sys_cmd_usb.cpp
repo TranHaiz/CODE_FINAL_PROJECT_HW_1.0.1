@@ -19,6 +19,7 @@
 #include "os_lib.h"
 #include "sys_fusion_log.h"
 #include "sys_manager.h"
+#include "sys_network_adapter_lte.h"
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_cmd_usb, LOG_LEVEL_SYS_CMD_USB);
@@ -54,6 +55,7 @@ static void sys_cmd_usb_flush_fusion_log_handler(void);
 #endif
 static void sys_cmd_usb_device_info_handler(void);
 static void sys_cmd_usb_check_lte_band_handler(void);
+static void sys_cmd_usb_modem_reset_handler(void);
 
 /* Private variables -------------------------------------------------- */
 // clang-format off
@@ -74,7 +76,8 @@ static sys_cmd_usb_t CMD_USB_INFO[SYS_CMD_USB_CMD_MAX] = {
   INFO("FLUSH_FUSION_LOG",  sys_cmd_usb_flush_fusion_log_handler),
   #endif
   INFO("DEVICE_INFO",       sys_cmd_usb_device_info_handler),
-  INFO("CHECK_LTE_BAND",    sys_cmd_usb_check_lte_band_handler)
+  INFO("CHECK_LTE_BAND",    sys_cmd_usb_check_lte_band_handler),
+  INFO("MODEM_RESET",       sys_cmd_usb_modem_reset_handler)
 };
 #undef INFO
 // clang-format on
@@ -399,6 +402,12 @@ static void sys_cmd_usb_device_info_handler(void)
 static void sys_cmd_usb_check_lte_band_handler(void)
 {
   sys_manager_write_event(SYS_MANAGER_EVT_CHECK_LTE_BAND);
+}
+
+static void sys_cmd_usb_modem_reset_handler(void)
+{
+  LOG_INF("MODEM_RESET requested");
+  sys_network_adapter_lte_request_reset();
 }
 
 /* End of file -------------------------------------------------------- */

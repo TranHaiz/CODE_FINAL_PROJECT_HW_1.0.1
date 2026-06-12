@@ -176,6 +176,11 @@ void sys_network_trigger_end_trip(void)
   s_is_data_sd_pending = sys_network_check_sd_pending();
 }
 
+bool sys_network_is_trip_active(void)
+{
+  return (s_active_trip_id != 0);
+}
+
 void sys_network_publish_noti(const char *payload, size_t payload_len)
 {
   if (payload == NULL || payload_len == 0 || payload_len >= MQTT_REQUEST_PUBLISH_SIZE)

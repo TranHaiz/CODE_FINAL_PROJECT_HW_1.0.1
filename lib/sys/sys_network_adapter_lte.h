@@ -36,6 +36,13 @@ void sys_network_adapter_lte_task(void *param);
  */
 void sys_network_adapter_lte_mqtt_cb(const char *topic, const uint8_t *data, size_t len);
 
+/**
+ * @brief Request a modem hard-reset + re-init. Thread-safe (sets a flag the
+ *        adapter task acts on), so it may be called from any task.
+ * @return none
+ */
+void sys_network_adapter_lte_request_reset(void);
+
 #endif /* SYS_NETWORK_ADAPTER_LTE_H */
 
 /* End of file -------------------------------------------------------- */

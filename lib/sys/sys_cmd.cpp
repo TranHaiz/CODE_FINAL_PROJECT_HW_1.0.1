@@ -19,6 +19,7 @@
 #include "bsp_sim.h"
 #include "log_service.h"
 #include "sys_manager.h"
+#include "sys_network_adapter_lte.h"
 #include "sys_ui.h"
 
 /* Private defines ---------------------------------------------------- */
@@ -58,6 +59,7 @@ static void sys_cmd_clear_debt_handler(void);
 static void sys_cmd_warn_low_balance_handler(void);
 static void sys_cmd_start_rental_handler(void);
 static void sys_cmd_pause_ok_handler(void);
+static void sys_cmd_modem_reset_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -83,6 +85,7 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("DEBT_CLEAR", sys_cmd_clear_debt_handler),
   INFO("WARN_LOW_BALANCE", sys_cmd_warn_low_balance_handler),
   INFO("START_RENTAL", sys_cmd_start_rental_handler),
+  INFO("MODEM_RESET", sys_cmd_modem_reset_handler),
   INFO("OK", sys_cmd_pause_ok_handler),
   INFO("K", sys_cmd_pause_ok_handler)
 };
@@ -309,6 +312,11 @@ static void sys_cmd_stop_rental_success_handler(void)
 static void sys_cmd_pause_ok_handler(void)
 {
   sys_cmd_request_evt(SYS_MANAGER_EVT_PAUSE_CONFIRM);
+}
+
+static void sys_cmd_modem_reset_handler(void)
+{
+  sys_network_adapter_lte_request_reset();
 }
 
 static void sys_cmd_set_danger_noti_handler(void)

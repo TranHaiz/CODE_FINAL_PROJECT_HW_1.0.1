@@ -46,6 +46,13 @@ void sys_network_trigger_new_trip(void);
 void sys_network_trigger_end_trip(void);
 
 /**
+ * @brief Whether a rental trip is currently active (started via START_RENTAL,
+ *        not just unlocked). True between trigger_new_trip and trigger_end_trip.
+ * @return true if a trip is active
+ */
+bool sys_network_is_trip_active(void);
+
+/**
  * @brief Delete all files in the offline SD directory and resetstate Safe to call before reboot.
  * @return none
  */
