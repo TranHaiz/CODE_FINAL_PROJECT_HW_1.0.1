@@ -36,6 +36,7 @@ LOG_MODULE_REGISTER(bsp_sim, LOG_LEVEL_BSP_SIM)
 #define MQTT_CLIENT_ID_LEN   (32u)
 #define MQTT_PUBLISH_QOS     (1)
 #define MQTT_SUB_QOS         (2)
+#define MQTT_PUB_PROMPT_DELAY_MS (50)
 
 #define MQTT_BROKER_HOST     "broker.emqx.io"
 #define MQTT_TLS_ENABLED     (false)
@@ -484,6 +485,8 @@ status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
     return STATUS_ERROR;
   }
 
+  OS_DELAY_MS(MQTT_PUB_PROMPT_DELAY_MS);
+
 #if (MQTT_PUBLISH_QOS == 0)
   if (!bsp_sim_send_and_wait_response(msg->payload, "+QMTPUBEX: 0,0,0", 10000))
   {
@@ -491,7 +494,6 @@ status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
     return STATUS_ERROR;
   }
 #elif (MQTT_PUBLISH_QOS == 1)
-  OS_DELAY_MS(5);
   if (!bsp_sim_send_and_wait_response(msg->payload, "+QMTPUBEX: 0,1,0", 10000))
   {
     LOG_WRN("Failed to publish MQTT message: %s", sim_rx_buffer);
@@ -507,6 +509,7 @@ status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
     LOG_WRN("Failed to set MQTT topic: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
+  OS_DELAY_MS(MQTT_PUB_PROMPT_DELAY_MS);
   if (!bsp_sim_send_and_wait_response(msg->topic, "OK", 2000))
   {
     LOG_WRN("Failed to send MQTT topic: %s", sim_rx_buffer);
@@ -519,6 +522,7 @@ status_function_t bsp_sim_mqtt_pub(mqtt_message_t *msg)
     LOG_WRN("Failed to set MQTT payload: %s", sim_rx_buffer);
     return STATUS_ERROR;
   }
+  OS_DELAY_MS(MQTT_PUB_PROMPT_DELAY_MS);
   if (!bsp_sim_send_and_wait_response(msg->payload, "OK", 2000))
   {
     LOG_WRN("Failed to send MQTT payload: %s", sim_rx_buffer);

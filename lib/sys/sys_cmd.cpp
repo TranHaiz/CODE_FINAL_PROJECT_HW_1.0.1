@@ -83,7 +83,8 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("DEBT_CLEAR", sys_cmd_clear_debt_handler),
   INFO("WARN_LOW_BALANCE", sys_cmd_warn_low_balance_handler),
   INFO("START_RENTAL", sys_cmd_start_rental_handler),
-  INFO("OK", sys_cmd_pause_ok_handler)
+  INFO("OK", sys_cmd_pause_ok_handler),
+  INFO("K", sys_cmd_pause_ok_handler)
 };
 #undef INFO
 // clang-format on

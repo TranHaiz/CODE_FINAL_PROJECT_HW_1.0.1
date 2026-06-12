@@ -40,6 +40,7 @@ typedef enum
   CMD_WARN_LOW_BALANCE,
   CMD_START_RENTAL,
   CMD_PAUSE_OK,
+  CMD_PAUSE_OK_DROPPED,  // "OK" arriving as "K" when modem drops the leading char
   CMD_MAX
 } sys_command_id_t;
 
