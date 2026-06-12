@@ -334,12 +334,14 @@ static void sys_cmd_usb_set_danger_noti_handler(void)
     {
       g_device_info.danger_noti_enabled = true;
       LOG_DBG("Danger notification enabled");
+      sys_manager_write_event(SYS_MANAGER_EVT_APPLY_DANGER_NOTI);
     }
     else if (strcmp(val, "0") == 0 || strcasecmp(val, "false") == 0)
     {
       g_device_info.danger_noti_enabled = false;
       g_device_info.danger_level        = DEVICE_DANGER_LEVEL_LOW;
       LOG_DBG("Danger notification disabled");
+      sys_manager_write_event(SYS_MANAGER_EVT_APPLY_DANGER_NOTI);
     }
     else
     {

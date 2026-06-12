@@ -54,6 +54,12 @@ void sys_buzzer_write_event(sys_buzzer_evt_t event);
 void sys_buzzer_clear_event(sys_buzzer_evt_t event);
 
 /**
+ * @brief Play a one-shot "find me" beep (4 beeps) at the buzzer's fixed level.
+ *        Re-triggerable; skipped while a higher-priority buzzer event is active.
+ */
+void sys_buzzer_beep_find(void);
+
+/**
  * @brief Process buzzer events, dispatch highest-priority pattern, drive bsp
  */
 void sys_buzzer_process(void);

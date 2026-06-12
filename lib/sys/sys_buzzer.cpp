@@ -20,6 +20,10 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_buzzer, LOG_LEVEL_SYS_BUZZER);
 
+#define SYS_BUZZER_FIND_CYCLES    (4)
+#define SYS_BUZZER_FIND_BEEP_MS   (200)
+#define SYS_BUZZER_FIND_PERIOD_MS (400)
+
 /* Private enumerate/structure ---------------------------------------- */
 typedef enum
 {
@@ -54,6 +58,7 @@ static sys_buzzer_evt_info_t SYS_BUZZER_EVT_INFO[SYS_BUZZER_EVT_MAX];
 OS_MUTEX_DEFINE_STATIC(sys_buzzer_event_mutex);
 
 static sys_buzzer_handler_t sys_buzzer_handler;
+static volatile bool        s_find_beep_pending = false;
 
 /* Private function prototypes ---------------------------------------- */
 static void sys_buzzer_get_current_event(sys_buzzer_evt_t *event);
@@ -101,6 +106,11 @@ void sys_buzzer_clear_event(sys_buzzer_evt_t event)
   OS_MUTEX_UNLOCK(sys_buzzer_event_mutex);
 }
 
+void sys_buzzer_beep_find(void)
+{
+  s_find_beep_pending = true;
+}
+
 void sys_buzzer_process(void)
 {
   sys_buzzer_get_current_event(&sys_buzzer_handler.curr_event);
@@ -110,6 +120,17 @@ void sys_buzzer_process(void)
     LOG_DBG("Buzzer event changed from %d to %d", sys_buzzer_handler.prev_event, sys_buzzer_handler.curr_event);
     sys_buzzer_handler.prev_event = sys_buzzer_handler.curr_event;
   }
+
+  // One-shot find-me beep — only when no priority buzzer event is sounding
+  if (s_find_beep_pending)
+  {
+    s_find_beep_pending = false;
+    if (sys_buzzer_handler.curr_event == SYS_BUZZER_EVT_OFF)
+    {
+      bsp_buzzer_beep_cycle(SYS_BUZZER_FIND_CYCLES, SYS_BUZZER_FIND_BEEP_MS, SYS_BUZZER_FIND_PERIOD_MS);
+    }
+  }
+
   bsp_buzzer_process();
 }
 

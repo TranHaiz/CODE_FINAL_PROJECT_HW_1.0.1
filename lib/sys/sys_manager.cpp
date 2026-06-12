@@ -106,6 +106,7 @@ static void sys_manager_noti_low_batt_handler(void);
 static void sys_manager_low_balance_noti_timer_callback(TimerHandle_t xTimer);
 static void sys_manager_help_handler(void);
 static void sys_manager_check_lte_band_handler(void);
+static void sys_manager_apply_danger_noti_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -163,6 +164,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_CLEAR_DEBT           ,   sys_manager_clear_debt_handler          );
   INFO(SYS_MANAGER_EVT_HELP                 ,   sys_manager_help_handler                );
   INFO(SYS_MANAGER_EVT_CHECK_LTE_BAND       ,   sys_manager_check_lte_band_handler      );
+  INFO(SYS_MANAGER_EVT_APPLY_DANGER_NOTI    ,   sys_manager_apply_danger_noti_handler   );
   // clang-format on
 }
 #undef INFO
@@ -655,6 +657,28 @@ static void sys_manager_check_lte_band_handler(void)
 {
   uint32_t lte_band = bsp_sim_check_lte_band();
   LOG_INF("Current LTE band: %u", lte_band);
+}
+
+static void sys_manager_apply_danger_noti_handler(void)
+{
+  // Only affects an alarm already sounding; enable/disable of future alarms is the flag itself
+  if (g_device_info.nvs_info.curr_state != DEVICE_STATE_STOLEN)
+  {
+    return;
+  }
+  if (g_device_info.danger_noti_enabled)
+  {
+    g_device_info.danger_level = DEVICE_DANGER_LEVEL_HIGH;
+    sys_buzzer_write_event(SYS_BUZZER_EVT_STOLEN);
+    sys_led_write_event(SYS_LED_EVT_NOTI_DANGER);
+    LOG_DBG("Danger noti resumed");
+  }
+  else
+  {
+    sys_buzzer_clear_event(SYS_BUZZER_EVT_STOLEN);
+    sys_led_write_event(SYS_LED_EVT_OFF);
+    LOG_DBG("Danger noti muted");
+  }
 }
 
 /* End of file -------------------------------------------------------- */

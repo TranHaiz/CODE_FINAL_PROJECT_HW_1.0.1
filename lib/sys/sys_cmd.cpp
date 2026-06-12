@@ -18,6 +18,7 @@
 #include "bsp_rtc.h"
 #include "bsp_sim.h"
 #include "log_service.h"
+#include "sys_buzzer.h"
 #include "sys_manager.h"
 #include "sys_network_adapter_lte.h"
 #include "sys_ui.h"
@@ -60,6 +61,7 @@ static void sys_cmd_warn_low_balance_handler(void);
 static void sys_cmd_start_rental_handler(void);
 static void sys_cmd_pause_ok_handler(void);
 static void sys_cmd_modem_reset_handler(void);
+static void sys_cmd_where_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -86,6 +88,7 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("WARN_LOW_BALANCE", sys_cmd_warn_low_balance_handler),
   INFO("START_RENTAL", sys_cmd_start_rental_handler),
   INFO("MODEM_RESET", sys_cmd_modem_reset_handler),
+  INFO("WHERE", sys_cmd_where_handler),
   INFO("OK", sys_cmd_pause_ok_handler),
   INFO("K", sys_cmd_pause_ok_handler)
 };
@@ -319,6 +322,11 @@ static void sys_cmd_modem_reset_handler(void)
   sys_network_adapter_lte_request_reset();
 }
 
+static void sys_cmd_where_handler(void)
+{
+  sys_buzzer_beep_find();
+}
+
 static void sys_cmd_set_danger_noti_handler(void)
 {
   const char *cmd = g_cmd_input_buffer;
@@ -350,6 +358,7 @@ static void sys_cmd_set_danger_noti_handler(void)
     LOG_WRN("SET_DANGER_NOTI: Invalid value, expected '0' or '1'");
     return;
   }
+  sys_cmd_request_evt(SYS_MANAGER_EVT_APPLY_DANGER_NOTI);
 }
 
 static void sys_cmd_clear_distance_handler(void)
