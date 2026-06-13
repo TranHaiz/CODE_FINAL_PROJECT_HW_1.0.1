@@ -510,6 +510,8 @@ static void sys_manager_start_rental_handler(void)
       sys_ui_wakeup();
       sys_input_wakeup();
     }
+    g_device_info.danger_noti_enabled = true;
+    g_device_info.danger_level        = DEVICE_DANGER_LEVEL_LOW;
     sys_input_reset_data_for_new_rental();
     sys_ui_unlock();
     LOG_DBG("Device unlocked and active from network");

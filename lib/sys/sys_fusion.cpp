@@ -16,6 +16,7 @@
 #include "bsp_acc.h"
 #include "bsp_compass.h"
 #include "bsp_gps.h"
+#include "device_config.h"
 #include "log_service.h"
 #include "os_lib.h"
 #include "sys_fusion_log.h"
@@ -23,8 +24,6 @@
 
 #include <TinyGPSPlus.h>
 #include <math.h>
-
-#include "device_config.h"
 
 #if (DEVICE_FUSION_ALGO == DEVICE_FUSION_ALGO_V2)
 
@@ -131,13 +130,13 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define DEG_TO_RAD                         (0.01745329252f)
 
 // Avoid stolen
-#define DANGER_TILT_THRESHOLD_DEG          (45.0f)  // If device tilted >30° for certain time
-#define DANGER_TILT_CONFIRM_MS             (1500)   // Must be tilted for at least 800ms to confirm
-#define DANGER_MOTION_THRESHOLD_G          (0.3f)   // If strong motion >0.18g for certain time
-#define DANGER_MOTION_CONFIRM_MS           (2000)   // Must have strong motion for at least 1200ms to confirm
-#define DANGER_VIBRATION_THRESHOLD_G       (0.5f)   // If vibration magnitude >0.35g for certain time
-#define DANGER_VIBRATION_WINDOW_MS         (3000)   // Count how many strong vibration events in this rolling window
-#define DANGER_VIBRATION_COUNT_THRESH      (6)  // If strong vibration events exceed this count in the window, confirm danger
+#define DANGER_TILT_THRESHOLD_DEG          (30.0f)
+#define DANGER_TILT_CONFIRM_MS             (1200)
+#define DANGER_MOTION_THRESHOLD_G          (0.2f)
+#define DANGER_MOTION_CONFIRM_MS           (1500)
+#define DANGER_VIBRATION_THRESHOLD_G       (0.4f)
+#define DANGER_VIBRATION_WINDOW_MS         (2000)
+#define DANGER_VIBRATION_COUNT_THRESH      (4)
 
 #define DANGER_TILT_THRESHOLD_DEG_HIGH     (10.0f)
 #define DANGER_TILT_CONFIRM_MS_HIGH        (200)
