@@ -16,6 +16,7 @@
 #include "bsp_device.h"
 #include "bsp_rtc.h"
 #include "bsp_sdcard.h"
+#include "bsp_servo.h"
 #include "log_service.h"
 
 /* Private defines ---------------------------------------------------- */
@@ -174,6 +175,16 @@ void device_info_update_state(device_state_t new_state)
   g_device_info.nvs_info.prev_state = g_device_info.nvs_info.curr_state;
   g_device_info.nvs_info.curr_state = new_state;
   bsp_device_flash_write(&g_device_info.nvs_info);
+
+  // Physical lock follows device state: unlocked only while actively riding
+  if (new_state == DEVICE_STATE_ACTIVE)
+  {
+    bsp_servo_unlock();
+  }
+  else
+  {
+    bsp_servo_lock();
+  }
 }
 
 void device_info_inc_error_count(void)

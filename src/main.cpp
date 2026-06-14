@@ -17,6 +17,7 @@
 #include "bsp_led.h"
 #include "bsp_rtc.h"
 #include "bsp_sdcard.h"
+#include "bsp_servo.h"
 #include "bsp_sim.h"
 #include "common_type.h"
 #include "device_config.h"
@@ -107,8 +108,18 @@ void setup()
   log_service_set_timestamp(LOG_TIMESTAMP_RTC);
   bsp_rtc_init();
   bsp_sdcard_init();
+  bsp_servo_init();
   delay(1000);
   device_info_init();
+  // Sync physical lock to the state restored from NVS (unlocked only while active)
+  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_ACTIVE)
+  {
+    bsp_servo_unlock();
+  }
+  else
+  {
+    bsp_servo_lock();
+  }
   sys_network_adapter_ble_init();
   sys_network_init();
   delay(1000);
