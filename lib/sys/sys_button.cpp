@@ -175,6 +175,12 @@ static void sys_button_handle_event(sys_button_event_t event)
     sys_button_led_oneshot(SYS_LED_EVT_HELP);
     break;
   }
+  case BUTTON_PRESS_SERVICE_HOLD:
+  {
+    LOG_DBG("Service hold reached (5s), release to enter");
+    sys_button_led_oneshot(SYS_LED_EVT_SERVICE_ENTER);
+    break;
+  }
   case BUTTON_PRESS_SERVICE:
   {
     LOG_DBG("Service mode entered");
@@ -182,7 +188,6 @@ static void sys_button_handle_event(sys_button_event_t event)
     service_press_accum   = 0;
     service_enter_ms      = OS_GET_TICK();
     service_last_press_ms = service_enter_ms;
-    sys_button_led_oneshot(SYS_LED_EVT_SERVICE_ENTER);
     break;
   }
   case BUTTON_PRESS_COUNT:

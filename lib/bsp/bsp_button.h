@@ -36,6 +36,7 @@ typedef enum
   BUTTON_PRESS_LONG,
   BUTTON_PRESS_COUNT,
   BUTTON_PRESS_SERVICE,
+  BUTTON_PRESS_SERVICE_HOLD,  // 5s hold reached while still pressed (feedback only)
 } bsp_button_press_type_t;
 
 typedef void (*bsp_button_callback_t)(bsp_button_press_type_t press_type, uint8_t count);

@@ -28,6 +28,7 @@ typedef struct
   volatile uint32_t         release_time;
   volatile bool             is_pressed;
   volatile bool             is_long_handled;
+  volatile bool             service_armed;  // 5s hold reached, release within window => service
   volatile bool             service_pending;
   volatile uint8_t          click_count;
   volatile uint32_t         last_click_time;
@@ -57,6 +58,7 @@ void bsp_button_init(bsp_button_type_t button, bsp_button_callback_t callback)
   s_buttons[button].release_time        = 0;
   s_buttons[button].is_pressed          = false;
   s_buttons[button].is_long_handled     = false;
+  s_buttons[button].service_armed       = false;
   s_buttons[button].service_pending     = false;
   s_buttons[button].click_count         = 0;
   s_buttons[button].last_click_time     = 0;
@@ -85,7 +87,18 @@ void bsp_button_process(void)
 
     if (btn->is_pressed && !btn->is_long_handled)
     {
-      if ((now - btn->press_time) >= BUTTON_LONG_PRESS_MS)
+      uint32_t held = now - btn->press_time;
+
+      if (!btn->service_armed && held >= BUTTON_SERVICE_HOLD_MS)
+      {
+        btn->service_armed = true;  // release before 15s commits service
+        if (btn->cb)
+        {
+          btn->cb(BUTTON_PRESS_SERVICE_HOLD, 0);
+        }
+      }
+
+      if (held >= BUTTON_LONG_PRESS_MS)
       {
         btn->is_long_handled = true;
         btn->click_count     = 0;
@@ -161,6 +174,7 @@ static void IRAM_ATTR button_evt_isr_handler(void)
       btn->is_pressed      = true;
       btn->press_time      = now;
       btn->is_long_handled = false;
+      btn->service_armed   = false;
     }
   }
   else if (!current_state && btn->is_pressed)
@@ -175,8 +189,6 @@ static void IRAM_ATTR button_evt_isr_handler(void)
 // Classify a debounced release into service_pending or a click; shared by ISR + watchdog
 static void IRAM_ATTR button_handle_release(bsp_button_ctx_t *btn, uint32_t now)
 {
-  uint32_t press_duration = now - btn->press_time;
-
   btn->is_pressed   = false;
   btn->release_time = now;
 
@@ -185,7 +197,7 @@ static void IRAM_ATTR button_handle_release(bsp_button_ctx_t *btn, uint32_t now)
     return;
   }
 
-  if (press_duration >= BUTTON_SERVICE_HOLD_MS && press_duration < BUTTON_LONG_PRESS_MS)
+  if (btn->service_armed)
   {
     btn->service_pending = true;
   }
