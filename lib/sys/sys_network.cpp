@@ -87,6 +87,7 @@ static bool              sys_network_need_push_sd(void);
 static status_function_t sys_network_prepare_sd_card(void);
 static bool              sys_network_check_sd_pending(void);
 static void              sys_network_write_trip_info(const char *meta_path, uint32_t trip_id, trip_state_t state);
+static void              sys_network_resume_active_trip(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_network_init(void)
@@ -111,6 +112,7 @@ void sys_network_init(void)
   cb_init(&req_pub_cbuffer, req_pub_buffer, MQTT_REQUEST_PUBLISH_MAX * MQTT_REQUEST_PUBLISH_SIZE);
 
   (void) sys_network_prepare_sd_card();
+  sys_network_resume_active_trip();
   s_is_data_sd_pending = sys_network_check_sd_pending();
   if (s_is_data_sd_pending)
   {
@@ -813,6 +815,33 @@ static void sys_network_write_trip_info(const char *meta_path, uint32_t trip_id,
   snprintf(meta_buf, sizeof(meta_buf), "%lu,%d", (unsigned long) trip_id, (int) state);
   bsp_sdcard_write(&trip_info_file, (const uint8_t *) meta_buf, strlen(meta_buf), NULL);
   bsp_sdcard_close(&trip_info_file);
+}
+
+/* Restore a trip left ACTIVE before reset so its log keeps upload priority. */
+static void sys_network_resume_active_trip(void)
+{
+  char info_path[MAX_OFFLINE_TRIP_PATH_LEN];
+  snprintf(info_path, sizeof(info_path), "%s/trip_info.txt", SD_OFFLINE_DIR);
+
+  bsp_sdcard_file_t info_file;
+  if (bsp_sdcard_open(info_path, BSP_SDCARD_MODE_READ, &info_file) != STATUS_OK)
+    return;
+
+  char   info_buf[32] = { 0 };
+  size_t read_len     = 0;
+  bsp_sdcard_read(&info_file, (uint8_t *) info_buf, sizeof(info_buf) - 1, &read_len);
+  bsp_sdcard_close(&info_file);
+  if (read_len == 0)
+    return;
+
+  unsigned long saved_id    = 0;
+  int           saved_state = TRIP_COMPLETED;
+  if (sscanf(info_buf, "%lu,%d", &saved_id, &saved_state) == 2
+      && saved_state == TRIP_ACTIVE && saved_id > 0)
+  {
+    s_active_trip_id = (uint32_t) saved_id;
+    LOG_INF("Resumed active trip %lu after reset", saved_id);
+  }
 }
 
 /* End of file -------------------------------------------------------- */
