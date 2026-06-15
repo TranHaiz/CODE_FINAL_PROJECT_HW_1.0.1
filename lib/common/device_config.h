@@ -214,6 +214,7 @@
 // ------------------------------ Battery ------------------------------
 #define BATT_LEVEL_THRESHOLD_LOW          (10.0f)
 #define BATT_LEVEL_THRESHOLD_CLEAR_LOW    (15.0f)
+#define SERVO_BATT_SAFE_MV                (3500.0f)
 
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
