@@ -107,6 +107,7 @@ static void sys_manager_low_balance_noti_timer_callback(TimerHandle_t xTimer);
 static void sys_manager_help_handler(void);
 static void sys_manager_check_lte_band_handler(void);
 static void sys_manager_apply_danger_noti_handler(void);
+static void sys_manager_sync_lock_handler(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_manager_init(void)
@@ -165,6 +166,7 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_HELP                 ,   sys_manager_help_handler                );
   INFO(SYS_MANAGER_EVT_CHECK_LTE_BAND       ,   sys_manager_check_lte_band_handler      );
   INFO(SYS_MANAGER_EVT_APPLY_DANGER_NOTI    ,   sys_manager_apply_danger_noti_handler   );
+  INFO(SYS_MANAGER_EVT_SYNC_LOCK            ,   sys_manager_sync_lock_handler           );
   // clang-format on
 }
 #undef INFO
@@ -681,6 +683,13 @@ static void sys_manager_apply_danger_noti_handler(void)
     sys_led_write_event(SYS_LED_EVT_OFF);
     LOG_DBG("Danger noti muted");
   }
+}
+
+static void sys_manager_sync_lock_handler(void)
+{
+  // Retry a lock actuation that was deferred while the battery was too low.
+  // Runs here (not in sys_input) because the servo settle blocks ~600 ms.
+  device_info_apply_lock_state();
 }
 
 /* End of file -------------------------------------------------------- */

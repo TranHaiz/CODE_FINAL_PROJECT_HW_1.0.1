@@ -60,6 +60,7 @@ typedef struct
   device_nvs_info_t     nvs_info;
   bool                  danger_noti_enabled;
   device_danger_level_t danger_level;
+  bool                  servo_sync_pending;  // lock actuation deferred (battery/brownout guard)
 } device_info_t;
 
 /* Public macros ------------------------------------------------------ */
@@ -79,6 +80,13 @@ void device_info_init(void);
  * @return none
  */
 void device_info_update_state(device_state_t new_state);
+
+/**
+ * @brief Drive the physical lock to match curr_state, if power is safe to actuate.
+ *        Defers (sets servo_sync_pending) when battery is too low / after a brownout.
+ * @return none
+ */
+void device_info_apply_lock_state(void);
 
 /**
  * @brief Increment error count and persist to flash

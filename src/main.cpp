@@ -11,7 +11,6 @@
  */
 
 /* Includes ----------------------------------------------------------- */
-#include "sys_buzzer.h"
 #include "bsp_error.h"
 #include "bsp_io.h"
 #include "bsp_led.h"
@@ -25,6 +24,7 @@
 #include "log_service.h"
 #include "os_lib.h"
 #include "sys_button.h"
+#include "sys_buzzer.h"
 #include "sys_cmd.h"
 #include "sys_cmd_usb.h"
 #include "sys_error.h"
@@ -111,15 +111,9 @@ void setup()
   bsp_servo_init();
   delay(1000);
   device_info_init();
-  // Sync physical lock to the state restored from NVS (unlocked only while active)
-  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_ACTIVE)
-  {
-    bsp_servo_unlock();
-  }
-  else
-  {
-    bsp_servo_lock();
-  }
+  // Sync physical lock to the state restored from NVS. Deferred if power is unsafe
+  // (e.g. after a brownout); sys_input retries once the battery monitor is up.
+  device_info_apply_lock_state();
   sys_network_adapter_ble_init();
   sys_network_init();
   delay(1000);

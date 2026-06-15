@@ -13,6 +13,7 @@
 /* Includes ----------------------------------------------------------- */
 #include "device_info.h"
 
+#include "bsp_batt.h"
 #include "bsp_device.h"
 #include "bsp_rtc.h"
 #include "bsp_sdcard.h"
@@ -84,6 +85,7 @@ void device_info_init(void)
   g_device_info.last_reset_reason   = bsp_device_get_reset_reason();
   g_device_info.danger_noti_enabled = true;                     // Default enabled
   g_device_info.danger_level        = DEVICE_DANGER_LEVEL_LOW;  // Default danger level
+  g_device_info.servo_sync_pending  = false;
   if (g_device_info.nvs_info.curr_state == DEVICE_STATE_IDLE)
   {
     device_info_update_state(DEVICE_STATE_LOCKED);
@@ -170,14 +172,39 @@ void device_info_init(void)
   LOG_INF("--------------------------------");
 }
 
+// Power is safe to actuate the servo unless the battery is critically low. When
+// the monitor isn't up yet (early boot) only a prior brownout is treated as unsafe.
+static bool device_servo_actuation_safe(void)
+{
+  if (!bsp_batt_is_initialized())
+  {
+    return (g_device_info.last_reset_reason != ESP_RST_BROWNOUT);
+  }
+  return (bsp_batt_read_voltage_mv() >= SERVO_BATT_SAFE_MV);
+}
+
 void device_info_update_state(device_state_t new_state)
 {
   g_device_info.nvs_info.prev_state = g_device_info.nvs_info.curr_state;
   g_device_info.nvs_info.curr_state = new_state;
   bsp_device_flash_write(&g_device_info.nvs_info);
 
+  device_info_apply_lock_state();
+}
+
+void device_info_apply_lock_state(void)
+{
+  // Defer when power is unsafe: the mechanism self-holds, so the lock stays put
+  // until device_info_apply_lock_state() is retried once the battery recovers.
+  if (!device_servo_actuation_safe())
+  {
+    g_device_info.servo_sync_pending = true;
+    LOG_WRN("Servo actuation deferred (battery guard)");
+    return;
+  }
+
   // Physical lock follows device state: unlocked only while actively riding
-  if (new_state == DEVICE_STATE_ACTIVE)
+  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_ACTIVE)
   {
     bsp_servo_unlock();
   }
@@ -185,6 +212,7 @@ void device_info_update_state(device_state_t new_state)
   {
     bsp_servo_lock();
   }
+  g_device_info.servo_sync_pending = false;
 }
 
 void device_info_inc_error_count(void)

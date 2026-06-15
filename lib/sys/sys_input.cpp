@@ -423,6 +423,12 @@ static status_function_t sys_input_process_active(void)
     {
       low_batt_noti_sent = false;
     }
+
+    // Retry a lock actuation deferred by the battery guard; the handler re-checks safety.
+    if (g_device_info.servo_sync_pending)
+    {
+      sys_manager_write_event(SYS_MANAGER_EVT_SYNC_LOCK);
+    }
   }
 #else
 // Do nothing

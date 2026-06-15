@@ -31,11 +31,21 @@ LOG_MODULE_REGISTER(bsp_servo, LOG_LEVEL_BSP_SERVO);
 #define SERVO_SELFTEST_STEP_MS  (40)   // dwell per step
 #define SERVO_SELFTEST_HOLD_MS  (500)  // hold at lock/unlock ends
 
+#define SERVO_SETTLE_MS (600)  // time to reach target before de-energizing
+
 /* Private enumerate/structure ---------------------------------------- */
+typedef enum
+{
+  SERVO_POS_UNKNOWN = 0,  // force the first command to actuate
+  SERVO_POS_LOCKED,
+  SERVO_POS_UNLOCKED
+} servo_pos_t;
+
 typedef struct
 {
-  Servo servo;
-  bool  is_initialized;
+  Servo       servo;
+  bool        is_initialized;
+  servo_pos_t pos;
 } bsp_servo_ctx_t;
 
 /* Private macros ----------------------------------------------------- */
@@ -44,6 +54,8 @@ typedef struct
 static bsp_servo_ctx_t servo_handler;
 
 /* Private function prototypes ---------------------------------------- */
+static void servo_drive(uint8_t angle_deg);
+
 /* Function definitions ----------------------------------------------- */
 
 status_function_t bsp_servo_init(void)
@@ -58,8 +70,10 @@ status_function_t bsp_servo_init(void)
   }
 
   servo_handler.is_initialized = true;
-
-  bsp_servo_lock();  // start at a known position
+  servo_handler.pos            = SERVO_POS_UNKNOWN;
+  // Do not move here: leave the (self-holding) mechanism where it is and stay
+  // de-energized. The lock state is synced later once power is known to be safe.
+  servo_handler.servo.release();
 
   LOG_DBG("Servo initialized on pin %d", SERVO_PIN);
   return STATUS_OK;
@@ -85,14 +99,36 @@ status_function_t bsp_servo_set_angle(uint8_t angle_deg)
 
 status_function_t bsp_servo_lock(void)
 {
+  if (!servo_handler.is_initialized)
+  {
+    return STATUS_ERROR;
+  }
+  if (servo_handler.pos == SERVO_POS_LOCKED)
+  {
+    return STATUS_OK;  // already locked: skip to avoid needless re-drive/jitter
+  }
+
   LOG_DBG("Lock");
-  return bsp_servo_set_angle(SERVO_LOCK);
+  servo_drive(SERVO_LOCK);
+  servo_handler.pos = SERVO_POS_LOCKED;
+  return STATUS_OK;
 }
 
 status_function_t bsp_servo_unlock(void)
 {
+  if (!servo_handler.is_initialized)
+  {
+    return STATUS_ERROR;
+  }
+  if (servo_handler.pos == SERVO_POS_UNLOCKED)
+  {
+    return STATUS_OK;  // already unlocked: skip to avoid needless re-drive/jitter
+  }
+
   LOG_DBG("Unlock");
-  return bsp_servo_set_angle(SERVO_UNLOCK);
+  servo_drive(SERVO_UNLOCK);
+  servo_handler.pos = SERVO_POS_UNLOCKED;
+  return STATUS_OK;
 }
 
 status_function_t bsp_servo_selftest(void)
@@ -104,6 +140,7 @@ status_function_t bsp_servo_selftest(void)
   }
 
   LOG_DBG("Selftest start");
+  servo_handler.pos = SERVO_POS_UNKNOWN;  // force the lock/unlock below to actuate
 
   // Sweep up 0 -> 180, then down 180 -> 0
   for (int angle = SERVO_LOCK; angle <= SERVO_UNLOCK; angle += SERVO_SELFTEST_STEP_DEG)
@@ -136,9 +173,20 @@ void bsp_servo_deinit(void)
 
   servo_handler.servo.detach();
   servo_handler.is_initialized = false;
+  servo_handler.pos            = SERVO_POS_UNKNOWN;
 
   LOG_DBG("Servo deinitialized");
 }
 
 /* Private definitions ----------------------------------------------- */
+// Move to a target, hold long enough to settle, then de-energize. The mechanism
+// holds position mechanically, so cutting the PWM stops the idle buzz/jitter and
+// the holding current that collapses a weak battery.
+static void servo_drive(uint8_t angle_deg)
+{
+  bsp_servo_set_angle(angle_deg);
+  delay(SERVO_SETTLE_MS);
+  servo_handler.servo.release();
+}
+
 /* End of file -------------------------------------------------------- */
