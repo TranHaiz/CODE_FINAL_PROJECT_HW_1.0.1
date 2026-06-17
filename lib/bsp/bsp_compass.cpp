@@ -70,8 +70,19 @@ status_function_t bsp_compass_init(void)
   Wire.begin(COMPASS_I2C_SDA_PIN, COMPASS_I2C_SCL_PIN, COMPASS_I2C_CLOCK);
   delay(100);
 
-  // Configure sensor
-  if (bsp_compass_apply_config() != STATUS_OK)
+  // Configure sensor, retrying transient I2C NAKs seen at boot
+  status_function_t status = STATUS_ERROR;
+  for (uint8_t attempt = 0; attempt < COMPASS_INIT_RETRY_COUNT; attempt++)
+  {
+    status = bsp_compass_apply_config();
+    if (status == STATUS_OK)
+    {
+      break;
+    }
+    LOG_WRN("Compass config attempt %u/%u failed", attempt + 1, COMPASS_INIT_RETRY_COUNT);
+    delay(COMPASS_INIT_RETRY_DELAY_MS);
+  }
+  if (status != STATUS_OK)
   {
     LOG_ERR("Failed to init compass sensor");
     return STATUS_ERROR;
@@ -80,6 +91,13 @@ status_function_t bsp_compass_init(void)
   s_compass_ctx.is_initialized = true;
 
   return STATUS_OK;
+}
+
+void bsp_compass_deinit(void)
+{
+  // Drop the cached flag so the next bsp_compass_init() re-runs the I2C config
+  // instead of returning early; used by the fusion-layer recovery path.
+  s_compass_ctx.is_initialized = false;
 }
 
 status_function_t bsp_compass_config(const bsp_compass_config_t *config)

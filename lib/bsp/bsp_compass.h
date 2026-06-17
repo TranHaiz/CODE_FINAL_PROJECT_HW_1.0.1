@@ -101,6 +101,13 @@ typedef struct
 status_function_t bsp_compass_init(void);
 
 /**
+ * @brief Clear the initialized flag so the next bsp_compass_init() re-runs config
+ *
+ * @return none
+ */
+void bsp_compass_deinit(void);
+
+/**
  * @brief Configure compass settings
  *
  * @param[in] config Pointer to configuration structure

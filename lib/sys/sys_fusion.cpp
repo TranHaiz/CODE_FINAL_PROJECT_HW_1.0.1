@@ -109,6 +109,10 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 #define COMPASS_EMA_ALPHA                  (0.15f)
 #define COMPASS_UPDATE_MS                  (100)
 
+// Runtime recovery: re-init the compass when it is not ready or reads keep failing
+#define COMPASS_REINIT_FAIL_THRESHOLD      (5)     // consecutive read fails before forcing re-init
+#define COMPASS_REINIT_INTERVAL_MS         (2000)  // min spacing between re-init attempts
+
 // Butterworth 2nd-order lowpass for ACC: fc=8 Hz, fs=200 Hz
 // wn=tan(pi*8/200)=0.12683, D=1+sqrt(2)*wn+wn^2
 #define BW_B0                              (0.013450f)
@@ -240,6 +244,8 @@ typedef struct
   float       compass_ema_z;
   size_t      compass_last_ms;
   bool        compass_filter_init;
+  uint8_t     compass_fail_count;  // consecutive read failures, for runtime re-init
+  size_t      compass_reinit_ms;   // last re-init attempt timestamp
   float       heading_deg;
   const char *direction_str;
 
@@ -282,6 +288,7 @@ static float       sys_fusion_calculate_magnitude(float x, float y, float z);
 static void        sys_fusion_calculate_offset_mag(void);
 static void        sys_fusion_calibrate_gyro_bias(void);
 static bool        sys_fusion_preprocess_data(size_t current_ms);
+static void        sys_fusion_compass_try_reinit(size_t current_ms);
 static bool        sys_fusion_read_imu(bsp_acc_raw_data_t *imu);
 static void        sys_fusion_update_attitude(const bsp_acc_raw_data_t *imu, bool compass_fresh, float dt);
 static void        sys_fusion_update_ins_velocity(float dt);
@@ -1165,7 +1172,10 @@ static const char *sys_fusion_deg_to_direction_str(float deg)
 static bool sys_fusion_preprocess_data(size_t current_ms)
 {
   if (!fusion_ctx.compass_ready)
+  {
+    sys_fusion_compass_try_reinit(current_ms);
     return false;
+  }
   if ((current_ms - fusion_ctx.compass_last_ms) < COMPASS_UPDATE_MS)
     return false;
   fusion_ctx.compass_last_ms = current_ms;
@@ -1174,8 +1184,14 @@ static bool sys_fusion_preprocess_data(size_t current_ms)
   if (bsp_compass_read_raw(&raw_data) != STATUS_OK)
   {
     LOG_ERR("Read compass fail");
+    // Bus likely wedged after repeated fails: drop ready so re-init takes over
+    if (++fusion_ctx.compass_fail_count >= COMPASS_REINIT_FAIL_THRESHOLD)
+    {
+      fusion_ctx.compass_ready = false;
+    }
     return false;
   }
+  fusion_ctx.compass_fail_count = 0;
 
 #if (DEVICE_FUSION_DEBUG_MODE == 1)
   fusion_ctx.debug_compass_raw_x = (float) raw_data.raw_x;
@@ -1213,6 +1229,24 @@ static bool sys_fusion_preprocess_data(size_t current_ms)
   }
 #endif
   return true;
+}
+
+// Re-init the compass when it is marked not-ready, throttled so a missing/dead
+// sensor doesn't stall the fusion loop with back-to-back I2C attempts.
+static void sys_fusion_compass_try_reinit(size_t current_ms)
+{
+  if ((current_ms - fusion_ctx.compass_reinit_ms) < COMPASS_REINIT_INTERVAL_MS)
+    return;
+  fusion_ctx.compass_reinit_ms = current_ms;
+
+  bsp_compass_deinit();  // force a full re-config instead of the cached no-op
+  if (bsp_compass_init() == STATUS_OK)
+  {
+    fusion_ctx.compass_ready       = true;
+    fusion_ctx.compass_fail_count  = 0;
+    fusion_ctx.compass_filter_init = false;  // reseed the filter from fresh samples
+    LOG_WRN("Compass re-init OK");
+  }
 }
 
 static void sys_fusion_gps_callback(bsp_gps_data_t *gps_data)
