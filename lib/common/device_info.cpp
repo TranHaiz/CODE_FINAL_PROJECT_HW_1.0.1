@@ -180,7 +180,23 @@ static bool device_servo_actuation_safe(void)
   {
     return (g_device_info.last_reset_reason != ESP_RST_BROWNOUT);
   }
-  return (bsp_batt_read_voltage_mv() >= SERVO_BATT_SAFE_MV);
+
+  float   sum   = 0.0f;
+  uint8_t count = 0;
+  for (uint8_t i = 0; i < SERVO_BATT_SAFE_SAMPLES; i++)
+  {
+    float v = bsp_batt_read_voltage_mv();
+    if (v > 0.0f)
+    {
+      sum += v;
+      count++;
+    }
+  }
+  if (count == 0)
+  {
+    return false;
+  }
+  return ((sum / count) >= SERVO_BATT_SAFE_MV);
 }
 
 void device_info_update_state(device_state_t new_state)
