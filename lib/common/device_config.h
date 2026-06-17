@@ -77,10 +77,10 @@
 #define LOG_LEVEL_MAIN                    LOG_LEVEL_INFO
 #define LOG_LEVEL_BSP_BATT                LOG_LEVEL_ERROR
 #define LOG_LEVEL_BSP_ACC                 LOG_LEVEL_ERROR
-#define LOG_LEVEL_DEVICE_INFO             LOG_LEVEL_ERROR
+#define LOG_LEVEL_DEVICE_INFO             LOG_LEVEL_DBG
 #define LOG_LEVEL_BSP_COMPASS             LOG_LEVEL_ERROR
 #define LOG_LEVEL_BSP_BUZZER              LOG_LEVEL_ERROR
-#define LOG_LEVEL_BSP_SERVO               LOG_LEVEL_ERROR
+#define LOG_LEVEL_BSP_SERVO               LOG_LEVEL_DBG
 #define LOG_LEVEL_BSP_DUST_SENSOR         LOG_LEVEL_ERROR
 #define LOG_LEVEL_BSP_LED                 LOG_LEVEL_ERROR
 #define LOG_LEVEL_BSP_SDCARD              LOG_LEVEL_ERROR

@@ -196,7 +196,10 @@ static bool device_servo_actuation_safe(void)
   {
     return false;
   }
-  return ((sum / count) >= SERVO_BATT_SAFE_MV);
+  float avg  = sum / count;
+  bool  safe = (avg >= SERVO_BATT_SAFE_MV);
+  LOG_DBG("Servo guard: V_avg=%.0fmV thr=%.0f -> %s", avg, (float) SERVO_BATT_SAFE_MV, safe ? "SAFE" : "DEFER");
+  return safe;
 }
 
 void device_info_update_state(device_state_t new_state)
@@ -222,10 +225,12 @@ void device_info_apply_lock_state(void)
   // Physical lock follows device state: unlocked only while actively riding
   if (g_device_info.nvs_info.curr_state == DEVICE_STATE_ACTIVE)
   {
+    LOG_DBG("Servo -> UNLOCK (state=%d)", g_device_info.nvs_info.curr_state);
     bsp_servo_unlock();
   }
   else
   {
+    LOG_DBG("Servo -> LOCK (state=%d)", g_device_info.nvs_info.curr_state);
     bsp_servo_lock();
   }
   g_device_info.servo_sync_pending = false;

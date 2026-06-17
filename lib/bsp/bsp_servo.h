@@ -15,12 +15,11 @@
 
 /* Includes ----------------------------------------------------------- */
 #include "common_type.h"
+#include "device_config.h"
 
 #include <stdint.h>
 
 /* Public defines ----------------------------------------------------- */
-#define SERVO_LOCK   (0)    // angle (deg) for locked position
-#define SERVO_UNLOCK (180)  // angle (deg) for unlocked position
 
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */

@@ -344,7 +344,7 @@ static void sys_input_read_battery_level(float *battery_level)
   soc       = soc < 0.0f ? 0.0f : soc > 100.0f ? 100.0f : soc;
 
   // Diagnostic: I_raw>0 = discharge (% should fall), I_raw<0 = charge (% should rise)
-  LOG_INF("batt V=%.0fmV I_raw=%.0fmA I=%.0fmA mah=%.1f soc=%.1f", voltage_mv, raw_ma, smoothed_ma,
+  LOG_DBG("batt V=%.0fmV I_raw=%.0fmA I=%.0fmA mah=%.1f soc=%.1f", voltage_mv, raw_ma, smoothed_ma,
           input_ctx.batt_remaining_mah, soc);
 
   *battery_level = soc;
