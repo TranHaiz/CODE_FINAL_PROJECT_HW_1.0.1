@@ -31,8 +31,8 @@ LOG_MODULE_REGISTER(bsp_batt, LOG_LEVEL_BSP_BATT);
 
 #ifdef BATT_MONITOR_INA226
 #define INA226_I2C_ADDR      (0x40)
-#define INA226_SHUNT_OHM     (0.100f)
-#define INA226_MAX_CURRENT_A (8.192f)
+#define INA226_SHUNT_OHM     (0.010f)
+#define INA226_MAX_CURRENT_A (8.0f)  // 80 mV shunt drop, safely under INA226's ±81.92 mV range
 #elif defined(BATT_MONITOR_INA219)
 // Nothing
 
@@ -64,7 +64,12 @@ status_function_t bsp_batt_init(void)
     return STATUS_ERROR;
   }
 
-  ina226.setMaxCurrentShunt(BATT_I2C_ADDR, BATT_I2C_ADDR);
+  if (ina226.setMaxCurrentShunt(INA226_MAX_CURRENT_A, INA226_SHUNT_OHM, false) != 0x0000)
+  {
+    LOG_ERR("INA226 calibration failed (maxCurrent=%.3fA shunt=%.3fOhm)", INA226_MAX_CURRENT_A, INA226_SHUNT_OHM);
+    is_initialized = false;
+    return STATUS_ERROR;
+  }
 #elif defined(BATT_MONITOR_INA219)
   if (!ina219.begin(&Wire1))
   {
@@ -111,7 +116,7 @@ int32_t bsp_batt_read_current_ma(void)
 
 #ifdef BATT_MONITOR_INA226
   float current_a = ina226.getCurrent();
-  current_ma      = (int32_t) (-current_a * 1000.0f);
+  current_ma      = (int32_t) (current_a * 1000.0f);
 #elif defined(BATT_MONITOR_INA219)
   current_ma = (int32_t) (ina219.getCurrent_mA());
 #endif

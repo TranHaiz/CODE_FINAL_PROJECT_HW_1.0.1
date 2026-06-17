@@ -21,6 +21,7 @@
 #include "bsp_batt.h"
 #include "bsp_dust_sensor.h"
 #include "bsp_io.h"
+#include "bsp_sdcard.h"
 #include "bsp_temp_hum.h"
 #include "log_service.h"
 #include "sys_led.h"
@@ -39,8 +40,17 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_SYS_INPUT)
 #define SYS_INPUT_BATT_MAX_ERROR       (5)
 
 #define SYS_INPUT_BATT_ENABLE          (true)
+#define SYS_INPUT_BATT_SOC_FILE        ("/batt_soc.dat")
+#define SYS_INPUT_BATT_SOC_MAGIC       (0xB1A77E01u)
 
 /* Private enumerate/structure ---------------------------------------- */
+typedef struct
+{
+  uint32_t magic;
+  float    remaining_mah;
+  uint32_t check;  // magic ^ raw bits of remaining_mah
+} sys_input_batt_record_t;
+
 typedef struct
 {
   bool dust_ready;
@@ -71,6 +81,8 @@ static void              sys_input_process_locked(void);
 static void              sys_input_read_dust_sensor(void);
 static void              sys_input_initial_battery_level(void);
 static void              sys_input_read_battery_level(float *battery_level);
+static bool              sys_input_batt_load_mah(float *mah);
+static void              sys_input_batt_save_mah(float mah);
 static void              sys_input_wakeup_acc_handler(void);
 
 /* Function definitions ----------------------------------------------- */
@@ -325,19 +337,31 @@ static void sys_input_read_battery_level(float *battery_level)
     return;
   }
 
-  float soc_coulomb = (input_ctx.batt_remaining_mah / BSP_BATTERY_CAPACITY_MAH) * 100.0f;
-  float soc_voltage =
-    ((float) (voltage_mv - BSP_BATT_VOLTAGE_EMPTY_MV) / (float) (BSP_BATT_VOLTAGE_FULL_MV - BSP_BATT_VOLTAGE_EMPTY_MV))
-    * 100.0f;
-
-  float soc = (0.9f * soc_coulomb) + (0.1f * soc_voltage);
+  // SoC from the coulomb counter alone so it stays monotonic while discharging.
+  // The terminal voltage sags under load, so blending it here made the percentage
+  // wobble up/down; voltage only re-anchors at the full/empty endpoints above.
+  float soc = (input_ctx.batt_remaining_mah / BSP_BATTERY_CAPACITY_MAH) * 100.0f;
   soc       = soc < 0.0f ? 0.0f : soc > 100.0f ? 100.0f : soc;
+
+  // Diagnostic: I_raw>0 = discharge (% should fall), I_raw<0 = charge (% should rise)
+  LOG_INF("batt V=%.0fmV I_raw=%.0fmA I=%.0fmA mah=%.1f soc=%.1f", voltage_mv, raw_ma, smoothed_ma,
+          input_ctx.batt_remaining_mah, soc);
 
   *battery_level = soc;
 }
 
 static void sys_input_initial_battery_level(void)
 {
+  // Resume from the last persisted coulomb count if available
+  float restored_mah = 0.0f;
+  if (sys_input_batt_load_mah(&restored_mah))
+  {
+    input_ctx.batt_remaining_mah = restored_mah;
+    input_ctx.data.battery_level = (restored_mah / BSP_BATTERY_CAPACITY_MAH) * 100.0f;
+    LOG_INF("Restored battery level from SD: %.2f%%", input_ctx.data.battery_level);
+    return;
+  }
+
   float sum = 0.0f;
 
   for (int i = 0; i < SYS_INPUT_BATT_INITIAL_SAMPLES; i++)
@@ -360,8 +384,56 @@ static void sys_input_initial_battery_level(void)
 
   input_ctx.batt_remaining_mah = (initial_soc / 100.0f) * BSP_BATTERY_CAPACITY_MAH;
   input_ctx.data.battery_level = initial_soc;
+  sys_input_batt_save_mah(input_ctx.batt_remaining_mah);
 
   LOG_INF("Initial battery level: %.2f%%", initial_soc);
+}
+
+static bool sys_input_batt_load_mah(float *mah)
+{
+  if (bsp_sdcard_is_mounted() != STATUS_OK)
+    return false;
+
+  bsp_sdcard_file_t f;
+  if (bsp_sdcard_open(SYS_INPUT_BATT_SOC_FILE, BSP_SDCARD_MODE_READ, &f) != STATUS_OK)
+    return false;
+
+  sys_input_batt_record_t rec      = { 0 };
+  size_t                  read_len = 0;
+  status_function_t       st       = bsp_sdcard_read(&f, (uint8_t *) &rec, sizeof(rec), &read_len);
+  bsp_sdcard_close(&f);
+
+  if (st != STATUS_OK || read_len != sizeof(rec) || rec.magic != SYS_INPUT_BATT_SOC_MAGIC)
+    return false;
+
+  uint32_t bits = 0;
+  memcpy(&bits, &rec.remaining_mah, sizeof(bits));
+  if (rec.check != (SYS_INPUT_BATT_SOC_MAGIC ^ bits))
+    return false;
+  if (rec.remaining_mah < 0.0f || rec.remaining_mah > BSP_BATTERY_CAPACITY_MAH)
+    return false;
+
+  *mah = rec.remaining_mah;
+  return true;
+}
+
+static void sys_input_batt_save_mah(float mah)
+{
+  if (bsp_sdcard_is_mounted() != STATUS_OK)
+    return;
+
+  sys_input_batt_record_t rec;
+  rec.magic         = SYS_INPUT_BATT_SOC_MAGIC;
+  rec.remaining_mah = mah;
+  uint32_t bits     = 0;
+  memcpy(&bits, &mah, sizeof(bits));
+  rec.check = SYS_INPUT_BATT_SOC_MAGIC ^ bits;
+
+  bsp_sdcard_file_t f;
+  if (bsp_sdcard_open(SYS_INPUT_BATT_SOC_FILE, BSP_SDCARD_MODE_WRITE, &f) != STATUS_OK)
+    return;
+  bsp_sdcard_write(&f, (const uint8_t *) &rec, sizeof(rec), nullptr);
+  bsp_sdcard_close(&f);
 }
 
 static status_function_t sys_input_process_active(void)
@@ -411,6 +483,7 @@ static status_function_t sys_input_process_active(void)
   {
     input_ctx.batt_last_update_ms = current_time_ms;
     sys_input_read_battery_level(&input_ctx.data.battery_level);
+    sys_input_batt_save_mah(input_ctx.batt_remaining_mah);
     g_sys_ui_data_status.is_battery_data_ready_for_ui = true;
 
     static bool low_batt_noti_sent = false;

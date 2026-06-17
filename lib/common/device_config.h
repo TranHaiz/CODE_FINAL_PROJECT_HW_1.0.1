@@ -93,7 +93,7 @@
 #define LOG_LEVEL_SYS_NETWORK             LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_MANAGER             LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_UI                  LOG_LEVEL_ERROR
-#define LOG_LEVEL_SYS_INPUT               LOG_LEVEL_ERROR
+#define LOG_LEVEL_SYS_INPUT               LOG_LEVEL_INFO
 #define LOG_LEVEL_SYS_FUSION              LOG_LEVEL_ERROR
 #define LOG_LEVEL_SYS_BUTTON              LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_CMD                 LOG_LEVEL_DBG
@@ -165,6 +165,8 @@
 #define COMPASS_I2C_SCL_PIN               (5)
 #define COMPASS_I2C_ADDR                  (0x1E)
 #define COMPASS_I2C_CLOCK                 (100000)
+#define COMPASS_INIT_RETRY_COUNT          (3)   // config attempts to ride out transient I2C NAK at boot
+#define COMPASS_INIT_RETRY_DELAY_MS       (50)  // delay between init attempts
 
 #define COMPASS_AXIS_SIGN_X               (+1)
 #define COMPASS_AXIS_SIGN_Y               (+1)
@@ -214,7 +216,32 @@
 // ------------------------------ Battery ------------------------------
 #define BATT_LEVEL_THRESHOLD_LOW          (10.0f)
 #define BATT_LEVEL_THRESHOLD_CLEAR_LOW    (15.0f)
-#define SERVO_BATT_SAFE_MV                (3500.0f)
+#define SERVO_BATT_SAFE_MV                (3300.0f)
+#define SERVO_BATT_SAFE_SAMPLES           (5)
+
+// ------------------------------ Servo ------------------------------
+// Servo model selection: choose exactly one (differ in pulse-width range)
+#define DEVICE_SERVO_SG90                 (false)
+#define DEVICE_SERVO_MG90S                (true)
+
+#if (DEVICE_SERVO_SG90 && DEVICE_SERVO_MG90S)
+#error \
+  "Only one servo model can be selected. Set either DEVICE_SERVO_SG90 or DEVICE_SERVO_MG90S to true, and the other to false."
+#endif
+#if (!DEVICE_SERVO_SG90 && !DEVICE_SERVO_MG90S)
+#error "No servo model selected. Set either DEVICE_SERVO_SG90 or DEVICE_SERVO_MG90S to true."
+#endif
+
+#if (DEVICE_SERVO_SG90)
+#define SERVO_MIN_US (500)   // pulse width at 0 deg
+#define SERVO_MAX_US (2400)  // pulse width at 180 deg
+#elif (DEVICE_SERVO_MG90S)
+#define SERVO_MIN_US (1000)  // pulse width at 0 deg
+#define SERVO_MAX_US (2000)  // pulse width at 180 deg
+#endif
+
+#define SERVO_LOCK   (0)   // angle (deg) for locked position
+#define SERVO_UNLOCK (45)  // angle (deg) for unlocked position
 
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */
