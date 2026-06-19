@@ -299,7 +299,7 @@ static void sys_cmd_usb_set_device_id_handler(void)
   snprintf(g_device_info.mqtt_cmd_topic, sizeof(g_device_info.mqtt_cmd_topic), "%s/cmd", g_device_info.device_name);
   snprintf(g_device_info.mqtt_data_topic, sizeof(g_device_info.mqtt_data_topic), "%s/data", g_device_info.device_name);
 
-  bsp_device_flash_write(&g_device_info.nvs_info);
+  bsp_device_info_save(&g_device_info.nvs_info);
   sys_manager_write_event(SYS_MANAGER_EVT_CHANGE_CMD_TOPIC);
 
   LOG_DBG("SET_DEVICE: id=%s serial=%s name=%s cmd=%s data=%s", id_str, g_device_info.nvs_info.serial_number,
@@ -312,7 +312,7 @@ static void sys_cmd_usb_set_device_id_handler(void)
 static void sys_cmd_usb_reset_distance_handler(void)
 {
   g_device_info.nvs_info.total_km = 0.0f;
-  bsp_device_flash_write(&g_device_info.nvs_info);
+  bsp_device_info_save(&g_device_info.nvs_info);
   LOG_DBG("Distance reset to 0 km");
 }
 #endif

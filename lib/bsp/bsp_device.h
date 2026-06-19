@@ -51,30 +51,31 @@ void bsp_device_rtc_write(device_nvs_info_t *p_info);
 status_function_t bsp_device_rtc_read(device_nvs_info_t *p_info);
 
 /**
- * @brief Write device info to flash (NVS)
- * @param[in] p_info Pointer to device info structure to write to flash
+ * @brief Save device info to SD card (/info.json) atomically
+ * @param[in] p_info Pointer to device info structure to persist
  * @return Status function
  */
-status_function_t bsp_device_flash_write(device_nvs_info_t *p_info);
+status_function_t bsp_device_info_save(const device_nvs_info_t *p_info);
 
 /**
- * @brief Read device info from flash (NVS)
+ * @brief Load device info from SD card (/info.json)
+ * @param[out] p_info Pointer to device info structure to fill
+ * @return STATUS_OK if loaded, STATUS_ERROR if missing/corrupt
+ */
+status_function_t bsp_device_info_load(device_nvs_info_t *p_info);
+
+/**
+ * @brief Read legacy device info from flash (NVS). Migration path only.
  * @param[out] p_info Pointer to device info structure to read from flash
  * @return Status function
  */
 status_function_t bsp_device_flash_read(device_nvs_info_t *p_info);
 
 /**
- * @brief Erase device info from flash (NVS)
+ * @brief Erase legacy device info from flash (NVS). Migration path only.
  * @return Status function
  */
 status_function_t bsp_device_flash_erase(void);
-
-/**
- * @brief Check if device info in flash (NVS) is initialized
- * @return Status function
- */
-status_function_t bsp_device_check_magic_number(void);
 
 #endif /*End file _BSP_DEVICE_H_*/
 

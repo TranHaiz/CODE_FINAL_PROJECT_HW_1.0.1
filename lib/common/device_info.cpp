@@ -59,27 +59,38 @@ void device_info_init(void)
 {
   timeline_t        timeline;
   bsp_sdcard_file_t log_file;
-  status_function_t ret = bsp_device_check_magic_number();
   bsp_rtc_get(&timeline);
 
-  if (ret == STATUS_OK)
+  if (bsp_device_info_load(&g_device_info.nvs_info) == STATUS_OK)
   {
-    bsp_device_flash_read(&g_device_info.nvs_info);
     g_device_info.last_reset_reason = ESP_RST_UNKNOWN;
-    LOG_INF("FLASH NVS data loaded successfully");
+    LOG_INF("Device info loaded from SD (info.json)");
   }
   else
   {
-    LOG_INF("No NVS data found, initializing with default values");
-    // Initial default device info
-    memset(&g_device_info.nvs_info, 0, sizeof(g_device_info.nvs_info));
-    g_device_info.nvs_info.device_id = 0;
-    snprintf(g_device_info.device_version, sizeof(g_device_info.device_version), "%d.%d.%d", FIRRMWARE_MAJOR_VERSION,
-             FIRRMWARE_MINOR_VERSION, FIRRMWARE_PATCH_VERSION);
-    snprintf(g_device_info.nvs_info.serial_number, sizeof(g_device_info.nvs_info.serial_number), "%032u",
-             random(1, 0xFFFFFFFF));
+    // No info.json: migrate legacy NVS once if present, otherwise start fresh,
+    // then create info.json on SD and wipe NVS so flash is never written again.
+    if (bsp_device_flash_read(&g_device_info.nvs_info) == STATUS_OK)
+    {
+      LOG_INF("Migrating device info from NVS to SD");
+    }
+    else
+    {
+      LOG_INF("No saved device info, initializing with default values");
+      memset(&g_device_info.nvs_info, 0, sizeof(g_device_info.nvs_info));
+      g_device_info.nvs_info.device_id = 0;
+      snprintf(g_device_info.nvs_info.serial_number, sizeof(g_device_info.nvs_info.serial_number), "%032u",
+               random(1, 0xFFFFFFFF));
+    }
 
-    bsp_device_flash_write(&g_device_info.nvs_info);
+    if (bsp_device_info_save(&g_device_info.nvs_info) == STATUS_OK)
+    {
+      bsp_device_flash_erase();
+    }
+    else
+    {
+      LOG_WRN("Failed to persist info.json; keeping NVS for next boot");
+    }
   }
 
   g_device_info.last_reset_reason   = bsp_device_get_reset_reason();
@@ -206,7 +217,7 @@ void device_info_update_state(device_state_t new_state)
 {
   g_device_info.nvs_info.prev_state = g_device_info.nvs_info.curr_state;
   g_device_info.nvs_info.curr_state = new_state;
-  bsp_device_flash_write(&g_device_info.nvs_info);
+  bsp_device_info_save(&g_device_info.nvs_info);
 
   device_info_apply_lock_state();
 }
@@ -239,13 +250,13 @@ void device_info_apply_lock_state(void)
 void device_info_inc_error_count(void)
 {
   g_device_info.nvs_info.err_count++;
-  bsp_device_flash_write(&g_device_info.nvs_info);
+  bsp_device_info_save(&g_device_info.nvs_info);
 }
 
 void device_info_reset_error_count(void)
 {
   g_device_info.nvs_info.err_count = 0;
-  bsp_device_flash_write(&g_device_info.nvs_info);
+  bsp_device_info_save(&g_device_info.nvs_info);
 }
 
 /* Private definitions ----------------------------------------------- */
