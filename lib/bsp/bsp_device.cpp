@@ -13,12 +13,20 @@
 /* Includes ----------------------------------------------------------- */
 #include "bsp_device.h"
 
+#include "bsp_sdcard.h"
+#include "device_config.h"
 #include "esp_system.h"
+#include "log_service.h"
 
+#include <ArduinoJson.h>
 #include <Preferences.h>
 #include <string.h>
 
 /* Private defines ---------------------------------------------------- */
+LOG_MODULE_REGISTER(bsp_device, LOG_LEVEL_BSP_DEVICE);
+
+#define DEVICE_INFO_JSON_BUF_SIZE (256)
+
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -71,25 +79,101 @@ status_function_t bsp_device_rtc_read(device_nvs_info_t *p_info)
   return STATUS_OK;
 }
 
-status_function_t bsp_device_flash_write(device_nvs_info_t *p_info)
+status_function_t bsp_device_info_save(const device_nvs_info_t *p_info)
 {
   if (p_info == NULL)
   {
     return STATUS_ERROR;
   }
 
-  if (!s_prefs.begin(DEVICE_NVS_NAMESPACE, false))  // false = read-write
+  JsonDocument doc;
+  doc["device_id"]     = p_info->device_id;
+  doc["serial_number"] = p_info->serial_number;
+  doc["curr_state"]    = (int) p_info->curr_state;
+  doc["prev_state"]    = (int) p_info->prev_state;
+  doc["err_count"]     = p_info->err_count;
+  doc["total_km"]      = p_info->total_km;
+
+  char   buf[DEVICE_INFO_JSON_BUF_SIZE];
+  size_t len = serializeJson(doc, buf, sizeof(buf));
+  if (len == 0)
+  {
+    LOG_ERR("Failed to serialize device info");
+    return STATUS_ERROR;
+  }
+
+  bsp_sdcard_file_t file;
+  if (bsp_sdcard_open(DEVICE_INFO_JSON_TMP_PATH, BSP_SDCARD_MODE_WRITE, &file) != STATUS_OK)
+  {
+    LOG_ERR("Failed to open %s", DEVICE_INFO_JSON_TMP_PATH);
+    return STATUS_ERROR;
+  }
+  size_t            written = 0;
+  status_function_t ret     = bsp_sdcard_write(&file, (const uint8_t *) buf, len, &written);
+  bsp_sdcard_close(&file);
+
+  if (ret != STATUS_OK || written != len)
+  {
+    LOG_ERR("Failed to write device info (%u/%u)", (unsigned) written, (unsigned) len);
+    bsp_sdcard_delete(DEVICE_INFO_JSON_TMP_PATH);
+    return STATUS_ERROR;
+  }
+
+  if (bsp_sdcard_file_exists(DEVICE_INFO_JSON_PATH) == STATUS_OK)
+  {
+    bsp_sdcard_delete(DEVICE_INFO_JSON_PATH);
+  }
+  if (bsp_sdcard_rename(DEVICE_INFO_JSON_TMP_PATH, DEVICE_INFO_JSON_PATH) != STATUS_OK)
+  {
+    LOG_ERR("Failed to commit %s", DEVICE_INFO_JSON_PATH);
+    return STATUS_ERROR;
+  }
+
+  return STATUS_OK;
+}
+
+status_function_t bsp_device_info_load(device_nvs_info_t *p_info)
+{
+  if (p_info == NULL)
   {
     return STATUS_ERROR;
   }
 
-  size_t written = s_prefs.putBytes(DEVICE_NVS_KEY_INFO, p_info, sizeof(device_nvs_info_t));
-  s_prefs.end();
-
-  if (written != sizeof(device_nvs_info_t))
+  bsp_sdcard_file_t file;
+  if (bsp_sdcard_open(DEVICE_INFO_JSON_PATH, BSP_SDCARD_MODE_READ, &file) != STATUS_OK)
   {
+    return STATUS_ERROR;  // no info.json yet (first boot)
+  }
+
+  char              buf[DEVICE_INFO_JSON_BUF_SIZE];
+  size_t            read_len = 0;
+  status_function_t ret      = bsp_sdcard_read(&file, (uint8_t *) buf, sizeof(buf) - 1, &read_len);
+  bsp_sdcard_close(&file);
+
+  if (ret != STATUS_OK || read_len == 0)
+  {
+    LOG_ERR("Failed to read %s", DEVICE_INFO_JSON_PATH);
     return STATUS_ERROR;
   }
+  buf[read_len] = '\0';
+
+  JsonDocument         doc;
+  DeserializationError err = deserializeJson(doc, buf);
+  if (err)
+  {
+    LOG_ERR("Corrupt info.json: %s", err.c_str());
+    return STATUS_ERROR;
+  }
+
+  p_info->device_id  = doc["device_id"] | 0;
+  p_info->curr_state = (device_state_t) (doc["curr_state"] | (int) DEVICE_STATE_LOCKED);
+  p_info->prev_state = (device_state_t) (doc["prev_state"] | (int) DEVICE_STATE_LOCKED);
+  p_info->err_count  = doc["err_count"] | 0;
+  p_info->total_km   = doc["total_km"] | 0.0f;
+
+  const char *serial = doc["serial_number"] | "";
+  strncpy(p_info->serial_number, serial, sizeof(p_info->serial_number) - 1);
+  p_info->serial_number[sizeof(p_info->serial_number) - 1] = '\0';
 
   return STATUS_OK;
 }
@@ -130,27 +214,6 @@ status_function_t bsp_device_flash_erase(void)
   s_prefs.end();
 
   return ok ? STATUS_OK : STATUS_ERROR;
-}
-
-status_function_t bsp_device_check_magic_number(void)
-{
-  if (!s_prefs.begin(DEVICE_NVS_NAMESPACE, false))
-  {
-    return STATUS_ERROR;
-  }
-
-  uint32_t magic = s_prefs.getUInt(DEVICE_NVS_KEY_MAGIC, 0);
-
-  if (magic == DEVICE_MAGIC_NUMBER)
-  {
-    s_prefs.end();
-    return STATUS_OK;
-  }
-
-  s_prefs.putUInt(DEVICE_NVS_KEY_MAGIC, DEVICE_MAGIC_NUMBER);
-  s_prefs.end();
-
-  return STATUS_ERROR;
 }
 
 /* Private definitions ----------------------------------------------- */

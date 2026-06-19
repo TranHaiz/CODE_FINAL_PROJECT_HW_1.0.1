@@ -43,7 +43,6 @@ static sys_error_handler_t g_sys_error_handler;
 void sys_error_init(void)
 {
   memset(&g_sys_error_handler, 0, sizeof(g_sys_error_handler));
-  bsp_device_flash_read(&g_device_info.nvs_info);
   snprintf(g_device_info.device_name, sizeof(g_device_info.device_name), "haq-trk-%03u",
            g_device_info.nvs_info.device_id);
   sys_network_adapter_ble_init();

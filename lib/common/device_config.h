@@ -29,6 +29,8 @@
 #define DEVICE_VERSION_LEN              (6)   // example: 1.0.0 (5 chars + 1 null terminator)
 #define DEVICE_SERIAL_NUMBER_MAX_LEN    (33)  // 32 chars + 1 null terminator
 #define DEVICE_MAGIC_NUMBER             (0xDEADBEEF)
+#define DEVICE_INFO_JSON_PATH           "/info.json"  // persistent device info on SD card
+#define DEVICE_INFO_JSON_TMP_PATH       "/info.tmp"   // staging file for atomic save
 
 #define DEVICE_NORMAL_MODE              (false)
 #define DEVICE_FUSION_DEBUG_MODE        (false)
@@ -78,6 +80,7 @@
 #define LOG_LEVEL_BSP_BATT                LOG_LEVEL_ERROR
 #define LOG_LEVEL_BSP_ACC                 LOG_LEVEL_ERROR
 #define LOG_LEVEL_DEVICE_INFO             LOG_LEVEL_DBG
+#define LOG_LEVEL_BSP_DEVICE              LOG_LEVEL_ERROR
 #define LOG_LEVEL_BSP_COMPASS             LOG_LEVEL_ERROR
 #define LOG_LEVEL_BSP_BUZZER              LOG_LEVEL_ERROR
 #define LOG_LEVEL_BSP_SERVO               LOG_LEVEL_DBG

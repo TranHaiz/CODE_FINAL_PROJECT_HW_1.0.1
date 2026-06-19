@@ -289,7 +289,7 @@ static void sys_manager_change_topic_sub_handler(void)
 
 static void sys_manager_reboot_handler(void)
 {
-  bsp_device_flash_write(&g_device_info.nvs_info);
+  bsp_device_info_save(&g_device_info.nvs_info);
   LOG_INF("---------- Rebooting device ----------");
   bsp_device_reboot();
 }
@@ -397,7 +397,7 @@ static void sys_manager_shutdown_handler(void)
 {
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_IDLE)
   {
-    bsp_device_flash_write(&g_device_info.nvs_info);
+    bsp_device_info_save(&g_device_info.nvs_info);
     device_info_update_state(DEVICE_STATE_IDLE);
     bsp_acc_enable_interrupt(BSP_ACC_INT_PIN_1);
     LOG_INF("---------- Device go to idle mode ----------");
