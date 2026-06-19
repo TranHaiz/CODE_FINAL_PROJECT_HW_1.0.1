@@ -1,0 +1,124 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="firmware-arch" name="Firmware Architecture">
+    <mxGraphModel dx="980" dy="640" grid="0" gridSize="10" guides="1" tooltips="1" connect="0" arrows="0" fold="1" page="1" pageScale="1" pageWidth="980" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Outer title -->
+        <mxCell id="title" value="FIRMWARE ARCHITECTURE (ESP32-S3 IoT GPS Tracker)" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;dashPattern=6 4;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontStyle=1;fontSize=13;verticalAlign=top;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="20" y="16" width="940" height="46" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== APPLICATION LAYER (lib/sys/) ===================== -->
+        <mxCell id="app" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="40" y="76" width="900" height="216" as="geometry" />
+        </mxCell>
+        <mxCell id="app_hdr" value="Application Layer (lib/sys/)" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="40" y="78" width="900" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sys_manager" value="sys_manager&#10;(coordinator)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="108" width="180" height="34" as="geometry" />
+        </mxCell>
+
+        <!-- System Services sub-box -->
+        <mxCell id="svc" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="56" y="150" width="868" height="134" as="geometry" />
+        </mxCell>
+        <mxCell id="svc_hdr" value="System Services / FreeRTOS tasks" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="56" y="152" width="868" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- services row 1 -->
+        <mxCell id="sys_input"   value="sys_input"   style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="68"  y="182" width="120" height="40" as="geometry" /></mxCell>
+        <mxCell id="sys_network" value="sys_network&#10;(LTE / BLE adapter)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="208" y="182" width="120" height="40" as="geometry" /></mxCell>
+        <mxCell id="sys_fusion"  value="sys_fusion&#10;(log / tune)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="348" y="182" width="120" height="40" as="geometry" /></mxCell>
+        <mxCell id="sys_ui"      value="sys_ui&#10;(simple / widget)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="488" y="182" width="120" height="40" as="geometry" /></mxCell>
+        <mxCell id="sys_log"     value="sys_log"     style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="628" y="182" width="120" height="40" as="geometry" /></mxCell>
+        <mxCell id="sys_button"  value="sys_button"  style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="768" y="182" width="120" height="40" as="geometry" /></mxCell>
+
+        <!-- services row 2 -->
+        <mxCell id="sys_buzzer"  value="sys_buzzer"  style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="68"  y="232" width="120" height="40" as="geometry" /></mxCell>
+        <mxCell id="sys_led"     value="sys_led"     style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="208" y="232" width="120" height="40" as="geometry" /></mxCell>
+        <mxCell id="sys_error"   value="sys_error"   style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="348" y="232" width="120" height="40" as="geometry" /></mxCell>
+        <mxCell id="sys_cmd"     value="sys_cmd"     style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="488" y="232" width="120" height="40" as="geometry" /></mxCell>
+        <mxCell id="sys_cmd_usb" value="sys_cmd_usb" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="628" y="232" width="120" height="40" as="geometry" /></mxCell>
+
+        <!-- ===================== BSP (lib/bsp/) ===================== -->
+        <mxCell id="bsp" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="40" y="308" width="560" height="246" as="geometry" />
+        </mxCell>
+        <mxCell id="bsp_hdr" value="Board Support Package (lib/bsp/)" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="40" y="310" width="560" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- bsp row 1 -->
+        <mxCell id="bsp_acc"     value="bsp_acc"     style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="52"  y="344" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_batt"    value="bsp_batt"    style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="140" y="344" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_ble"     value="bsp_ble"     style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="228" y="344" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_button"  value="bsp_button"  style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="316" y="344" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_buzzer"  value="bsp_buzzer"  style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="404" y="344" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_compass" value="bsp_compass" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=9;" vertex="1" parent="1"><mxGeometry x="492" y="344" width="84" height="28" as="geometry" /></mxCell>
+
+        <!-- bsp row 2 -->
+        <mxCell id="bsp_device"  value="bsp_device"  style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="52"  y="382" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_display" value="bsp_display" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="140" y="382" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_dust"    value="bsp_dust_sensor" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=8;" vertex="1" parent="1"><mxGeometry x="228" y="382" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_error"   value="bsp_error"   style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="316" y="382" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_gps"     value="bsp_gps"     style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="404" y="382" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_io"      value="bsp_io"      style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="492" y="382" width="84" height="28" as="geometry" /></mxCell>
+
+        <!-- bsp row 3 -->
+        <mxCell id="bsp_led"     value="bsp_led"     style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="52"  y="420" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_rtc"     value="bsp_rtc"     style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="140" y="420" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_sdcard"  value="bsp_sdcard"  style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="228" y="420" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_servo"   value="bsp_servo"   style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="316" y="420" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_sim"     value="bsp_sim"     style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="404" y="420" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_temp"    value="bsp_temp_hum" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=9;" vertex="1" parent="1"><mxGeometry x="492" y="420" width="84" height="28" as="geometry" /></mxCell>
+
+        <!-- bsp row 4 -->
+        <mxCell id="bsp_timer"   value="bsp_timer"   style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="52"  y="458" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_touch"   value="bsp_touch"   style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="140" y="458" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_uart"    value="bsp_uart"    style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="228" y="458" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_usb"     value="bsp_usb"     style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="316" y="458" width="84" height="28" as="geometry" /></mxCell>
+        <mxCell id="bsp_lvgldrv" value="lvgl_driver" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;dashed=1;" vertex="1" parent="1"><mxGeometry x="404" y="458" width="84" height="28" as="geometry" /></mxCell>
+
+        <!-- ===================== MIDDLEWARE & COMMON ===================== -->
+        <mxCell id="mw" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="620" y="308" width="340" height="158" as="geometry" />
+        </mxCell>
+        <mxCell id="mw_hdr" value="Middleware (lib/middleware/) &amp; Common (lib/common/)" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=11;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="620" y="310" width="340" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- mw row 1 (middleware) -->
+        <mxCell id="os_lib"  value="os_lib&#10;(FreeRTOS)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="632" y="344" width="96" height="34" as="geometry" /></mxCell>
+        <mxCell id="cbuffer" value="cbuffer" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="742" y="344" width="96" height="34" as="geometry" /></mxCell>
+        <mxCell id="fifo"    value="fifo" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="852" y="344" width="96" height="34" as="geometry" /></mxCell>
+
+        <!-- mw row 2 (common) -->
+        <mxCell id="dev_config"  value="device_config" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="632" y="386" width="96" height="34" as="geometry" /></mxCell>
+        <mxCell id="common_type" value="common_type" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="742" y="386" width="96" height="34" as="geometry" /></mxCell>
+        <mxCell id="device_info" value="device_info" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="852" y="386" width="96" height="34" as="geometry" /></mxCell>
+
+        <!-- mw row 3 (common) -->
+        <mxCell id="log_service" value="log_service" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="632" y="424" width="96" height="34" as="geometry" /></mxCell>
+        <mxCell id="lvgl"        value="LVGL&#10;(lv_conf)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="742" y="424" width="96" height="34" as="geometry" /></mxCell>
+        <mxCell id="lvgl_drv"    value="lvgl_driver.h" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1"><mxGeometry x="852" y="424" width="96" height="34" as="geometry" /></mxCell>
+
+        <!-- ===================== DEVICE DRIVERS (lib/driver/) ===================== -->
+        <mxCell id="drv" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="620" y="478" width="340" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="drv_hdr" value="Device Drivers (lib/driver/)" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=12;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="620" y="480" width="340" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="drv_box" value="a7680c&#10;(A7680C cellular modem)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="632" y="510" width="316" height="36" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
