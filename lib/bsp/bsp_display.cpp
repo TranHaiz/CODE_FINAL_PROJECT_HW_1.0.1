@@ -25,6 +25,10 @@ static constexpr int BACKLIGHT_PWM_FREQ = 5000;
 static constexpr int BACKLIGHT_PWM_BITS = 8;
 #endif
 
+static constexpr uint32_t DISPLAY_POWER_SETTLE_MS = 120;  // let panel POR settle before first SPI command
+static constexpr uint8_t  DISPLAY_INIT_MAX_RETRY  = 3;
+static constexpr uint8_t  DISPLAY_RDDPM_CMD       = 0x0A;  // Read Display Power Mode
+
 /* Private enumerate/structure ---------------------------------------- */
 
 /**
@@ -60,7 +64,17 @@ void bsp_display_init(void)
     return;
   }
 
-  display_ctx.tft.init();
+  delay(DISPLAY_POWER_SETTLE_MS);
+  for (uint8_t attempt = 0; attempt < DISPLAY_INIT_MAX_RETRY; attempt++)
+  {
+    display_ctx.tft.init();
+    uint8_t power_mode = display_ctx.tft.readcommand8(DISPLAY_RDDPM_CMD, 0);
+    if (power_mode != 0x00 && power_mode != 0xFF)
+    {
+      break;
+    }
+    delay(50);
+  }
 
 #if (SCREEN_ROTATION_0)
   display_ctx.tft.setRotation(0);

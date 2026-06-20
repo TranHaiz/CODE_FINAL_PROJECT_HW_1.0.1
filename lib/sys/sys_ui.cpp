@@ -971,13 +971,15 @@ void sys_ui_process(void)
 void sys_ui_lock(void)
 {
   LOG_DBG("sys_ui_lock: locking");
-  ui_ctx.view = SYS_UI_VIEW_UNKNOWN;
+  ui_ctx.view      = SYS_UI_VIEW_UNKNOWN;
+  ui_ctx.last_view = SYS_UI_VIEW_UNKNOWN;
 }
 
 void sys_ui_unlock(void)
 {
   LOG_DBG("sys_ui_unlock: unlocking");
-  ui_ctx.view = SYS_UI_VIEW_UNKNOWN;
+  ui_ctx.view      = SYS_UI_VIEW_UNKNOWN;
+  ui_ctx.last_view = SYS_UI_VIEW_UNKNOWN;
 }
 
 void sys_ui_wakeup(void)
@@ -1662,17 +1664,10 @@ static void sys_ui_main_screen_update_speed_n_distance(void)
 
 static void sys_ui_main_screen_update_countup(void)
 {
-  ui_ctx.active_seconds++;
-  if (ui_ctx.active_seconds >= 60)
-  {
-    ui_ctx.active_seconds = 0;
-    ui_ctx.active_minutes++;
-  }
-  if (ui_ctx.active_minutes >= 60)
-  {
-    ui_ctx.active_minutes = 0;
-    ui_ctx.active_hours++;
-  }
+  uint32_t elapsed_s    = (uint32_t) (OS_GET_TICK() - ui_ctx.session_start_ms) / 1000U;
+  ui_ctx.active_hours   = (int) (elapsed_s / 3600U);
+  ui_ctx.active_minutes = (int) ((elapsed_s % 3600U) / 60U);
+  ui_ctx.active_seconds = (int) (elapsed_s % 60U);
 }
 
 static void sys_ui_main_screen_cb_settings_btn(lv_event_t *event)

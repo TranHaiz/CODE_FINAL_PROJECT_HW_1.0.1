@@ -274,6 +274,7 @@ static void sys_manager_unlocked_handler(void)
   {
     device_info_update_state(DEVICE_STATE_ACTIVE);
     sys_input_clear_data_for_new_rental();
+    sys_ui_wakeup();
     sys_ui_unlock();
     sys_input_wakeup();
     LOG_DBG("Device unlocked and active");
