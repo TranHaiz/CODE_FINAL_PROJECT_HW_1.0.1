@@ -36,6 +36,7 @@ typedef struct
 /* Private variables -------------------------------------------------- */
 static log_handler_t         external_handler = nullptr;  // Function pointer for ex log handler (e.g. SD card, flash)
 static log_service_handler_t log_service_handler;
+static volatile bool         log_ble_busy = false;  // re-entrancy guard: BLE send may log on a full buffer
 
 static const char *level_str[] = { "-", "ERR", "WRN", "INF", "DBG" };
 
@@ -91,10 +92,11 @@ void log_service_print(log_level_t level, const char *tag, const char *fmt, ...)
     external_handler(line, len);
   }
 #endif
-  // Send over BLE if connected
-  if (sys_network_adapter_ble_is_connected())
+  if (!log_ble_busy && sys_network_adapter_ble_is_connected())
   {
+    log_ble_busy = true;
     sys_network_adapter_ble_send((const uint8_t *) line, len);
+    log_ble_busy = false;
   }
 }
 

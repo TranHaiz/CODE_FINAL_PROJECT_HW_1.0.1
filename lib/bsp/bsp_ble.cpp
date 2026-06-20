@@ -96,7 +96,6 @@ class BleUartRxCallbacks : public BLECharacteristicCallbacks
       if (bsp_ble_rx_len > BSP_BLE_RX_BUFFER_SIZE)
         bsp_ble_rx_len = BSP_BLE_RX_BUFFER_SIZE;
       memcpy(bsp_ble_rx_buffer, rxValue.c_str(), bsp_ble_rx_len);
-      LOG_DBG("BLE UART RX: %d bytes", bsp_ble_rx_len);
       bsp_ble_callback(BSP_BLE_EVT_RECEIVE_DATA);
     }
   }
@@ -113,7 +112,6 @@ class BleTrackerCmdCallbacks : public BLECharacteristicCallbacks
       if (bsp_ble_cmd_len > BSP_BLE_CMD_BUFFER_SIZE)
         bsp_ble_cmd_len = BSP_BLE_CMD_BUFFER_SIZE;
       memcpy(bsp_ble_cmd_buffer, val.c_str(), bsp_ble_cmd_len);
-      LOG_DBG("BLE CMD write: %d bytes", bsp_ble_cmd_len);
       bsp_ble_callback(BSP_BLE_EVT_CMD_WRITE);
     }
   }
