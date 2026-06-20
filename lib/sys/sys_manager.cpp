@@ -71,6 +71,7 @@ OS_SEM_DEFINE_STATIC(sys_manager_event_sem);
 OS_MUTEX_DEFINE_STATIC(sys_manager_event_mutex);
 static sys_manager_handler_t manager_handler;
 static sys_manager_event_t   s_event_buffer[SYS_MANAGER_EVENT_QUEUE_SIZE];
+static bool                  s_manager_ready = false;  // event queue (sem/mutex) created
 
 /* Private function prototypes ---------------------------------------- */
 static void sys_manager_wakeup_handler(void);
@@ -168,11 +169,17 @@ void sys_manager_init(void)
   INFO(SYS_MANAGER_EVT_APPLY_DANGER_NOTI    ,   sys_manager_apply_danger_noti_handler   );
   INFO(SYS_MANAGER_EVT_SYNC_LOCK            ,   sys_manager_sync_lock_handler           );
   // clang-format on
+
+  s_manager_ready = true;  // safe to accept events only after the queue and handlers exist
 }
 #undef INFO
 
 void sys_manager_write_event(sys_manager_event_t event)
 {
+  if (!s_manager_ready)
+  {
+    return;
+  }
   if (event < SYS_MANAGER_EVT_MAX)
   {
     OS_MUTEX_LOCK(sys_manager_event_mutex);

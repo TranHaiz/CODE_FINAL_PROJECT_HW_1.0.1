@@ -642,7 +642,8 @@ typedef struct
 sys_ui_data_status_t g_sys_ui_data_status = { 0 };
 
 /* Private variables -------------------------------------------------- */
-static sys_ui_context_t ui_ctx;
+static sys_ui_context_t      ui_ctx;
+RTC_DATA_ATTR static uint8_t s_qr_fail_reboot_count = 0;
 
 /* Lookup table: one column of SYS_UI_OBJ_TABLE per background (positional init, field order). */
 // clang-format off
@@ -2501,6 +2502,21 @@ static void sys_ui_lock_screen_create(void)
     ui_ctx.widgets.lock_qr_img =
       sys_ui_widget_create_label(ui_ctx.widgets.lock_screen, SYS_UI_QR_LABEL_FAIL_X, SYS_UI_QR_LABEL_FAIL_Y,
                                  SYS_UI_QR_LABEL_FAIL, THEME->text_lock_qr_fail, SYS_UI_QR_LABEL_FAIL_FONT);
+
+    if (s_qr_fail_reboot_count < SYS_UI_QR_FAIL_REBOOT_MAX)
+    {
+      s_qr_fail_reboot_count++;
+      LOG_WRN("QR load failed -> reboot (attempt %u/%u)", s_qr_fail_reboot_count, SYS_UI_QR_FAIL_REBOOT_MAX);
+      sys_manager_write_event(SYS_MANAGER_EVT_REBOOT);
+    }
+    else
+    {
+      LOG_ERR("QR load still failing after %u reboots; keeping fallback", s_qr_fail_reboot_count);
+    }
+  }
+  else
+  {
+    s_qr_fail_reboot_count = 0;  // success clears the retry counter
   }
 
 #if SCREEN_SKIP_LOCK_SCREEN

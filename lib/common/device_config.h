@@ -130,6 +130,7 @@
 
 // ------------------------------ IL9341 screen configuration ------------------------------
 #define SCREEN_SKIP_LOCK_SCREEN           (false)
+#define SYS_UI_QR_FAIL_REBOOT_MAX         (3)  // reboots to retry on lock-screen QR load fail before giving up (anti boot-loop)
 #define SCREEN_ROTATION_0                 (false)
 #define SCREEN_ROTATION_90                (false)
 #define SCREEN_ROTATION_180               (false)
