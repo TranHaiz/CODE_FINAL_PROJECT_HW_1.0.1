@@ -22,7 +22,6 @@
 #define SYS_LOG_BUFFER_SIZE       (2048)
 #define SYS_LOG_BUFFER_THRESHOLD  (80)  // Percent
 #define SYS_LOG_FLUSH_INTERVAL_MS (30000)
-#define SYS_LOG_FILE_PATH         "/logs/system.log"
 
 /* Public enumerate/structure ----------------------------------------- */
 /* Public macros ------------------------------------------------------ */

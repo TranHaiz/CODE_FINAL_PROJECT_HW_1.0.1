@@ -456,6 +456,43 @@ status_function_t bsp_sdcard_dir_close(bsp_sdcard_dir_t *dir)
   return STATUS_OK;
 }
 
+status_function_t bsp_sdcard_dir_total_size(const char *path, uint64_t *total_size)
+{
+  if (path == nullptr || total_size == nullptr || !is_sdcard_mounted)
+  {
+    return STATUS_ERROR;
+  }
+
+  if (!sdcard_lock())
+  {
+    LOG_WRN("SD busy (dir_total_size %s)", path);
+    return STATUS_BUSY;
+  }
+
+  *total_size = 0;
+
+  File dir = SD.open(path, FILE_READ);
+  if (!dir || !dir.isDirectory())
+  {
+    dir.close();
+    sdcard_unlock();
+    return STATUS_ERROR;
+  }
+
+  for (File entry = dir.openNextFile(); entry; entry = dir.openNextFile())
+  {
+    if (!entry.isDirectory())
+    {
+      *total_size += (uint64_t) entry.size();
+    }
+    entry.close();
+  }
+  dir.close();
+  sdcard_unlock();
+
+  return STATUS_OK;
+}
+
 status_function_t bsp_sdcard_deinit(void)
 {
   if (is_sdcard_mounted)

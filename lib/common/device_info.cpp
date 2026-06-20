@@ -25,8 +25,8 @@ LOG_MODULE_REGISTER(device_info, LOG_LEVEL_DEVICE_INFO)
 
 #define DEVICE_INIT_NEW_LOG_RETRIES    (3)
 #define DEVICE_INIT_NEW_FOLDER_RETRIES (3)
-#define DEVICE_LOG_FOLDER_PATH         "/logs"
-#define DEVICE_OFF_LOG_FOLDER_PATH     "/buff"
+#define DEVICE_LOG_FOLDER_PATH         SD_LOG_DIR   // see SD layout in device_config.h
+#define DEVICE_OFF_LOG_FOLDER_PATH     SD_BUFF_DIR
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -112,7 +112,7 @@ void device_info_init(void)
           sizeof(g_device_info.last_mqtt_cmd_topic) - 1);
   snprintf(g_device_info.mqtt_noti_topic, sizeof(g_device_info.mqtt_noti_topic), "%s/noti", g_device_info.device_name);
 
-  snprintf(g_device_info.log_sd_path, sizeof(g_device_info.log_sd_path), "/logs/%d-%d-%d.log", timeline.date,
+  snprintf(g_device_info.log_sd_path, sizeof(g_device_info.log_sd_path), SD_LOG_DIR "/%d-%d-%d.log", timeline.date,
            timeline.month, timeline.year);
 
   if (bsp_sdcard_dir_exists(DEVICE_LOG_FOLDER_PATH) != STATUS_OK)

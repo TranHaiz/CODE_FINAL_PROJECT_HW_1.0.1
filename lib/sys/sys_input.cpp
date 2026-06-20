@@ -40,7 +40,7 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_SYS_INPUT)
 #define SYS_INPUT_BATT_MAX_ERROR       (5)
 
 #define SYS_INPUT_BATT_ENABLE          (true)
-#define SYS_INPUT_BATT_SOC_FILE        ("/batt_soc.dat")
+#define SYS_INPUT_BATT_SOC_FILE        (SD_BATT_SOC_PATH)  // see SD layout in device_config.h
 #define SYS_INPUT_BATT_SOC_MAGIC       (0xB1A77E01u)
 
 /* Private enumerate/structure ---------------------------------------- */

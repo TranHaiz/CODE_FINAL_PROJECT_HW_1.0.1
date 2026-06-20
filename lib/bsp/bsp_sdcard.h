@@ -168,6 +168,14 @@ status_function_t bsp_sdcard_dir_read_next(bsp_sdcard_dir_t *dir, char *file_nam
 status_function_t bsp_sdcard_dir_close(bsp_sdcard_dir_t *dir);
 
 /**
+ * @brief Sum the size of all regular files directly inside a directory
+ * @param[in]  path        Directory path
+ * @param[out] total_size  Total bytes of regular files in the directory
+ * @return status_function_t Status of operation
+ */
+status_function_t bsp_sdcard_dir_total_size(const char *path, uint64_t *total_size);
+
+/**
  * @brief Deinitialize SD card
  * @return status_function_t Status of operation
  */

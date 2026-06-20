@@ -29,8 +29,6 @@
 #define DEVICE_VERSION_LEN              (6)   // example: 1.0.0 (5 chars + 1 null terminator)
 #define DEVICE_SERIAL_NUMBER_MAX_LEN    (33)  // 32 chars + 1 null terminator
 #define DEVICE_MAGIC_NUMBER             (0xDEADBEEF)
-#define DEVICE_INFO_JSON_PATH           "/info.json"  // persistent device info on SD card
-#define DEVICE_INFO_JSON_TMP_PATH       "/info.tmp"   // staging file for atomic save
 
 #define DEVICE_NORMAL_MODE              (false)
 #define DEVICE_FUSION_DEBUG_MODE        (false)
@@ -70,10 +68,25 @@
   "Only one SIM module can be selected. Please set either DEVICE_SIM_EG800K or DEVICE_SIM_A7680C to true, and the other to false."
 #endif
 
+// ------------------------------ SD card filesystem layout ------------------------------
+#define SD_LOG_DIR                        "/logs"               // daily system logs (D-M-Y.log) + fusion CSV
+#define SD_OFFLINE_DIR                    "/offline"            // offline trip data, auto-purged after upload
+#define SD_BUFF_DIR                       "/buff"               // off-time log buffer
+#define SD_INFO_PATH                      "/info.json"          // persistent device info (atomic save)
+#define SD_INFO_TMP_PATH                  "/info.tmp"           // staging file for atomic save of SD_INFO_PATH
+#define SD_IMG_DIR                        "/img"                // static image assets (pre-loaded on card)
+#define SD_QR_PATH                        SD_IMG_DIR "/qr.bin"  // lock-screen QR image
+#define SD_BATT_SOC_PATH                  "/batt_soc.dat"       // persisted battery SoC estimate
+
 // ------------------------------ LOG service configuration ------------------------------
 #define LOG_ENABLE                        (1)
 #define LOG_USB_ENABLE                    (1)
 #define LOG_SDCARD_ENABLE                 (1)
+
+#define SYS_LOG_DIR_MAX_BYTES             (6ULL * 1024 * 1024 * 1024)  // 6 GB budget for SD_LOG_DIR
+#define SYS_LOG_DIR_USAGE_PERCENT         (90)                         // trigger cleanup at this % of the budget
+#define SYS_LOG_KEEP_DAYS                 (30)                         // keep this many most-recent days of logs
+#define SYS_LOG_CAP_CHECK_INTERVAL_MS     (3600000)                    // scan & enforce interval (1 hour)
 
 // Log levels
 #define LOG_LEVEL_MAIN                    LOG_LEVEL_INFO

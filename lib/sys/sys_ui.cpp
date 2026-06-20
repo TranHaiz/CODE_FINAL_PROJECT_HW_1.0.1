@@ -446,7 +446,7 @@ LOG_MODULE_REGISTER(sys_ui, LOG_LEVEL_SYS_UI);
 #define SYS_UI_FUSION_BTN_GAP                (8)
 
 // Lock screen
-#define SYS_UI_QR_PATH                       "/img/qr.bin"
+#define SYS_UI_QR_PATH                       SD_QR_PATH  // see SD layout in device_config.h
 #define SYS_UI_QR_LABEL                      "SCAN TO UNLOCK"
 #define SYS_UI_QR_LABEL_X                    (50)
 #define SYS_UI_QR_LABEL_Y                    (20)

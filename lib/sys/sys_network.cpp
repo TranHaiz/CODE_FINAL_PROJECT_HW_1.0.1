@@ -43,8 +43,7 @@ LOG_MODULE_REGISTER(sys_network, LOG_LEVEL_SYS_NETWORK)
 #define NETWORK_BYTES                (NETWORK_CBUFF_COUNT * NETWORK_CBUFF_SLOT_SIZE)
 #define NETWORK_CBUFF_FLUSH_THRESH   (80)
 #define MQTT_REQUEST_PUBLISH_MAX     (10)
-#define SD_OFFLINE_DIR               "/offline"
-#define SD_TRIP_PREFIX               "/offline/trip_"
+#define SD_TRIP_PREFIX               SD_OFFLINE_DIR "/trip_"
 #define SD_JSON_LINE_MAX_LEN         (NETWORK_CBUFF_SLOT_SIZE + 2)
 #define SD_CARD_RETRY_COUNT          (3)
 #define SD_CARD_RETRY_DELAY_MS       (100)

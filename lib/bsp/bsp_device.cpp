@@ -103,9 +103,9 @@ status_function_t bsp_device_info_save(const device_nvs_info_t *p_info)
   }
 
   bsp_sdcard_file_t file;
-  if (bsp_sdcard_open(DEVICE_INFO_JSON_TMP_PATH, BSP_SDCARD_MODE_WRITE, &file) != STATUS_OK)
+  if (bsp_sdcard_open(SD_INFO_TMP_PATH, BSP_SDCARD_MODE_WRITE, &file) != STATUS_OK)
   {
-    LOG_ERR("Failed to open %s", DEVICE_INFO_JSON_TMP_PATH);
+    LOG_ERR("Failed to open %s", SD_INFO_TMP_PATH);
     return STATUS_ERROR;
   }
   size_t            written = 0;
@@ -115,17 +115,17 @@ status_function_t bsp_device_info_save(const device_nvs_info_t *p_info)
   if (ret != STATUS_OK || written != len)
   {
     LOG_ERR("Failed to write device info (%u/%u)", (unsigned) written, (unsigned) len);
-    bsp_sdcard_delete(DEVICE_INFO_JSON_TMP_PATH);
+    bsp_sdcard_delete(SD_INFO_TMP_PATH);
     return STATUS_ERROR;
   }
 
-  if (bsp_sdcard_file_exists(DEVICE_INFO_JSON_PATH) == STATUS_OK)
+  if (bsp_sdcard_file_exists(SD_INFO_PATH) == STATUS_OK)
   {
-    bsp_sdcard_delete(DEVICE_INFO_JSON_PATH);
+    bsp_sdcard_delete(SD_INFO_PATH);
   }
-  if (bsp_sdcard_rename(DEVICE_INFO_JSON_TMP_PATH, DEVICE_INFO_JSON_PATH) != STATUS_OK)
+  if (bsp_sdcard_rename(SD_INFO_TMP_PATH, SD_INFO_PATH) != STATUS_OK)
   {
-    LOG_ERR("Failed to commit %s", DEVICE_INFO_JSON_PATH);
+    LOG_ERR("Failed to commit %s", SD_INFO_PATH);
     return STATUS_ERROR;
   }
 
@@ -140,7 +140,7 @@ status_function_t bsp_device_info_load(device_nvs_info_t *p_info)
   }
 
   bsp_sdcard_file_t file;
-  if (bsp_sdcard_open(DEVICE_INFO_JSON_PATH, BSP_SDCARD_MODE_READ, &file) != STATUS_OK)
+  if (bsp_sdcard_open(SD_INFO_PATH, BSP_SDCARD_MODE_READ, &file) != STATUS_OK)
   {
     return STATUS_ERROR;  // no info.json yet (first boot)
   }
@@ -152,7 +152,7 @@ status_function_t bsp_device_info_load(device_nvs_info_t *p_info)
 
   if (ret != STATUS_OK || read_len == 0)
   {
-    LOG_ERR("Failed to read %s", DEVICE_INFO_JSON_PATH);
+    LOG_ERR("Failed to read %s", SD_INFO_PATH);
     return STATUS_ERROR;
   }
   buf[read_len] = '\0';

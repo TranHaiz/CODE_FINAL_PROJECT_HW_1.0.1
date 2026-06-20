@@ -13,15 +13,20 @@
 /* Includes ----------------------------------------------------------- */
 #include "sys_log.h"
 
+#include "bsp_rtc.h"
 #include "bsp_sdcard.h"
 #include "cbuffer.h"
 #include "os_lib.h"
 
+#include <stdio.h>
 #include <string.h>
 
 /* Private defines ---------------------------------------------------- */
-#define SYS_LOG_MKDIR_RETRIES (3)
-#define SYS_LOG_DEBUG_MODE    (0)
+#define SYS_LOG_MKDIR_RETRIES  (3)
+#define SYS_LOG_DEBUG_MODE     (0)
+#define SYS_LOG_NAME_MAX       (32)  // longest log file name we handle (e.g. 31-12-2026.log)
+#define SYS_LOG_PRUNE_BATCH    (16)  // files deleted per directory scan
+#define SYS_LOG_PRUNE_MAX_PASS (64)  // bound scans per enforce call
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -37,12 +42,16 @@
 
 static uint8_t   ram_log_buff[SYS_LOG_BUFFER_SIZE];
 static cbuffer_t cbuff_ram_log;
-static size_t    last_flush_tick = 0;
+static size_t    last_flush_tick     = 0;
+static size_t    last_cap_check_tick = 0;
 
 /* Private function prototypes ---------------------------------------- */
 static void              sys_log_buffer_write(const char *data, size_t len);
 static uint8_t           sys_log_get_buffer_usage(void);
 static status_function_t sys_log_flush(void);
+static void              sys_log_enforce_capacity(void);
+static void              sys_log_prune_old_days(void);
+static long              sys_log_days_from_civil(int y, unsigned m, unsigned d);
 
 /* Function definitions ----------------------------------------------- */
 
@@ -50,13 +59,14 @@ void sys_log_init(void)
 {
   cb_init(&cbuff_ram_log, ram_log_buff, SYS_LOG_BUFFER_SIZE);
   cb_clear(&cbuff_ram_log);
-  last_flush_tick = OS_GET_TICK();
+  last_flush_tick     = OS_GET_TICK();
+  last_cap_check_tick = OS_GET_TICK();
 
   if (bsp_sdcard_is_mounted() == STATUS_OK)
   {
     for (int i = 0; i < SYS_LOG_MKDIR_RETRIES; i++)
     {
-      if (bsp_sdcard_mkdir("/logs") == STATUS_OK)
+      if (bsp_sdcard_mkdir(SD_LOG_DIR) == STATUS_OK)
       {
         DEBUG_LOG("SD card log directory initialized");
         break;
@@ -67,6 +77,7 @@ void sys_log_init(void)
         OS_DELAY_MS(100);
       }
     }
+    sys_log_enforce_capacity();  // trim oversized log dir at boot
   }
 
   // Register handler with log_service
@@ -99,6 +110,13 @@ void sys_log_process(void)
   {
     DEBUG_LOG("Flushing logs to SD card...");
     sys_log_flush();
+  }
+
+  // Periodically enforce the log storage cap (scan is heavy, keep it infrequent)
+  if ((OS_GET_TICK() - last_cap_check_tick) >= SYS_LOG_CAP_CHECK_INTERVAL_MS)
+  {
+    last_cap_check_tick = OS_GET_TICK();
+    sys_log_enforce_capacity();
   }
 }
 
@@ -170,6 +188,104 @@ static void sys_log_buffer_write(const char *data, size_t len)
 
   // Write to cbuffer (cbuffer handles overflow internally)
   cb_write(&cbuff_ram_log, (void *) data, len);
+}
+
+static long sys_log_days_from_civil(int y, unsigned m, unsigned d)
+{
+  y -= (m <= 2);
+  const long     era = (y >= 0 ? y : y - 399) / 400;
+  const unsigned yoe = (unsigned) (y - era * 400);
+  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  return era * 146097 + (long) doe - 719468;
+}
+
+static void sys_log_prune_old_days(void)
+{
+  timeline_t today;
+  if (bsp_rtc_get(&today) != STATUS_OK)
+  {
+    return;
+  }
+  const long today_dn = sys_log_days_from_civil((int) today.year, today.month, today.date);
+
+  const char *active = strrchr(g_device_info.log_sd_path, '/');
+  active             = (active != nullptr) ? active + 1 : g_device_info.log_sd_path;
+
+  for (int pass = 0; pass < SYS_LOG_PRUNE_MAX_PASS; pass++)
+  {
+    bsp_sdcard_dir_t dir;
+    if (bsp_sdcard_dir_open(SD_LOG_DIR, &dir) != STATUS_OK)
+    {
+      return;
+    }
+
+    // Collect victims first, delete after closing the dir (don't mutate it while iterating)
+    char victims[SYS_LOG_PRUNE_BATCH][SYS_LOG_NAME_MAX];
+    int  victim_count = 0;
+    bool more         = false;
+    char name[SYS_LOG_NAME_MAX];
+    while (bsp_sdcard_dir_read_next(&dir, name, sizeof(name)) == STATUS_OK)
+    {
+      if (strcmp(name, active) == 0)
+      {
+        continue;
+      }
+      int d, m, y;
+      if (sscanf(name, "%d-%d-%d.log", &d, &m, &y) != 3)
+      {
+        continue;  // not a daily log, leave it alone
+      }
+      const long file_dn = sys_log_days_from_civil(y, (unsigned) m, (unsigned) d);
+      if ((today_dn - file_dn) > SYS_LOG_KEEP_DAYS)
+      {
+        if (victim_count >= SYS_LOG_PRUNE_BATCH)
+        {
+          more = true;
+          break;
+        }
+        strncpy(victims[victim_count], name, SYS_LOG_NAME_MAX - 1);
+        victims[victim_count][SYS_LOG_NAME_MAX - 1] = '\0';
+        victim_count++;
+      }
+    }
+    bsp_sdcard_dir_close(&dir);
+
+    for (int i = 0; i < victim_count; i++)
+    {
+      char del_path[DEVICE_LOG_SD_PATH_MAX_LEN];
+      snprintf(del_path, sizeof(del_path), SD_LOG_DIR "/%s", victims[i]);
+      bsp_sdcard_delete(del_path);
+      DEBUG_LOG("Log cap: deleted old daily log");
+    }
+
+    if (!more)
+    {
+      break;
+    }
+  }
+}
+
+// When SD_LOG_DIR exceeds the usage threshold, prune logs down to the most recent days.
+static void sys_log_enforce_capacity(void)
+{
+  if (bsp_sdcard_is_mounted() != STATUS_OK)
+  {
+    return;
+  }
+
+  const uint64_t hi_bytes = (SYS_LOG_DIR_MAX_BYTES / 100ULL) * SYS_LOG_DIR_USAGE_PERCENT;
+  uint64_t       used     = 0;
+  if (bsp_sdcard_dir_total_size(SD_LOG_DIR, &used) != STATUS_OK)
+  {
+    return;
+  }
+  if (used < hi_bytes)
+  {
+    return;  // within budget
+  }
+
+  sys_log_prune_old_days();
 }
 
 #else

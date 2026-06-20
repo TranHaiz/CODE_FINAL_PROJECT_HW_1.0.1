@@ -68,12 +68,12 @@ void sys_fusion_log_init(void)
 
   timeline_t t = { 0 };
   bsp_rtc_get(&t);
-  snprintf(log_path, sizeof(log_path), "/logs/fusion_%lu-%u-%u.csv",
+  snprintf(log_path, sizeof(log_path), SD_LOG_DIR "/fusion_%lu-%u-%u.csv",
            (unsigned long) t.year, (unsigned) t.month, (unsigned) t.date);
 
   if (bsp_sdcard_is_mounted() == STATUS_OK)
   {
-    bsp_sdcard_mkdir("/logs");
+    bsp_sdcard_mkdir(SD_LOG_DIR);
     if (bsp_sdcard_file_exists(log_path) != STATUS_OK)
     {
       bsp_sdcard_file_t f;
