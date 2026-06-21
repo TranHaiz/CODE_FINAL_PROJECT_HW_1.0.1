@@ -24,7 +24,7 @@ LOG_MODULE_REGISTER(bsp_dust_sensor, LOG_LEVEL_BSP_DUST_SENSOR);
 #define BSP_DUST_SENSOR_ADC_RES        (12)
 #define BSP_DUST_SENSOR_ADC_MAX        (4095.0f)
 #define BSP_DUST_SENSOR_VCC            (3.3f)
-#define BSP_DUST_SENSOR_CAL_FACTOR     (1000.0f)
+#define BSP_DUST_SENSOR_SENSITIVITY    (0.005f)
 #define BSP_DUST_SENSOR_SAMPLES        (10)
 #define BSP_DUST_SENSOR_BASELINE_SAMPS (50)
 #define BSP_DUST_SENSOR_WARMUP_MS      (5000u)
@@ -32,6 +32,8 @@ LOG_MODULE_REGISTER(bsp_dust_sensor, LOG_LEVEL_BSP_DUST_SENSOR);
 #define BSP_DUST_SENSOR_T_HOLD_US      (40u)
 #define BSP_DUST_SENSOR_T_CYCLE_MS     (10u)
 #define BSP_DUST_SENSOR_MAX_UGM3       (600.0f)
+#define BSP_DUST_SENSOR_BASE_DOWN_A    (0.05f)
+#define BSP_DUST_SENSOR_BASE_UP_A      (0.0005f)
 
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
@@ -79,7 +81,7 @@ status_function_t bsp_dust_sensor_init(void)
   }
   LOG_DBG("Warmup done");
 
-  // Calibrate baseline
+  // Calibrate baseline = this sensor's real no-dust zero (calibrate in clean air for absolute scale)
   LOG_DBG("Calibrating baseline (%d samples)...", BSP_DUST_SENSOR_BASELINE_SAMPS);
   dust_ctx.baseline_adc = bsp_dust_sensor_calibrate_baseline();
   LOG_DBG("Baseline ADC = %.2f (%.4fV)", dust_ctx.baseline_adc,
@@ -112,11 +114,14 @@ status_function_t bsp_dust_sensor_read(bsp_dust_sensor_data_t *data)
   }
 
   float delta_v = delta_adc * (BSP_DUST_SENSOR_VCC / BSP_DUST_SENSOR_ADC_MAX);
-  float density = delta_v * BSP_DUST_SENSOR_CAL_FACTOR;
+  float density = delta_v / BSP_DUST_SENSOR_SENSITIVITY;
   if (density > BSP_DUST_SENSOR_MAX_UGM3)
   {
     density = BSP_DUST_SENSOR_MAX_UGM3;
   }
+
+  float base_err = adc_avg - dust_ctx.baseline_adc;
+  dust_ctx.baseline_adc += base_err * (base_err < 0.0f ? BSP_DUST_SENSOR_BASE_DOWN_A : BSP_DUST_SENSOR_BASE_UP_A);
 
   // Fill output
   data->dust_density     = (uint16_t) density;
@@ -126,8 +131,9 @@ status_function_t bsp_dust_sensor_read(bsp_dust_sensor_data_t *data)
 
   dust_ctx.last_update_ms = data->timestamp_ms;
 
-  LOG_DBG("adc_avg=%.1f delta_adc=%.1f delta_v=%.4fV density=%d ug/m3", adc_avg, delta_adc, delta_v,
-          data->dust_density);
+  LOG_DBG("baseline_adc=%.1f (%.4fV) adc_avg=%.1f (%.4fV) delta_adc=%.1f delta_v=%.4fV density=%d ug/m3",
+          dust_ctx.baseline_adc, dust_ctx.baseline_adc * (BSP_DUST_SENSOR_VCC / BSP_DUST_SENSOR_ADC_MAX), adc_avg,
+          adc_avg * (BSP_DUST_SENSOR_VCC / BSP_DUST_SENSOR_ADC_MAX), delta_adc, delta_v, data->dust_density);
 
   return STATUS_OK;
 }
