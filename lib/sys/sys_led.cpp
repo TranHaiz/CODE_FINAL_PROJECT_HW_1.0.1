@@ -80,6 +80,8 @@ void sys_led_init(void)
   INFO(SYS_LED_EVT_ERROR_SIM,              BSP_LED_COLOR_GREEN,  BSP_LED_MODE_FLASH_FAST,   100           );
   INFO(SYS_LED_EVT_ERROR_RTC,              BSP_LED_COLOR_GREEN,  BSP_LED_MODE_PULSE,        100           );
   INFO(SYS_LED_EVT_ERROR_NETWORK_LOST,     BSP_LED_COLOR_BLUE,   BSP_LED_MODE_PULSE,        100           );
+  INFO(SYS_LED_EVT_ERROR_SD,               BSP_LED_COLOR_RED,    BSP_LED_MODE_PULSE,        100           );
+  INFO(SYS_LED_EVT_ERROR_DISPLAY,          BSP_LED_COLOR_RED,    BSP_LED_MODE_FLASH_FAST,   100           );
 #undef INFO
   // clang-format on
 }

@@ -25,13 +25,15 @@ LOG_MODULE_REGISTER(device_info, LOG_LEVEL_DEVICE_INFO)
 
 #define DEVICE_INIT_NEW_LOG_RETRIES    (3)
 #define DEVICE_INIT_NEW_FOLDER_RETRIES (3)
-#define DEVICE_LOG_FOLDER_PATH         SD_LOG_DIR   // see SD layout in device_config.h
+#define DEVICE_LOG_FOLDER_PATH         SD_LOG_DIR  // see SD layout in device_config.h
 #define DEVICE_OFF_LOG_FOLDER_PATH     SD_BUFF_DIR
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
-RTC_DATA_ATTR device_info_t g_device_info;
+RTC_NOINIT_ATTR device_info_t   g_device_info;
+RTC_NOINIT_ATTR static uint32_t s_rtc_magic;
+#define DEVICE_RTC_MAGIC (0x48415121u)
 
 // clang-format off
 #define INFO(id, str) [id] = str
@@ -55,6 +57,15 @@ static const char *RESET_REASON_STR[ESP_RST_SDIO + 1] = {
 /* Private variables -------------------------------------------------- */
 /* Private function prototypes ---------------------------------------- */
 /* Function definitions ----------------------------------------------- */
+void device_info_rtc_guard(void)
+{
+  if (s_rtc_magic != DEVICE_RTC_MAGIC)
+  {
+    memset(&g_device_info, 0, sizeof(g_device_info));
+    s_rtc_magic = DEVICE_RTC_MAGIC;
+  }
+}
+
 void device_info_init(void)
 {
   timeline_t        timeline;

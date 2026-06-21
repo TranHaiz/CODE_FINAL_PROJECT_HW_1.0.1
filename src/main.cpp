@@ -98,6 +98,7 @@ void setup()
 {
   Serial.begin(115200);
   delay(1000);  // Wait for Serial to initialize
+  device_info_rtc_guard();
   bsp_error_check();
   if (g_device_info.nvs_info.curr_state == DEVICE_STATE_ERROR)
   {

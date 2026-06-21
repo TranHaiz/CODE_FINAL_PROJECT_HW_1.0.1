@@ -61,13 +61,21 @@ typedef struct
   bool                  danger_noti_enabled;
   device_danger_level_t danger_level;
   bool                  servo_sync_pending;  // lock actuation deferred (battery/brownout guard)
+  uint8_t               last_error_code;     // last bsp_error_t that fed the error counter (RTC-only)
 } device_info_t;
 
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
-extern RTC_DATA_ATTR device_info_t g_device_info;
+extern RTC_NOINIT_ATTR device_info_t g_device_info;
 
 /* Public function prototypes ----------------------------------------- */
+/**
+ * @brief Clear g_device_info on a cold (power-on) boot, keep it across soft resets.
+ *        Must be called before bsp_error_check() so RTC noinit memory is sane.
+ * @return none
+ */
+void device_info_rtc_guard(void);
+
 /**
  * @brief Initialize device information, read from flash, and set up logging
  * @return none

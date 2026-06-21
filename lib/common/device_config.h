@@ -129,6 +129,7 @@
 #define DEVICE_LOG_SD_PATH_MAX_LEN        (128)
 
 // ------------------------------ IL9341 screen configuration ------------------------------
+#define DEVICE_DISPLAY_READBACK_SUPPORTED (0)
 #define SCREEN_SKIP_LOCK_SCREEN           (false)
 #define SYS_UI_QR_FAIL_REBOOT_MAX         (3)  // reboots to retry on lock-screen QR load fail before giving up (anti boot-loop)
 #define SCREEN_ROTATION_0                 (false)
@@ -226,6 +227,7 @@
 #define NETWORK_NOTI_HELP                 "NOTI_HELP"
 #define NETWORK_NOTI_DEVICE_STOLEN        "NOTI_STOLEN"
 #define NETWORK_NOTI_LOW_BATT             "NOTI_LOW_BATT"
+#define NETWORK_NOTI_ERROR_PREFIX         "NOTI_ERROR="  // error mode publishes "NOTI_ERROR=<bsp_error code>"
 #define NETWORK_KEEPALIVE_MES             "KEEPALIVE"  // sent as "KEEPALIVE=n%" (n = battery %)
 #define NETWORK_KEEPALIVE_MSG_MAX_LEN     (24)         // fits "KEEPALIVE=100%" + null
 #define NETWORK_DEVICE_RESP_OK_PAYLOAD    "OK"

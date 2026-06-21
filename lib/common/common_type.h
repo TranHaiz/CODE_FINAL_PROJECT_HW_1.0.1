@@ -15,6 +15,7 @@
 #define _COMMON_TYPE_H_
 /* Includes ----------------------------------------------------------- */
 #include "assert.h"
+#include "device_config.h"  // CONFIG_MQTT_SERVER must be defined before the mqtt_message_t guard
 #include "device_info.h"
 #include "esp_check.h"
 

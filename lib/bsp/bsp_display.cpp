@@ -16,6 +16,8 @@
 /* Includes ----------------------------------------------------------- */
 #include "bsp_display.h"
 
+#include "bsp_error.h"
+
 #include <SPI.h>
 
 /* Private defines ---------------------------------------------------- */
@@ -65,16 +67,25 @@ void bsp_display_init(void)
   }
 
   delay(DISPLAY_POWER_SETTLE_MS);
+  uint8_t power_mode = 0;
   for (uint8_t attempt = 0; attempt < DISPLAY_INIT_MAX_RETRY; attempt++)
   {
     display_ctx.tft.init();
-    uint8_t power_mode = display_ctx.tft.readcommand8(DISPLAY_RDDPM_CMD, 0);
+    power_mode = display_ctx.tft.readcommand8(DISPLAY_RDDPM_CMD, 0);
     if (power_mode != 0x00 && power_mode != 0xFF)
     {
       break;
     }
     delay(50);
   }
+
+#if (DEVICE_DISPLAY_READBACK_SUPPORTED)
+  // Panel still not responding after retries -> count toward error mode (reboots).
+  if (power_mode == 0x00 || power_mode == 0xFF)
+  {
+    bsp_error_handler(BSP_ERROR_DISPLAY_INIT);
+  }
+#endif
 
 #if (SCREEN_ROTATION_0)
   display_ctx.tft.setRotation(0);

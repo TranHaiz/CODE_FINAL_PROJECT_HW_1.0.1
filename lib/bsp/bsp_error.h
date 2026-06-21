@@ -14,7 +14,6 @@
 #ifndef _BSP_ERROR_H_
 #define _BSP_ERROR_H_
 /* Includes ----------------------------------------------------------- */
-#include "bsp_sim.h"
 #include "common_type.h"
 
 /* Public defines ----------------------------------------------------- */
@@ -35,6 +34,7 @@ typedef enum
   BSP_ERROR_TEMP_HUM_INIT,
   BSP_ERROR_IMU_INIT,
   BSP_ERROR_COMPASS_INIT,
+  BSP_ERROR_DISPLAY_INIT,
   BSP_ERROR_MAX
 } bsp_error_t;
 

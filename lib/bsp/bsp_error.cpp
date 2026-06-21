@@ -26,6 +26,7 @@
 /* Function definitions ----------------------------------------------- */
 void bsp_error_handler(bsp_error_t error_code)
 {
+  g_device_info.last_error_code = (uint8_t) error_code;  // RTC-persisted so error mode can report it
   device_info_inc_error_count();
 
   switch (error_code)
@@ -34,6 +35,7 @@ void bsp_error_handler(bsp_error_t error_code)
   case BSP_ERROR_SD_MOUNT:
   case BSP_ERROR_SD_MKDIR:
   case BSP_ERROR_SD_OPEN_FILE:
+  case BSP_ERROR_DISPLAY_INIT:
   {
     bsp_device_reboot();
     break;
@@ -56,7 +58,9 @@ void bsp_error_check(void)
       && (g_device_info.nvs_info.curr_state != DEVICE_STATE_ERROR))
   {
     device_info_reset_error_count();
-    device_info_update_state(DEVICE_STATE_ERROR);
+    g_device_info.nvs_info.prev_state = g_device_info.nvs_info.curr_state;
+    g_device_info.nvs_info.curr_state = DEVICE_STATE_ERROR;
+    device_info_apply_lock_state();
     bsp_device_reboot();
   }
 }
