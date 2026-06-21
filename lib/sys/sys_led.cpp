@@ -62,26 +62,26 @@ void sys_led_init(void)
 
   // clang-format off
 #define INFO(event, color, mode, brightness) SYS_LED_EVT_INFO[event] = { color, mode, brightness }
-  /*Event                                 |Color                |Mode                      |Brightness   */
-  INFO(SYS_LED_EVT_OFF,                    BSP_LED_COLOR_NONE,   BSP_LED_MODE_NONE,         0             );
-  INFO(SYS_LED_EVT_HELP,                   BSP_LED_COLOR_YELLOW,   BSP_LED_MODE_BLINK_ONCE,   100           );
-  INFO(SYS_LED_EVT_SERVICE_ENTER,          BSP_LED_COLOR_CYAN,   BSP_LED_MODE_BLINK_ONCE,   100           );
-  INFO(SYS_LED_EVT_SERVICE_DONE,           BSP_LED_COLOR_GREEN,  BSP_LED_MODE_BLINK_ONCE,   100           );
-  INFO(SYS_LED_EVT_SERVICE_ABORT,          BSP_LED_COLOR_RED,    BSP_LED_MODE_BLINK_ONCE,   100           );
-  INFO(SYS_LED_EVT_NOTI_DANGER,            BSP_LED_COLOR_RED,    BSP_LED_MODE_FLASH_FAST,   100           );
-  INFO(SYS_LED_EVT_NOTI_LOW_BALANCE,       BSP_LED_COLOR_YELLOW, BSP_LED_MODE_FLASH_SLOW,   50            );
-  INFO(SYS_LED_EVT_NOTI_WARNING_DEBT,      BSP_LED_COLOR_YELLOW, BSP_LED_MODE_PULSE,        50            );
-  INFO(SYS_LED_EVT_NOTI_RENTAL_LIMIT,      BSP_LED_COLOR_ORANGE, BSP_LED_MODE_FLASH_FAST,   50            );
-  INFO(SYS_LED_EVT_ERROR_GPS,              BSP_LED_COLOR_ORANGE, BSP_LED_MODE_PULSE,        100           );
-  INFO(SYS_LED_EVT_ERROR_FUEL_GAUGE,       BSP_LED_COLOR_PINK,   BSP_LED_MODE_FLASH_FAST,   100           );
-  INFO(SYS_LED_EVT_ERROR_TEMP_HUM,         BSP_LED_COLOR_PINK,   BSP_LED_MODE_PULSE,        100           );
-  INFO(SYS_LED_EVT_ERROR_IMU,              BSP_LED_COLOR_CYAN,   BSP_LED_MODE_FLASH_FAST,   100           );
-  INFO(SYS_LED_EVT_ERROR_COMPASS,          BSP_LED_COLOR_CYAN,   BSP_LED_MODE_PULSE,        100           );
-  INFO(SYS_LED_EVT_ERROR_SIM,              BSP_LED_COLOR_GREEN,  BSP_LED_MODE_FLASH_FAST,   100           );
-  INFO(SYS_LED_EVT_ERROR_RTC,              BSP_LED_COLOR_GREEN,  BSP_LED_MODE_PULSE,        100           );
-  INFO(SYS_LED_EVT_ERROR_NETWORK_LOST,     BSP_LED_COLOR_BLUE,   BSP_LED_MODE_PULSE,        100           );
-  INFO(SYS_LED_EVT_ERROR_SD,               BSP_LED_COLOR_RED,    BSP_LED_MODE_PULSE,        100           );
-  INFO(SYS_LED_EVT_ERROR_DISPLAY,          BSP_LED_COLOR_RED,    BSP_LED_MODE_FLASH_FAST,   100           );
+  /*Event                                 |Color                |Mode                        |Brightness   */
+  INFO(SYS_LED_EVT_OFF,                    BSP_LED_COLOR_NONE,   BSP_LED_MODE_NONE,           0            );
+  INFO(SYS_LED_EVT_HELP,                   BSP_LED_COLOR_YELLOW,   BSP_LED_MODE_BLINK_ONCE,   100          );
+  INFO(SYS_LED_EVT_SERVICE_ENTER,          BSP_LED_COLOR_CYAN,   BSP_LED_MODE_BLINK_ONCE,     70           );
+  INFO(SYS_LED_EVT_SERVICE_DONE,           BSP_LED_COLOR_GREEN,  BSP_LED_MODE_BLINK_ONCE,     70           );
+  INFO(SYS_LED_EVT_SERVICE_ABORT,          BSP_LED_COLOR_RED,    BSP_LED_MODE_BLINK_ONCE,     70           );
+  INFO(SYS_LED_EVT_NOTI_DANGER,            BSP_LED_COLOR_RED,    BSP_LED_MODE_FLASH_FAST,     100          );
+  INFO(SYS_LED_EVT_NOTI_LOW_BALANCE,       BSP_LED_COLOR_YELLOW, BSP_LED_MODE_FLASH_SLOW,     50           );
+  INFO(SYS_LED_EVT_NOTI_WARNING_DEBT,      BSP_LED_COLOR_YELLOW, BSP_LED_MODE_PULSE,          50           );
+  INFO(SYS_LED_EVT_NOTI_RENTAL_LIMIT,      BSP_LED_COLOR_ORANGE, BSP_LED_MODE_FLASH_FAST,     50           );
+  INFO(SYS_LED_EVT_ERROR_GPS,              BSP_LED_COLOR_ORANGE, BSP_LED_MODE_PULSE,          20           );
+  INFO(SYS_LED_EVT_ERROR_FUEL_GAUGE,       BSP_LED_COLOR_PINK,   BSP_LED_MODE_FLASH_FAST,     20           );
+  INFO(SYS_LED_EVT_ERROR_TEMP_HUM,         BSP_LED_COLOR_PINK,   BSP_LED_MODE_PULSE,          20           );
+  INFO(SYS_LED_EVT_ERROR_IMU,              BSP_LED_COLOR_CYAN,   BSP_LED_MODE_FLASH_FAST,     20           );
+  INFO(SYS_LED_EVT_ERROR_COMPASS,          BSP_LED_COLOR_CYAN,   BSP_LED_MODE_PULSE,          20           );
+  INFO(SYS_LED_EVT_ERROR_SIM,              BSP_LED_COLOR_GREEN,  BSP_LED_MODE_FLASH_FAST,     20           );
+  INFO(SYS_LED_EVT_ERROR_RTC,              BSP_LED_COLOR_GREEN,  BSP_LED_MODE_PULSE,          20           );
+  INFO(SYS_LED_EVT_ERROR_NETWORK_LOST,     BSP_LED_COLOR_BLUE,   BSP_LED_MODE_PULSE,          20           );
+  INFO(SYS_LED_EVT_ERROR_SD,               BSP_LED_COLOR_RED,    BSP_LED_MODE_PULSE,          20           );
+  INFO(SYS_LED_EVT_ERROR_DISPLAY,          BSP_LED_COLOR_RED,    BSP_LED_MODE_FLASH_FAST,     20           );
 #undef INFO
   // clang-format on
 }
