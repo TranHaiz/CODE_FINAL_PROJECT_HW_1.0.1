@@ -58,6 +58,7 @@ typedef struct
   bsp_timer_t                   pause_timeout_timer;
   bool                          is_noti_limited_active;
   bool                          is_warning_debt_active;
+  bool                          is_danger_noti_active;
   bool                          is_pause_pending;
   uint32_t                      last_user_action_ms;
 } sys_manager_handler_t;
@@ -447,7 +448,11 @@ static void sys_manager_device_stolen_handler(void)
   default: break;
   }
   bsp_timer_start(&manager_handler.danger_noti_timer);
-  sys_network_publish_noti(NETWORK_NOTI_DEVICE_STOLEN, strlen(NETWORK_NOTI_DEVICE_STOLEN));
+  if (!manager_handler.is_danger_noti_active)
+  {
+    manager_handler.is_danger_noti_active = true;
+    sys_network_publish_noti(NETWORK_NOTI_DEVICE_STOLEN, strlen(NETWORK_NOTI_DEVICE_STOLEN));
+  }
 }
 
 void sys_manager_unlock_from_network_handler(void)
@@ -491,6 +496,7 @@ void sys_manager_lock_from_network_handler(void)
     {
       bsp_timer_stop(&manager_handler.stolen_timeout_timer);
       bsp_timer_stop(&manager_handler.danger_noti_timer);
+      manager_handler.is_danger_noti_active = false;
       g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
       sys_led_write_event(SYS_LED_EVT_OFF);
       sys_buzzer_clear_event(SYS_BUZZER_EVT_STOLEN);
@@ -577,6 +583,7 @@ static void sys_manager_stop_stolen_noti(void)
     return;
   }
   bsp_timer_stop(&manager_handler.stolen_timeout_timer);
+  manager_handler.is_danger_noti_active = false;
   sys_led_write_event(SYS_LED_EVT_OFF);
   sys_ui_wakeup();
   sys_buzzer_clear_event(SYS_BUZZER_EVT_STOLEN);
@@ -594,6 +601,7 @@ static void sys_manager_stolen_timeout_handler(void)
 
   LOG_DBG("Stolen timeout: no motion => back to LOCKED");
   bsp_timer_stop(&manager_handler.danger_noti_timer);
+  manager_handler.is_danger_noti_active = false;
   device_info_update_state(DEVICE_STATE_LOCKED);
   sys_led_write_event(SYS_LED_EVT_OFF);
   sys_buzzer_clear_event(SYS_BUZZER_EVT_STOLEN);
@@ -636,6 +644,7 @@ static void sys_manager_clear_debt_handler(void)
   manager_handler.is_warning_debt_active = false;
   sys_led_write_event(SYS_LED_EVT_OFF);
   sys_buzzer_clear_event(SYS_BUZZER_EVT_WARN_DEBT);
+  sys_ui_noti_clear(SYS_UI_NOTI_LABEL_WARN_ADD_FUND);
 }
 
 static void sys_manager_warn_low_balance_handler(void)
