@@ -76,7 +76,8 @@
 #define SD_INFO_TMP_PATH                  "/info.tmp"           // staging file for atomic save of SD_INFO_PATH
 #define SD_IMG_DIR                        "/img"                // static image assets (pre-loaded on card)
 #define SD_QR_PATH                        SD_IMG_DIR "/qr.bin"  // lock-screen QR image
-#define SD_BATT_SOC_PATH                  "/batt_soc.dat"       // persisted battery SoC estimate
+#define SD_BATT_SOC_PATH                  "/batt_soc.json"      // persisted battery SoC estimate
+#define SD_BATT_SOC_TMP_PATH              "/batt_soc.tmp"       // staging file for batt SoC save
 
 // ------------------------------ LOG service configuration ------------------------------
 #define LOG_ENABLE                        (1)
@@ -228,8 +229,8 @@
 #define NETWORK_NOTI_DEVICE_STOLEN        "NOTI_STOLEN"
 #define NETWORK_NOTI_LOW_BATT             "NOTI_LOW_BATT"
 #define NETWORK_NOTI_ERROR_PREFIX         "NOTI_ERROR="  // error mode publishes "NOTI_ERROR=<bsp_error code>"
-#define NETWORK_KEEPALIVE_MES             "KEEPALIVE"  // sent as "KEEPALIVE=n%" (n = battery %)
-#define NETWORK_KEEPALIVE_MSG_MAX_LEN     (24)         // fits "KEEPALIVE=100%" + null
+#define NETWORK_KEEPALIVE_MES             "KEEPALIVE"    // sent as "KEEPALIVE=n%" (n = battery %)
+#define NETWORK_KEEPALIVE_MSG_MAX_LEN     (24)           // fits "KEEPALIVE=100%" + null
 #define NETWORK_DEVICE_RESP_OK_PAYLOAD    "OK"
 
 // ------------------------------ Battery ------------------------------

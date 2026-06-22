@@ -19,6 +19,7 @@
 #include "Adafruit_SHT31.h"
 #include "bsp_acc.h"
 #include "bsp_batt.h"
+#include "bsp_device.h"
 #include "bsp_dust_sensor.h"
 #include "bsp_io.h"
 #include "bsp_sdcard.h"
@@ -27,6 +28,8 @@
 #include "sys_led.h"
 #include "sys_manager.h"
 #include "sys_ui.h"
+
+#include <ArduinoJson.h>
 
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_SYS_INPUT)
@@ -40,17 +43,11 @@ LOG_MODULE_REGISTER(sys_input, LOG_LEVEL_SYS_INPUT)
 #define SYS_INPUT_BATT_MAX_ERROR       (5)
 
 #define SYS_INPUT_BATT_ENABLE          (true)
-#define SYS_INPUT_BATT_SOC_FILE        (SD_BATT_SOC_PATH)  // see SD layout in device_config.h
-#define SYS_INPUT_BATT_SOC_MAGIC       (0xB1A77E01u)
+#define SYS_INPUT_BATT_SOC_FILE        (SD_BATT_SOC_PATH)
+#define SYS_INPUT_BATT_SOC_TMP_FILE    (SD_BATT_SOC_TMP_PATH)
+#define SYS_INPUT_BATT_SOC_JSON_BUF    (128)
 
 /* Private enumerate/structure ---------------------------------------- */
-typedef struct
-{
-  uint32_t magic;
-  float    remaining_mah;
-  uint32_t check;  // magic ^ raw bits of remaining_mah
-} sys_input_batt_record_t;
-
 typedef struct
 {
   bool dust_ready;
@@ -352,14 +349,16 @@ static void sys_input_read_battery_level(float *battery_level)
 
 static void sys_input_initial_battery_level(void)
 {
-  // Resume from the last persisted coulomb count if available
-  float restored_mah = 0.0f;
-  if (sys_input_batt_load_mah(&restored_mah))
+  if (bsp_device_get_reset_reason() == ESP_RST_SW)
   {
-    input_ctx.batt_remaining_mah = restored_mah;
-    input_ctx.data.battery_level = (restored_mah / BSP_BATTERY_CAPACITY_MAH) * 100.0f;
-    LOG_INF("Restored battery level from SD: %.2f%%", input_ctx.data.battery_level);
-    return;
+    float restored_mah = 0.0f;
+    if (sys_input_batt_load_mah(&restored_mah))
+    {
+      input_ctx.batt_remaining_mah = restored_mah;
+      input_ctx.data.battery_level = (restored_mah / BSP_BATTERY_CAPACITY_MAH) * 100.0f;
+      LOG_INF("Restored battery level from SD: %.2f%%", input_ctx.data.battery_level);
+      return;
+    }
   }
 
   float sum = 0.0f;
@@ -398,22 +397,30 @@ static bool sys_input_batt_load_mah(float *mah)
   if (bsp_sdcard_open(SYS_INPUT_BATT_SOC_FILE, BSP_SDCARD_MODE_READ, &f) != STATUS_OK)
     return false;
 
-  sys_input_batt_record_t rec      = { 0 };
-  size_t                  read_len = 0;
-  status_function_t       st       = bsp_sdcard_read(&f, (uint8_t *) &rec, sizeof(rec), &read_len);
+  char              buf[SYS_INPUT_BATT_SOC_JSON_BUF];
+  size_t            read_len = 0;
+  status_function_t st       = bsp_sdcard_read(&f, (uint8_t *) buf, sizeof(buf) - 1, &read_len);
   bsp_sdcard_close(&f);
 
-  if (st != STATUS_OK || read_len != sizeof(rec) || rec.magic != SYS_INPUT_BATT_SOC_MAGIC)
+  if (st != STATUS_OK || read_len == 0)
+    return false;
+  buf[read_len] = '\0';
+
+  JsonDocument         doc;
+  DeserializationError err = deserializeJson(doc, buf);
+  if (err)
+  {
+    LOG_ERR("Corrupt %s: %s", SYS_INPUT_BATT_SOC_FILE, err.c_str());
+    return false;
+  }
+
+  if (!doc["remaining_mah"].is<float>())
+    return false;
+  float remaining_mah = doc["remaining_mah"];
+  if (remaining_mah < 0.0f || remaining_mah > BSP_BATTERY_CAPACITY_MAH)
     return false;
 
-  uint32_t bits = 0;
-  memcpy(&bits, &rec.remaining_mah, sizeof(bits));
-  if (rec.check != (SYS_INPUT_BATT_SOC_MAGIC ^ bits))
-    return false;
-  if (rec.remaining_mah < 0.0f || rec.remaining_mah > BSP_BATTERY_CAPACITY_MAH)
-    return false;
-
-  *mah = rec.remaining_mah;
+  *mah = remaining_mah;
   return true;
 }
 
@@ -422,18 +429,32 @@ static void sys_input_batt_save_mah(float mah)
   if (bsp_sdcard_is_mounted() != STATUS_OK)
     return;
 
-  sys_input_batt_record_t rec;
-  rec.magic         = SYS_INPUT_BATT_SOC_MAGIC;
-  rec.remaining_mah = mah;
-  uint32_t bits     = 0;
-  memcpy(&bits, &mah, sizeof(bits));
-  rec.check = SYS_INPUT_BATT_SOC_MAGIC ^ bits;
+  JsonDocument doc;
+  doc["remaining_mah"] = mah;
+  doc["capacity_mah"]  = BSP_BATTERY_CAPACITY_MAH;
+  doc["soc_percent"]   = (mah / BSP_BATTERY_CAPACITY_MAH) * 100.0f;
+
+  char   buf[SYS_INPUT_BATT_SOC_JSON_BUF];
+  size_t len = serializeJson(doc, buf, sizeof(buf));
+  if (len == 0)
+    return;
 
   bsp_sdcard_file_t f;
-  if (bsp_sdcard_open(SYS_INPUT_BATT_SOC_FILE, BSP_SDCARD_MODE_WRITE, &f) != STATUS_OK)
+  if (bsp_sdcard_open(SYS_INPUT_BATT_SOC_TMP_FILE, BSP_SDCARD_MODE_WRITE, &f) != STATUS_OK)
     return;
-  bsp_sdcard_write(&f, (const uint8_t *) &rec, sizeof(rec), nullptr);
+  size_t            written = 0;
+  status_function_t st      = bsp_sdcard_write(&f, (const uint8_t *) buf, len, &written);
   bsp_sdcard_close(&f);
+
+  if (st != STATUS_OK || written != len)
+  {
+    bsp_sdcard_delete(SYS_INPUT_BATT_SOC_TMP_FILE);
+    return;
+  }
+
+  if (bsp_sdcard_file_exists(SYS_INPUT_BATT_SOC_FILE) == STATUS_OK)
+    bsp_sdcard_delete(SYS_INPUT_BATT_SOC_FILE);
+  bsp_sdcard_rename(SYS_INPUT_BATT_SOC_TMP_FILE, SYS_INPUT_BATT_SOC_FILE);
 }
 
 static status_function_t sys_input_process_active(void)
