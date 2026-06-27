@@ -112,6 +112,9 @@ LOG_MODULE_REGISTER(sys_fusion, LOG_LEVEL_SYS_FUSION)
 // Runtime recovery: re-init the compass when it is not ready or reads keep failing
 #define COMPASS_REINIT_FAIL_THRESHOLD      (5)     // consecutive read fails before forcing re-init
 #define COMPASS_REINIT_INTERVAL_MS         (2000)  // min spacing between re-init attempts
+#define COMPASS_HARDIRON_AUTO_ENABLED      (1)
+#define COMPASS_HARDIRON_MIN_SPAN          (60.0f)    // min raw-count span on X & Y before offset is trusted
+#define COMPASS_HARDIRON_DECAY             (0.0005f)  // slow envelope relaxation, adapts to env drift
 
 // Butterworth 2nd-order lowpass for ACC: fc=8 Hz, fs=200 Hz
 // wn=tan(pi*8/200)=0.12683, D=1+sqrt(2)*wn+wn^2
@@ -249,6 +252,11 @@ typedef struct
   float       heading_deg;
   const char *direction_str;
 
+  float hi_min_x, hi_max_x;
+  float hi_min_y, hi_max_y;
+  float hi_offset_x, hi_offset_y;
+  bool  hi_init;
+
   // Sensor ready flags
   bool compass_ready;
   bool acc_ready;
@@ -289,6 +297,7 @@ static void        sys_fusion_calculate_offset_mag(void);
 static void        sys_fusion_calibrate_gyro_bias(void);
 static bool        sys_fusion_preprocess_data(size_t current_ms);
 static void        sys_fusion_compass_try_reinit(size_t current_ms);
+static void        sys_fusion_update_hardiron(float mag_x, float mag_y);
 static bool        sys_fusion_read_imu(bsp_acc_raw_data_t *imu);
 static void        sys_fusion_update_attitude(const bsp_acc_raw_data_t *imu, bool compass_fresh, float dt);
 static void        sys_fusion_update_ins_velocity(float dt);
@@ -803,6 +812,12 @@ static void sys_fusion_update_attitude(const bsp_acc_raw_data_t *imu, bool compa
     float mag_y = fusion_ctx.compass_ema_y;
     float mag_z = fusion_ctx.compass_ema_z;
 
+#if (COMPASS_HARDIRON_AUTO_ENABLED)
+    sys_fusion_update_hardiron(mag_x, mag_y);
+    mag_x -= fusion_ctx.hi_offset_x;
+    mag_y -= fusion_ctx.hi_offset_y;
+#endif
+
     float cos_roll  = cosf(fusion_ctx.roll_rad);
     float sin_roll  = sinf(fusion_ctx.roll_rad);
     float cos_pitch = cosf(fusion_ctx.pitch_rad);
@@ -1246,6 +1261,40 @@ static void sys_fusion_compass_try_reinit(size_t current_ms)
     fusion_ctx.compass_fail_count  = 0;
     fusion_ctx.compass_filter_init = false;  // reseed the filter from fresh samples
     LOG_WRN("Compass re-init OK");
+  }
+}
+
+static void sys_fusion_update_hardiron(float mag_x, float mag_y)
+{
+  if (!fusion_ctx.hi_init)
+  {
+    fusion_ctx.hi_min_x = fusion_ctx.hi_max_x = mag_x;
+    fusion_ctx.hi_min_y = fusion_ctx.hi_max_y = mag_y;
+    fusion_ctx.hi_init                        = true;
+    return;
+  }
+
+  float span_x = fusion_ctx.hi_max_x - fusion_ctx.hi_min_x;
+  float span_y = fusion_ctx.hi_max_y - fusion_ctx.hi_min_y;
+  fusion_ctx.hi_min_x += span_x * COMPASS_HARDIRON_DECAY;
+  fusion_ctx.hi_max_x -= span_x * COMPASS_HARDIRON_DECAY;
+  fusion_ctx.hi_min_y += span_y * COMPASS_HARDIRON_DECAY;
+  fusion_ctx.hi_max_y -= span_y * COMPASS_HARDIRON_DECAY;
+
+  if (mag_x < fusion_ctx.hi_min_x)
+    fusion_ctx.hi_min_x = mag_x;
+  if (mag_x > fusion_ctx.hi_max_x)
+    fusion_ctx.hi_max_x = mag_x;
+  if (mag_y < fusion_ctx.hi_min_y)
+    fusion_ctx.hi_min_y = mag_y;
+  if (mag_y > fusion_ctx.hi_max_y)
+    fusion_ctx.hi_max_y = mag_y;
+
+  if ((fusion_ctx.hi_max_x - fusion_ctx.hi_min_x) > COMPASS_HARDIRON_MIN_SPAN
+      && (fusion_ctx.hi_max_y - fusion_ctx.hi_min_y) > COMPASS_HARDIRON_MIN_SPAN)
+  {
+    fusion_ctx.hi_offset_x = 0.5f * (fusion_ctx.hi_max_x + fusion_ctx.hi_min_x);
+    fusion_ctx.hi_offset_y = 0.5f * (fusion_ctx.hi_max_y + fusion_ctx.hi_min_y);
   }
 }
 
