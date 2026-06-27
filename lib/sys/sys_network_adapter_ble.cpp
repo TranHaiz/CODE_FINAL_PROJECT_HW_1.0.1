@@ -27,7 +27,7 @@
 #include <string.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(sys_ble, LOG_LEVEL_SYS_BLE);
+LOG_MODULE_REGISTER(sys_ble, LOG_LEVEL_SYS_NETWORK_BLE);
 
 #define SYS_BLE_MAX_RX_LEN    (512)
 #define SYS_BLE_MAX_TX_LEN    (512)

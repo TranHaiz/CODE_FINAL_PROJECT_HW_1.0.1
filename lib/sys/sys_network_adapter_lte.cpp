@@ -28,7 +28,7 @@
 #include <string.h>
 
 /* Private defines ---------------------------------------------------- */
-LOG_MODULE_REGISTER(net_lte, LOG_LEVEL_SYS_NETWORK)
+LOG_MODULE_REGISTER(net_lte, LOG_LEVEL_SYS_NETWORK_LTE)
 
 #define MQTT_KEEPALIVE_S            (30)
 #define MQTT_KEEPALIVE_MS           (MQTT_KEEPALIVE_S * 1000UL)
