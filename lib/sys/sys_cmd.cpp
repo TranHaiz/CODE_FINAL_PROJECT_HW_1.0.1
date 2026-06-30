@@ -19,7 +19,9 @@
 #include "bsp_sim.h"
 #include "log_service.h"
 #include "sys_buzzer.h"
+#include "sys_input.h"
 #include "sys_manager.h"
+#include "sys_network.h"
 #include "sys_network_adapter_lte.h"
 #include "sys_ui.h"
 
@@ -62,6 +64,7 @@ static void sys_cmd_start_rental_handler(void);
 static void sys_cmd_pause_ok_handler(void);
 static void sys_cmd_modem_reset_handler(void);
 static void sys_cmd_where_handler(void);
+static void sys_cmd_device_status_handler(void);
 
 /* Private macros ----------------------------------------------------- */
 /* Public variables --------------------------------------------------- */
@@ -89,6 +92,7 @@ static sys_command_t CMD_INFO[CMD_MAX] = {
   INFO("START_RENTAL", sys_cmd_start_rental_handler),
   INFO("MODEM_RESET", sys_cmd_modem_reset_handler),
   INFO("WHERE", sys_cmd_where_handler),
+  INFO("DEVICE_STATUS", sys_cmd_device_status_handler),
   INFO("OK", sys_cmd_pause_ok_handler),
   INFO("K", sys_cmd_pause_ok_handler)
 };
@@ -325,6 +329,25 @@ static void sys_cmd_modem_reset_handler(void)
 static void sys_cmd_where_handler(void)
 {
   sys_buzzer_beep_find();
+}
+
+static void sys_cmd_device_status_handler(void)
+{
+  sys_input_data_t data = { 0 };
+  sys_input_get_data(&data);
+
+  const char *lock_str   = (g_device_info.nvs_info.curr_state == DEVICE_STATE_ACTIVE) ? "unlocked" : "locked";
+  const char *rental_str = sys_network_is_trip_active() ? "true" : "false";
+
+  char payload[MQTT_REQUEST_PUBLISH_SIZE];
+  int  len = snprintf(payload, sizeof(payload),
+                      "{\"lock\":\"%s\",\"rental\":%s,\"battery\":%d,\"lat\":%.6f,\"lng\":%.6f}", lock_str, rental_str,
+                      (int) (data.battery_level + 0.5f), data.gps_position.latitude, data.gps_position.longitude);
+
+  if (len > 0 && len < (int) sizeof(payload))
+  {
+    sys_network_publish_noti(payload, (size_t) len);
+  }
 }
 
 static void sys_cmd_set_danger_noti_handler(void)

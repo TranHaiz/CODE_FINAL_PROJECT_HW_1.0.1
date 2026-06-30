@@ -43,6 +43,7 @@ typedef enum
   CMD_PAUSE_OK_DROPPED,  // "OK" arriving as "K" when modem drops the leading char
   CMD_MODEM_RESET,
   CMD_WHERE,
+  CMD_DEVICE_STATUS,
   CMD_MAX
 } sys_command_id_t;
 
