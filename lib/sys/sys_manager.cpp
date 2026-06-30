@@ -17,6 +17,7 @@
 #include "bsp_device.h"
 #include "bsp_led.h"
 #include "bsp_sdcard.h"
+#include "bsp_servo.h"
 #include "bsp_sim.h"
 #include "bsp_timer.h"
 #include "cbuffer.h"
@@ -486,7 +487,6 @@ void sys_manager_lock_from_network_handler(void)
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_LOCKED)
   {
     bool was_stolen = (g_device_info.nvs_info.curr_state == DEVICE_STATE_STOLEN);
-    sys_network_trigger_end_trip();
     device_info_update_state(DEVICE_STATE_LOCKED);
     sys_ui_lock();
 #if (DEVICE_IDLE_MODE_ENABLED)
@@ -497,7 +497,7 @@ void sys_manager_lock_from_network_handler(void)
       bsp_timer_stop(&manager_handler.stolen_timeout_timer);
       bsp_timer_stop(&manager_handler.danger_noti_timer);
       manager_handler.is_danger_noti_active = false;
-      g_device_info.danger_level = DEVICE_DANGER_LEVEL_LOW;
+      g_device_info.danger_level            = DEVICE_DANGER_LEVEL_LOW;
       sys_led_write_event(SYS_LED_EVT_OFF);
       sys_buzzer_clear_event(SYS_BUZZER_EVT_STOLEN);
     }
@@ -561,6 +561,10 @@ static void sys_manager_stop_rental_success_handler(void)
     sys_led_write_event(SYS_LED_EVT_OFF);
     sys_buzzer_write_event(SYS_BUZZER_EVT_OFF);
   }
+
+  // Reset danger notification settings to default values when rental stops
+  g_device_info.danger_noti_enabled = true;
+  g_device_info.danger_level        = DEVICE_DANGER_LEVEL_LOW;
 }
 
 static void sys_manager_reset_offline_data_handler(void)
@@ -682,6 +686,22 @@ static void sys_manager_check_lte_band_handler(void)
 
 static void sys_manager_apply_danger_noti_handler(void)
 {
+  // If device is LOCKED, apply the lock state to the servo.
+  if (g_device_info.nvs_info.curr_state == DEVICE_STATE_LOCKED
+      || g_device_info.nvs_info.curr_state == DEVICE_STATE_PAUSED)
+  {
+    if (g_device_info.danger_noti_enabled)
+    {
+      bsp_servo_lock();
+      LOG_DBG("Servo locked due to danger noti enabled");
+    }
+    else
+    {
+      bsp_servo_unlock();
+      LOG_DBG("Servo unlocked due to danger noti disabled");
+    }
+  }
+
   // Only affects an alarm already sounding; enable/disable of future alarms is the flag itself
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_STOLEN)
   {

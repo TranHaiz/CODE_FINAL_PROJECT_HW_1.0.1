@@ -107,7 +107,9 @@
 #define LOG_LEVEL_BSP_USB                 LOG_LEVEL_ERROR
 #define LOG_LEVEL_BSP_BLE                 LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_CMD_USB             LOG_LEVEL_INFO
-#define LOG_LEVEL_SYS_NETWORK             LOG_LEVEL_DBG
+#define LOG_LEVEL_SYS_NETWORK             LOG_LEVEL_INFO
+#define LOG_LEVEL_SYS_NETWORK_LTE         LOG_LEVEL_INFO
+#define LOG_LEVEL_SYS_NETWORK_BLE         LOG_LEVEL_INFO
 #define LOG_LEVEL_SYS_MANAGER             LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_UI                  LOG_LEVEL_ERROR
 #define LOG_LEVEL_SYS_INPUT               LOG_LEVEL_INFO
@@ -116,7 +118,6 @@
 #define LOG_LEVEL_SYS_CMD                 LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_LED                 LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_BUZZER              LOG_LEVEL_DBG
-#define LOG_LEVEL_SYS_BLE                 LOG_LEVEL_DBG
 #define LOG_LEVEL_SYS_ERROR               LOG_LEVEL_DBG
 
 // Network configuration
