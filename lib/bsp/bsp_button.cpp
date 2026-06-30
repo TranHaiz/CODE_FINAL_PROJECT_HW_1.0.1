@@ -15,9 +15,12 @@
 
 #include "bsp_io.h"
 #include "device_config.h"
+#include "log_service.h"
 #include "os_lib.h"
 
 /* Private defines ---------------------------------------------------- */
+LOG_MODULE_REGISTER(bsp_button, LOG_LEVEL_BSP_BUTTON)
+
 /* Private enumerate/structure ---------------------------------------- */
 typedef struct
 {
@@ -52,17 +55,17 @@ void bsp_button_init(bsp_button_type_t button, bsp_button_callback_t callback)
     return;
   }
 
-  s_buttons[button].pin                 = IO_BUTTON_PIN;
-  s_buttons[button].cb                  = callback;
-  s_buttons[button].press_time          = 0;
-  s_buttons[button].release_time        = 0;
-  s_buttons[button].is_pressed          = false;
-  s_buttons[button].is_long_handled     = false;
-  s_buttons[button].service_armed       = false;
-  s_buttons[button].service_pending     = false;
-  s_buttons[button].click_count         = 0;
-  s_buttons[button].last_click_time     = 0;
-  s_buttons[button].isr_cb              = NULL;
+  s_buttons[button].pin             = IO_BUTTON_PIN;
+  s_buttons[button].cb              = callback;
+  s_buttons[button].press_time      = 0;
+  s_buttons[button].release_time    = 0;
+  s_buttons[button].is_pressed      = false;
+  s_buttons[button].is_long_handled = false;
+  s_buttons[button].service_armed   = false;
+  s_buttons[button].service_pending = false;
+  s_buttons[button].click_count     = 0;
+  s_buttons[button].last_click_time = 0;
+  s_buttons[button].isr_cb          = NULL;
 
   bsp_io_init(s_buttons[button].pin, BSP_IO_MODE_INPUT_PULLUP);
   if (button == BUTTON_EVT)
@@ -94,6 +97,7 @@ void bsp_button_process(void)
         btn->service_armed = true;  // release before 15s commits service
         if (btn->cb)
         {
+          LOG_INF("Service hold detected");
           btn->cb(BUTTON_PRESS_SERVICE_HOLD, 0);
         }
       }
@@ -105,6 +109,7 @@ void bsp_button_process(void)
 
         if (btn->cb)
         {
+          LOG_INF("Long press detected");
           btn->cb(BUTTON_PRESS_LONG, 0);
         }
       }
@@ -115,6 +120,7 @@ void bsp_button_process(void)
       btn->service_pending = false;
       if (btn->cb)
       {
+        LOG_INF("Service press detected");
         btn->cb(BUTTON_PRESS_SERVICE, 0);
       }
     }
@@ -127,10 +133,12 @@ void bsp_button_process(void)
         {
           if (btn->click_count == 1)
           {
+            LOG_INF("Short press detected");
             btn->cb(BUTTON_PRESS_SHORT, 1);
           }
           else if (btn->click_count >= 2)
           {
+            LOG_INF("Multiple presses detected");
             btn->cb(BUTTON_PRESS_COUNT, btn->click_count);
           }
         }
