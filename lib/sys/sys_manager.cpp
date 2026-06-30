@@ -487,7 +487,6 @@ void sys_manager_lock_from_network_handler(void)
   if (g_device_info.nvs_info.curr_state != DEVICE_STATE_LOCKED)
   {
     bool was_stolen = (g_device_info.nvs_info.curr_state == DEVICE_STATE_STOLEN);
-    sys_network_trigger_end_trip();
     device_info_update_state(DEVICE_STATE_LOCKED);
     sys_ui_lock();
 #if (DEVICE_IDLE_MODE_ENABLED)
