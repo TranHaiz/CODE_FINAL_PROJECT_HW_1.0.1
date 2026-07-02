@@ -31,6 +31,13 @@ void sys_error_init(void);
  */
 void sys_error_process(void);
 
+/**
+ * @brief Report a non-fatal init error in normal mode: latch the LED error event
+ *        and queue a "NOTI_DEVICE_ERROR=<code>" noti (published once MQTT is online)
+ * @param[in] code The device error code
+ */
+void sys_error_notify(device_error_t code);
+
 #endif /* SYS_ERROR_H */
 
 /* End of file -------------------------------------------------------- */

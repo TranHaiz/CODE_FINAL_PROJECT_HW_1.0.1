@@ -19,6 +19,7 @@
 #include "device_config.h"
 #include "log_service.h"
 #include "os_lib.h"
+#include "sys_error.h"
 #include "sys_fusion_log.h"
 #include "sys_led.h"
 
@@ -328,7 +329,7 @@ void sys_fusion_init(void)
   }
   else
   {
-    sys_led_write_event(SYS_LED_EVT_ERROR_IMU);
+    sys_error_notify(DEVICE_ERROR_IMU_INIT);
     LOG_ERR("ACC init failed");
   }
 
@@ -352,6 +353,7 @@ void sys_fusion_init(void)
   }
   else
   {
+    sys_error_notify(DEVICE_ERROR_COMPASS_INIT);
     LOG_ERR("Compass init failed");
   }
 

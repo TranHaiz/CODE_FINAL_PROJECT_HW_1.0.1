@@ -79,6 +79,13 @@ void sys_led_process(void);
  */
 bool sys_led_is_event_active(sys_led_evt_t event);
 
+/**
+ * @brief Map a shared device error code to its LED error event
+ * @param[in] code The device error code
+ * @return The corresponding LED event
+ */
+sys_led_evt_t sys_led_evt_from_error(device_error_t code);
+
 #endif /*End file _SYS_LED_H_*/
 
 /* End of file -------------------------------------------------------- */

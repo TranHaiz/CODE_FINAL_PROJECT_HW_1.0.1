@@ -25,6 +25,7 @@
 #include "bsp_sdcard.h"
 #include "bsp_temp_hum.h"
 #include "log_service.h"
+#include "sys_error.h"
 #include "sys_led.h"
 #include "sys_manager.h"
 #include "sys_ui.h"
@@ -100,7 +101,7 @@ void sys_input_init(void)
   LOG_DBG("Init Battery");
   if (bsp_batt_init() != STATUS_OK)
   {
-    sys_led_write_event(SYS_LED_EVT_ERROR_FUEL_GAUGE);
+    sys_error_notify(DEVICE_ERROR_FUEL_GAUGE_INIT);
     LOG_ERR("Failed to initialize battery monitoring");
   }
   sys_input_initial_battery_level();
@@ -123,7 +124,7 @@ void sys_input_init(void)
   }
   else
   {
-    sys_led_write_event(SYS_LED_EVT_ERROR_TEMP_HUM);
+    sys_error_notify(DEVICE_ERROR_TEMP_HUM_INIT);
     LOG_ERR("Failed to initialize temperature/humidity sensor");
   }
 

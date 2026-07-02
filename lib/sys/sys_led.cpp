@@ -129,6 +129,27 @@ void sys_led_process(void)
   bsp_led_task();
 }
 
+sys_led_evt_t sys_led_evt_from_error(device_error_t code)
+{
+  switch (code)
+  {
+  case DEVICE_ERROR_SD_INIT:
+  case DEVICE_ERROR_SD_MOUNT:
+  case DEVICE_ERROR_SD_MKDIR:
+  case DEVICE_ERROR_SD_OPEN_FILE: return SYS_LED_EVT_ERROR_SD;
+  case DEVICE_ERROR_DISPLAY_INIT: return SYS_LED_EVT_ERROR_DISPLAY;
+  case DEVICE_ERROR_SIM_INIT:
+  case DEVICE_ERROR_SIM_SEND_DATA_FIREBASE:
+  case DEVICE_ERROR_SIM_GET_DATA_FIREBASE: return SYS_LED_EVT_ERROR_SIM;
+  case DEVICE_ERROR_FUEL_GAUGE_INIT: return SYS_LED_EVT_ERROR_FUEL_GAUGE;
+  case DEVICE_ERROR_TEMP_HUM_INIT: return SYS_LED_EVT_ERROR_TEMP_HUM;
+  case DEVICE_ERROR_IMU_INIT: return SYS_LED_EVT_ERROR_IMU;
+  case DEVICE_ERROR_COMPASS_INIT: return SYS_LED_EVT_ERROR_COMPASS;
+  case DEVICE_ERROR_GPS_INIT: return SYS_LED_EVT_ERROR_GPS;
+  default: return SYS_LED_EVT_ERROR_SD;
+  }
+}
+
 bool sys_led_is_event_active(sys_led_evt_t event)
 {
   if (event >= SYS_LED_EVT_MAX)

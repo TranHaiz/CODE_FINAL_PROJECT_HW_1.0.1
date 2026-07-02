@@ -17,27 +17,9 @@
 #include "common_type.h"
 
 /* Public defines ----------------------------------------------------- */
-#define BSP_ERROR_MAX_COUNT (4)  // Fuel gaue + GPS + TempHum + IMU + Compass + SIM = 6 errors
+#define BSP_ERROR_MAX_COUNT (4)  // Consecutive fatal errors before entering error mode
 
 /* Public enumerate/structure ----------------------------------------- */
-typedef enum
-{
-  BSP_ERROR_NONE = 0,
-  BSP_ERROR_SD_INIT,
-  BSP_ERROR_SD_MOUNT,
-  BSP_ERROR_SD_MKDIR,
-  BSP_ERROR_SD_OPEN_FILE,
-  BSP_ERROR_SIM_INIT,
-  BSP_ERROR_SIM_SEND_DATA_FIREBASE,
-  BSP_ERROR_SIM_GET_DATA_FIREBASE,
-  BSP_ERROR_FUEL_GAUGE_INIT,
-  BSP_ERROR_TEMP_HUM_INIT,
-  BSP_ERROR_IMU_INIT,
-  BSP_ERROR_COMPASS_INIT,
-  BSP_ERROR_DISPLAY_INIT,
-  BSP_ERROR_MAX
-} bsp_error_t;
-
 /* Public macros ------------------------------------------------------ */
 /* Public variables --------------------------------------------------- */
 /* Public function prototypes ----------------------------------------- */
@@ -46,7 +28,7 @@ typedef enum
  * @param[in] error_code The error code to handle
  * @return None
  */
-void bsp_error_handler(bsp_error_t error_code);
+void bsp_error_handler(device_error_t error_code);
 
 /**
  * @brief Enter error mode

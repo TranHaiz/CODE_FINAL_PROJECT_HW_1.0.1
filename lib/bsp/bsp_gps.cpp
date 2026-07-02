@@ -13,6 +13,7 @@
 /* Includes ----------------------------------------------------------- */
 #include "bsp_gps.h"
 
+#include "bsp_error.h"
 #include "device_info.h"
 #include "os_lib.h"
 
@@ -32,6 +33,9 @@
 #define GPS_UBX_CFG_NAV5  (0x24)  // Navigation engine settings
 #define GPS_UBX_CFG_PM2   (0x3B)  // Power management
 #define GPS_UBX_CFG_RXM   (0x11)  // RX manager configuration
+
+#define GPS_PROBE_TIMEOUT_MS (2000)  // Max wait for the module to stream NMEA at init
+#define GPS_PROBE_MIN_BYTES  (10)
 
 /* Private enumerate/structure ---------------------------------------- */
 
@@ -110,6 +114,19 @@ status_function_t bsp_gps_init(bsp_gps_callback_t callback)
   bsp_gps_set_new_sample_rate(BSP_GPS_UPDATE_5HZ);
   OS_DELAY_MS(100);
   bsp_gps_save_config();
+
+  // Probe: the module must have streamed NMEA bytes, else count the error and soft reset
+  size_t probe_start_ms = OS_GET_TICK();
+  while (gps_handler.charsProcessed() < GPS_PROBE_MIN_BYTES)
+  {
+    if (OS_GET_TICK() - probe_start_ms >= GPS_PROBE_TIMEOUT_MS)
+    {
+      is_gps_initialized = false;
+      bsp_error_handler(DEVICE_ERROR_GPS_INIT);  // reboots
+      return STATUS_ERROR;
+    }
+    OS_DELAY_MS(50);
+  }
 
   return STATUS_OK;
 }

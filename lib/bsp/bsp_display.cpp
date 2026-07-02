@@ -83,7 +83,7 @@ void bsp_display_init(void)
   // Panel still not responding after retries -> count toward error mode (reboots).
   if (power_mode == 0x00 || power_mode == 0xFF)
   {
-    bsp_error_handler(BSP_ERROR_DISPLAY_INIT);
+    bsp_error_handler(DEVICE_ERROR_DISPLAY_INIT);
   }
 #endif
 

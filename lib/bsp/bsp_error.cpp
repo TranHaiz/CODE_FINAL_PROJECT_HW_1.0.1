@@ -24,25 +24,26 @@
 /* Private variables -------------------------------------------------- */
 /* Private function prototypes ---------------------------------------- */
 /* Function definitions ----------------------------------------------- */
-void bsp_error_handler(bsp_error_t error_code)
+void bsp_error_handler(device_error_t error_code)
 {
   g_device_info.last_error_code = (uint8_t) error_code;  // RTC-persisted so error mode can report it
   device_info_inc_error_count();
 
   switch (error_code)
   {
-  case BSP_ERROR_SD_INIT:
-  case BSP_ERROR_SD_MOUNT:
-  case BSP_ERROR_SD_MKDIR:
-  case BSP_ERROR_SD_OPEN_FILE:
-  case BSP_ERROR_DISPLAY_INIT:
+  case DEVICE_ERROR_SD_INIT:
+  case DEVICE_ERROR_SD_MOUNT:
+  case DEVICE_ERROR_SD_MKDIR:
+  case DEVICE_ERROR_SD_OPEN_FILE:
+  case DEVICE_ERROR_DISPLAY_INIT:
+  case DEVICE_ERROR_GPS_INIT:
   {
     bsp_device_reboot();
     break;
   }
 #if (CONFIG_FIREBASE_SERVER)
-  case BSP_ERROR_SIM_GET_DATA_FIREBASE:
-  case BSP_ERROR_SIM_SEND_DATA_FIREBASE:
+  case DEVICE_ERROR_SIM_GET_DATA_FIREBASE:
+  case DEVICE_ERROR_SIM_SEND_DATA_FIREBASE:
   {
     bsp_sim_reset_http();
     break;

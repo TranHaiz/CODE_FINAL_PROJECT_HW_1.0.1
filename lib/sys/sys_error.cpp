@@ -21,6 +21,7 @@
 #include "log_service.h"
 #include "os_lib.h"
 #include "sys_led.h"
+#include "sys_network.h"
 #include "sys_network_adapter_ble.h"
 
 /* Private defines ---------------------------------------------------- */
@@ -46,36 +47,35 @@ typedef struct
   size_t          last_broadcast_ms;
   err_net_state_t net_state;
   size_t          sim_wait_start_ms;
-  bsp_error_t     code;
+  device_error_t  code;
   char            noti_topic[MQTT_MAX_TOPIC_LEN];
-  char            payload[32];  // "NOTI_ERROR=<code>"
+  char            payload[32];  // "NOTI_DEVICE_ERROR=<code>"
 } sys_error_handler_t;
 
 /* Private variables -------------------------------------------------- */
 static sys_error_handler_t g_sys_error_handler;
 
 /* Private function prototypes ---------------------------------------- */
-static const char   *sys_error_code_str(bsp_error_t code);
-static sys_led_evt_t sys_error_code_led(bsp_error_t code);
-static void          sys_error_net_process(size_t now_ms);
-static void          sys_error_broadcast(void);
+static const char *sys_error_code_str(device_error_t code);
+static void        sys_error_net_process(size_t now_ms);
+static void        sys_error_broadcast(void);
 
 /* Function definitions ----------------------------------------------- */
 void sys_error_init(void)
 {
   memset(&g_sys_error_handler, 0, sizeof(g_sys_error_handler));
-  g_sys_error_handler.code = (bsp_error_t) g_device_info.last_error_code;
+  g_sys_error_handler.code = (device_error_t) g_device_info.last_error_code;
 
   snprintf(g_device_info.device_name, sizeof(g_device_info.device_name), "haq-trk-%03u",
            g_device_info.nvs_info.device_id);
   snprintf(g_sys_error_handler.noti_topic, sizeof(g_sys_error_handler.noti_topic), "%s/noti",
            g_device_info.device_name);
-  snprintf(g_sys_error_handler.payload, sizeof(g_sys_error_handler.payload), NETWORK_NOTI_ERROR_PREFIX "%u",
+  snprintf(g_sys_error_handler.payload, sizeof(g_sys_error_handler.payload), NETWORK_NOTI_DEVICE_ERROR_PREFIX "%u",
            (unsigned) g_sys_error_handler.code);
 
   sys_network_adapter_ble_init();
   sys_led_init();
-  sys_led_write_event(sys_error_code_led(g_sys_error_handler.code));
+  sys_led_write_event(sys_led_evt_from_error(g_sys_error_handler.code));
 
   LOG_ERR("ENTER ERROR MODE: code=%u (%s)", (unsigned) g_sys_error_handler.code,
           sys_error_code_str(g_sys_error_handler.code));
@@ -108,42 +108,33 @@ void sys_error_process(void)
   }
 }
 
-/* Private definitions ----------------------------------------------- */
-static const char *sys_error_code_str(bsp_error_t code)
+void sys_error_notify(device_error_t code)
 {
-  switch (code)
-  {
-  case BSP_ERROR_SD_INIT: return "SD_INIT";
-  case BSP_ERROR_SD_MOUNT: return "SD_MOUNT";
-  case BSP_ERROR_SD_MKDIR: return "SD_MKDIR";
-  case BSP_ERROR_SD_OPEN_FILE: return "SD_OPEN_FILE";
-  case BSP_ERROR_SIM_INIT: return "SIM_INIT";
-  case BSP_ERROR_FUEL_GAUGE_INIT: return "FUEL_GAUGE_INIT";
-  case BSP_ERROR_TEMP_HUM_INIT: return "TEMP_HUM_INIT";
-  case BSP_ERROR_IMU_INIT: return "IMU_INIT";
-  case BSP_ERROR_COMPASS_INIT: return "COMPASS_INIT";
-  case BSP_ERROR_DISPLAY_INIT: return "DISPLAY_INIT";
-  default: return "UNKNOWN";
-  }
+  char payload[32];
+  int  len = snprintf(payload, sizeof(payload), NETWORK_NOTI_DEVICE_ERROR_PREFIX "%u", (unsigned) code);
+
+  LOG_ERR("Device error: code=%u (%s)", (unsigned) code, sys_error_code_str(code));
+  sys_led_write_event(sys_led_evt_from_error(code));
+  sys_network_publish_noti(payload, (size_t) len);
 }
 
-static sys_led_evt_t sys_error_code_led(bsp_error_t code)
+/* Private definitions ----------------------------------------------- */
+static const char *sys_error_code_str(device_error_t code)
 {
   switch (code)
   {
-  case BSP_ERROR_SD_INIT:
-  case BSP_ERROR_SD_MOUNT:
-  case BSP_ERROR_SD_MKDIR:
-  case BSP_ERROR_SD_OPEN_FILE: return SYS_LED_EVT_ERROR_SD;
-  case BSP_ERROR_DISPLAY_INIT: return SYS_LED_EVT_ERROR_DISPLAY;
-  case BSP_ERROR_SIM_INIT:
-  case BSP_ERROR_SIM_SEND_DATA_FIREBASE:
-  case BSP_ERROR_SIM_GET_DATA_FIREBASE: return SYS_LED_EVT_ERROR_SIM;
-  case BSP_ERROR_FUEL_GAUGE_INIT: return SYS_LED_EVT_ERROR_FUEL_GAUGE;
-  case BSP_ERROR_TEMP_HUM_INIT: return SYS_LED_EVT_ERROR_TEMP_HUM;
-  case BSP_ERROR_IMU_INIT: return SYS_LED_EVT_ERROR_IMU;
-  case BSP_ERROR_COMPASS_INIT: return SYS_LED_EVT_ERROR_COMPASS;
-  default: return SYS_LED_EVT_ERROR_SD;
+  case DEVICE_ERROR_SD_INIT: return "SD_INIT";
+  case DEVICE_ERROR_SD_MOUNT: return "SD_MOUNT";
+  case DEVICE_ERROR_SD_MKDIR: return "SD_MKDIR";
+  case DEVICE_ERROR_SD_OPEN_FILE: return "SD_OPEN_FILE";
+  case DEVICE_ERROR_SIM_INIT: return "SIM_INIT";
+  case DEVICE_ERROR_FUEL_GAUGE_INIT: return "FUEL_GAUGE_INIT";
+  case DEVICE_ERROR_TEMP_HUM_INIT: return "TEMP_HUM_INIT";
+  case DEVICE_ERROR_IMU_INIT: return "IMU_INIT";
+  case DEVICE_ERROR_COMPASS_INIT: return "COMPASS_INIT";
+  case DEVICE_ERROR_DISPLAY_INIT: return "DISPLAY_INIT";
+  case DEVICE_ERROR_GPS_INIT: return "GPS_INIT";
+  default: return "UNKNOWN";
   }
 }
 

@@ -105,7 +105,7 @@ status_function_t bsp_sdcard_init(void)
     }
   }
 
-  bsp_error_handler(BSP_ERROR_SD_INIT);
+  bsp_error_handler(DEVICE_ERROR_SD_INIT);
   return STATUS_ERROR;
 }
 

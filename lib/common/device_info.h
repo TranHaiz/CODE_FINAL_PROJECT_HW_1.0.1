@@ -61,7 +61,7 @@ typedef struct
   bool                  danger_noti_enabled;
   device_danger_level_t danger_level;
   bool                  servo_sync_pending;  // lock actuation deferred (battery/brownout guard)
-  uint8_t               last_error_code;     // last bsp_error_t that fed the error counter (RTC-only)
+  uint8_t               last_error_code;     // last device_error_t that fed the error counter (RTC-only)
 } device_info_t;
 
 /* Public macros ------------------------------------------------------ */
