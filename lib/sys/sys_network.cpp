@@ -160,6 +160,10 @@ void sys_network_trigger_new_trip(void)
   s_active_trip_id         = new_trip_id;
   s_current_upload_trip[0] = '\0';
   s_is_data_sd_pending     = false;
+
+  // Trip start wall clock; persisted by the device_info_update_state() that follows this call.
+  bsp_rtc_get(&g_device_info.nvs_info.trip_start_time);
+
   LOG_INF("New trip started: %lu", new_trip_id);
 }
 
