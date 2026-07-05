@@ -594,10 +594,9 @@ typedef struct
   float             compass_heading_deg;
   sys_fusion_data_t fusion;
   // Rental time
-  int        active_hours;
-  int        active_minutes;
-  int        active_seconds;
-  timeline_t unlock_time;
+  int active_hours;
+  int active_minutes;
+  int active_seconds;
   // Environment
   float temperature_C;
   float humidity;
@@ -928,10 +927,7 @@ void sys_ui_process(void)
       ui_ctx.active_seconds   = 0;
       ui_ctx.last_second_tick = now;
       ui_ctx.session_start_ms = now;
-      if (bsp_rtc_get(&ui_ctx.unlock_time) == STATUS_OK)
-      {
-        sys_ui_main_screen_update_time(ui_ctx.active_hours, ui_ctx.active_minutes, ui_ctx.active_seconds);
-      }
+      sys_ui_main_screen_update_time(ui_ctx.active_hours, ui_ctx.active_minutes, ui_ctx.active_seconds);
     }
   }
 
@@ -1227,11 +1223,6 @@ static void sys_ui_init_data(void)
   ui_ctx.humidity        = 60.0f + static_cast<float>(random(0, 300)) / 10.0f;
   ui_ctx.dust_value      = 70 + random(0, 30);
   ui_ctx.battery_percent = 80 + random(0, 20);
-
-  if (bsp_rtc_get(&ui_ctx.unlock_time) != STATUS_OK)
-  {
-    memset(&ui_ctx.unlock_time, 0, sizeof(ui_ctx.unlock_time));
-  }
 
   const char *seed[SYS_UI_MAX_RENTAL_HISTORY] = {
     "Active 09:05",
@@ -1884,13 +1875,13 @@ static void sys_ui_time_screen_update(void)
     sys_ui_time_screen_create();
   }
 
+  const timeline_t *ts = &g_device_info.nvs_info.trip_start_time;
+
   char buf[32];
-  snprintf(buf, sizeof(buf), "%02d:%02d:%02d", ui_ctx.unlock_time.hour, ui_ctx.unlock_time.minute,
-           ui_ctx.unlock_time.second);
+  snprintf(buf, sizeof(buf), "%02d:%02d:%02d", ts->hour, ts->minute, ts->second);
   lv_label_set_text(ui_ctx.widgets.time_history_time_label, buf);
 
-  snprintf(buf, sizeof(buf), "%02d/%02d/%04d", ui_ctx.unlock_time.day, ui_ctx.unlock_time.month,
-           ui_ctx.unlock_time.year);
+  snprintf(buf, sizeof(buf), "%02d/%02d/%04d", ts->date, ts->month, ts->year);
   lv_label_set_text(ui_ctx.widgets.time_history_date_label, buf);
 
   sys_ui_show_screen(ui_ctx.widgets.time_history_screen);

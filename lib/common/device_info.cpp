@@ -226,6 +226,11 @@ static bool device_servo_actuation_safe(void)
 
 void device_info_update_state(device_state_t new_state)
 {
+  if (new_state == DEVICE_STATE_ACTIVE && g_device_info.nvs_info.curr_state != DEVICE_STATE_ACTIVE)
+  {
+    bsp_rtc_get(&g_device_info.nvs_info.trip_start_time);
+  }
+
   g_device_info.nvs_info.prev_state = g_device_info.nvs_info.curr_state;
   g_device_info.nvs_info.curr_state = new_state;
   bsp_device_info_save(&g_device_info.nvs_info);

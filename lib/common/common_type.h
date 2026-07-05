@@ -16,7 +16,6 @@
 /* Includes ----------------------------------------------------------- */
 #include "assert.h"
 #include "device_config.h"  // CONFIG_MQTT_SERVER must be defined before the mqtt_message_t guard
-#include "device_info.h"
 #include "esp_check.h"
 
 #include <Arduino.h>
@@ -108,6 +107,7 @@ typedef struct
   uint8_t       month;   // Month [1-12]
   uint32_t      year;    // Full year (e.g. 2025)
 } timeline_t;
+#include "device_info.h"  // needs timeline_t (defined above) for device_nvs_info_t
 typedef enum
 {
   MODEM_USB = 0,

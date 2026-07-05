@@ -25,7 +25,7 @@
 /* Private defines ---------------------------------------------------- */
 LOG_MODULE_REGISTER(bsp_device, LOG_LEVEL_BSP_DEVICE);
 
-#define DEVICE_INFO_JSON_BUF_SIZE (256)
+#define DEVICE_INFO_JSON_BUF_SIZE (384)
 
 /* Private enumerate/structure ---------------------------------------- */
 /* Private macros ----------------------------------------------------- */
@@ -93,6 +93,15 @@ status_function_t bsp_device_info_save(const device_nvs_info_t *p_info)
   doc["prev_state"]    = (int) p_info->prev_state;
   doc["err_count"]     = p_info->err_count;
   doc["total_km"]      = p_info->total_km;
+
+  JsonObject ts = doc["trip_start"].to<JsonObject>();
+  ts["year"]    = p_info->trip_start_time.year;
+  ts["month"]   = p_info->trip_start_time.month;
+  ts["date"]    = p_info->trip_start_time.date;
+  ts["hour"]    = p_info->trip_start_time.hour;
+  ts["minute"]  = p_info->trip_start_time.minute;
+  ts["second"]  = p_info->trip_start_time.second;
+  ts["dow"]     = (int) p_info->trip_start_time.day;
 
   char   buf[DEVICE_INFO_JSON_BUF_SIZE];
   size_t len = serializeJson(doc, buf, sizeof(buf));
@@ -174,6 +183,14 @@ status_function_t bsp_device_info_load(device_nvs_info_t *p_info)
   const char *serial = doc["serial_number"] | "";
   strncpy(p_info->serial_number, serial, sizeof(p_info->serial_number) - 1);
   p_info->serial_number[sizeof(p_info->serial_number) - 1] = '\0';
+
+  p_info->trip_start_time.year   = doc["trip_start"]["year"] | 0;
+  p_info->trip_start_time.month  = doc["trip_start"]["month"] | 0;
+  p_info->trip_start_time.date   = doc["trip_start"]["date"] | 0;
+  p_info->trip_start_time.hour   = doc["trip_start"]["hour"] | 0;
+  p_info->trip_start_time.minute = doc["trip_start"]["minute"] | 0;
+  p_info->trip_start_time.second = doc["trip_start"]["second"] | 0;
+  p_info->trip_start_time.day    = (day_in_week_t) (doc["trip_start"]["dow"] | 0);
 
   return STATUS_OK;
 }

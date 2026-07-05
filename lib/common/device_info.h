@@ -46,6 +46,7 @@ typedef struct
   device_state_t prev_state;
   float          total_km;
   char           serial_number[DEVICE_SERIAL_NUMBER_MAX_LEN];
+  timeline_t     trip_start_time;
 } device_nvs_info_t;
 typedef struct
 {
